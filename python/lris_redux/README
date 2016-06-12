@@ -1,0 +1,56 @@
+This package contains a LRIS implementation of a multi-slit reduction pipeline.
+
+NOTE: The pipeline was created using data that I have obtained with LRIS and is therefore biased to work with my calibration paradigm. It is *known* to be less robust when taking different calibrations (for example, keeping the Ne/Ar arc lamps on while obtaining blue arc spectra). The red side should be pretty robust either way. I hope to add arc models for all of the lamps in the near future....
+
+The following info has been copied from http://gravlens.physics.ucdavis.edu/~auger/software/lris.php; in general the website will have the most up-to-date info on running the pipeline.
+
+The pipeline requires a minimum amount of calibration data--take a look at my LRIS observing page for more info. There is no real manual yet (this is just an alpha release!), but this page should provide enough details to get started (or see the FAQ). The pipeline consists of a set of python scripts. These scripts contain generic multislit reduction routines (found in the mostools module) and modules specific to LRIS. To install and use the pipeline:
+
+    * Make sure you have a recent version of python, scipy, numpy (if you are an OSX user, download the python, scipy, and numpy binary packages from the link on my LRIS webpage; for other users, you should have scipy >= 0.6 to avoid problems with NaN functions), and pyfits installed. If the program is crashing during a NaN (Not a Number) operation you should update your version of scipy.
+    * download the gzipped tarball.
+    * create a new directory and untar the tarball, then set the python path:
+
+      > mkdir lris_pipeline
+      > cd lris_pipeline
+      > tar zxf PATH_TO_TARBALL/lris_pipeline.tar.gz
+      > export PYTHONPATH=$PWD:$PYTHONPATH
+
+      If you use tcsh/csh use setenv. You will probably want to change your .bashrc/.cshrc file to make the change to PYTHONPATH permanent.
+    * go to the directory where you will reduce the data and create a control script. The control script simply calls the function lris.lris_pipeline.lris_pipeline(). An example is:
+
+      #!/usr/bin/env python
+
+      from lris.lris_pipeline import lris_pipeline
+
+      dir = "/home/auger/Data/LRIS/2007_02/Raw/"   # Directory where the raw data live
+      prefix = "lblue"			     # Usually 'lblue' or 'lred'
+      science = "0158,0169"			     # sequence numbers of science data
+      arc = "0160"				     # sequence number of arc data
+      flats = "0163,0164,0165"		     # sequence numbers of flats
+      use_arc = 0				     # flag to set to use previous arc
+      use_flat = 0				     # flag to set to use previous flat
+      cache = 0				     # flag to write data while working
+      out_prefix = "0850m1_blue"		     # prefix for output files
+      lris_pipeline(prefix,dir,science,arc,flats,out_prefix,use_flat,use_arc,cache)
+
+      or this could be condensed to two lines (or less since the three flags all default to 0 anyways):
+
+      #!/usr/bin/env python
+
+      from lris.lris_pipeline import lris_pipeline
+      lris_pipeline("lblue","/home/auger/Data/LRIS/2007_02/Raw/","0158,0169","0160",
+                          "0163,0164,0165","0850m1_blue",0,0,0)
+
+    * The use_arc and use_flat flags can be set if the flats/arcs have been successfully created but you would like to re-reduce the science data. Note that the previously created arc/flat files (including the ygeom, yforw, and yback files) need to have the same output prefix as the output_prefix for the current run. To reduce the data, run the control script.
+
+      > 0850m1_blue_redux
+
+This will run the pipeline, outputting some useful information to the screen. The outputs of the pipeline are FITS files:
+
+    * calibration data, including descriptions of the mask distortion and a straightened image of the arc spectra
+    * the straightened, wavelength calbrated mask images are stored as a FITS cube in out_prefix_straight.fits
+    * the background subtracted 2d spectra are in out_prefix_bgsub.fits
+    * the 2d variance spectra are in out_prefix_var.fits
+    * the 1d spectral extractions are in files named out_prefix_spec_##_##.fits where the first ## represents the number of the slit the spectrum was extracted from (01 for the bottom) and the second ## represents the order in which spectra were extracted from the slit (starting with the 'brightest' trace).
+
+The 1-d spectra consist of 3 HDU extension that provide the raw extracted spectrum, a smoothed version of the spectrum, and the extracted variance spectrum. The primary HDU describes the location and width of the extraction aperture. 

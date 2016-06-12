@@ -1,0 +1,12 @@
+# Jan 27 - Reworked the id_slits algorithm altogether; it might be impossible
+# 		to make it *always* work, but this seems to be the most robust
+# 		solution so far.
+# 	   Updated the find_peaks algorithm on the red side to perform a low
+# 	   	order fit to the sky continuum level. I also implemented a
+# 	   	clipping routine for the final iteration of the match_lines
+# 	   	routine.
+# Nov 18 - id_slits tolerances changed to allow robust identification for masks
+#		with very long slits and very large gaps
+# Sep 24 - id_slits star/slit identification changed to use just the max value
+#		for trying to ID the starboxes
+# Sep 17 - First public release

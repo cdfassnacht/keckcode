@@ -1,0 +1,151 @@
+#!/usr/bin/env python
+
+from lris.lris_pipeline import lris_pipeline
+import os,pickle
+import Tkinter as Tk
+
+root = Tk.Tk()
+
+def get_science():
+	import tkFileDialog
+	global science
+	val = tkFileDialog.askopenfilenames()
+	if val==None or val==(): return
+	science = val
+
+	text = file_text(val)
+	sciLabel.configure(text=text)
+	return
+
+
+def get_arc():
+	import tkFileDialog
+	global arc
+	val = tkFileDialog.askopenfilename()
+	if val==None or val==(): return
+	arc = val
+
+	text = file_text([val])
+	arcLabel.configure(text=text)
+	return
+
+
+def get_flat():
+	import tkFileDialog
+	global flat
+	val = tkFileDialog.askopenfilenames()
+	if val==None or val==(): return
+	flat = val
+
+	text = file_text(val)
+	flatLabel.configure(text=text)
+	return
+
+
+def file_text(val):
+	files = {}
+	for f in val:
+		tmp = f.split('/')
+		if len(tmp)>1:
+			nam = tmp[-1]
+			dir = f[:-1*len(nam)]
+		else:
+			nam = f
+			dir = ""
+		try:
+			files[dir].append(nam)
+		except:
+			files[dir] = [nam]
+	text = ""
+	for k in files.keys():
+		pwd = os.environ['PWD']+"/"
+		t = k.strip().split(pwd.strip())
+		if len(t)==2:
+			if t[0]==t[1]:
+				text += "  ./"
+			else:
+				text += "  "+t[-1]
+		else:
+			text += "  "+k
+		for n in files[k]:
+			text += n+","
+		text = text[:-1]
+	return text.strip()
+
+
+def run():
+	use_flat = useFlat.get()
+	use_arc = useArc.get()
+	cache = useCache.get()
+	out_prefix = outPrefix.get()
+	prefix = None
+	dir = os.environ['PWD']+"/"
+
+	lris_pipeline(prefix,dir,science,arc,flat,out_prefix,use_flat,use_arc,cache)
+
+
+
+root.title('LRIS Reduction Pipeline')
+sciButton = Tk.Button(text='Select Science Files',command=get_science)
+sciButton.grid(row=0,column=0,sticky=Tk.E+Tk.W)
+sciLabel = Tk.Label(text="",width=40,justify='left',anchor=Tk.W)
+sciLabel.grid(row=0,column=1,columnspan=2,sticky=Tk.W)
+
+arcButton = Tk.Button(text='Select Arc Files',command=get_arc)
+arcButton.grid(row=1,column=0,sticky=Tk.E+Tk.W)
+arcLabel = Tk.Label(text="",width=40,justify='left',anchor=Tk.W)
+arcLabel.grid(row=1,column=1,columnspan=2,sticky=Tk.W)
+
+flatButton = Tk.Button(text='Select Flat Files',command=get_flat)
+flatButton.grid(row=2,column=0,sticky=Tk.E+Tk.W)
+flatLabel = Tk.Label(text="",width=40,justify='left',anchor=Tk.W)
+flatLabel.grid(row=2,column=1,columnspan=2,sticky=Tk.W)
+
+outPrefix = Tk.StringVar()
+prefixLabel = Tk.Label(text="Output Prefix:",anchor=Tk.E)
+prefixLabel.grid(row=3,column=0,sticky=Tk.W+Tk.E)
+prefixEntry = Tk.Entry(text="",textvar=outPrefix)
+prefixEntry.grid(row=3,column=1,columnspan=2,sticky=Tk.W)
+
+useArc = Tk.IntVar()
+useArc.set(0)
+arcCheck = Tk.Checkbutton(text='Use Previous Arc?',variable=useArc)
+arcCheck.grid(row=4,column=0)
+
+useFlat = Tk.IntVar()
+useFlat.set(0)
+flatCheck = Tk.Checkbutton(text='Use Previous Flat?',variable=useFlat)
+flatCheck.grid(row=4,column=1)
+
+useCache = Tk.IntVar()
+useCache.set(0)
+cacheCheck = Tk.Checkbutton(text='Use Cache?',variable=useCache)
+cacheCheck.grid(row=4,column=2)
+
+runButton = Tk.Button(text='RUN PIPELINE',command=run)
+runButton.grid(row=5,columnspan=3)
+
+home = os.environ['HOME']
+
+try:
+	f = open(home+"/.lris_pipeline.dat")
+	data = pickle.load(f)
+	dir,prefix,science,arc,flat,use_arc,use_flat,cache,out_prefix = data
+except:
+	dir = ""
+	prefix = ""
+	science = []
+	arc = ""
+	flat = []
+	use_arc = 0
+	use_flat = 0
+	cache = 0
+	out_prefix = "lredux"
+
+useArc.set(use_arc)
+useFlat.set(use_flat)
+useCache.set(cache)
+outPrefix.set(out_prefix)
+
+
+Tk.mainloop()
