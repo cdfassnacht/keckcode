@@ -29,10 +29,11 @@ import special_functions
 from math import ceil,fabs
 import pickle
 
-import scipy,pyfits
+import numpy as np
+import scipy
 from scipy import stats,interpolate,ndimage
 from scipy import io as sio
-
+from astropy.io import fits as pyfits
 
 
 """ A control routine to encapsulate the pipeline. """
@@ -57,7 +58,7 @@ def lris_pipeline(prefix,dir,scinames,arcname,flatnames,out_prefix,useflat=0,use
 	"""
 	print "Preparing arcs for line identification"
 	if usearc==1:
-		arcblah = biastrim(pyfits.open(arcname)[0].data)
+		arcdata = biastrim(pyfits.open(arcname)[0].data)
 		arcname = out_prefix+"_arc.fits"
 		arc_tmp = pyfits.open(arcname)
 		arc_ycor = arc_tmp[0].data.astype(scipy.float32)
@@ -115,7 +116,17 @@ def lris_pipeline(prefix,dir,scinames,arcname,flatnames,out_prefix,useflat=0,use
 		for k in range(nbad):
 			y = bad[0][k]
 			x = bad[1][k]
-			scidatatmp[y,x] = (scidatatmp[y,x-1]+scidatatmp[y,x+1])/2.
+			if x==0:
+				x1 = x+1
+				x2 = x+1
+			elif x == scidatatmp.shape[1]-1:
+				x1 = x-1
+				x2 = x-1
+			else:
+				x1 = x-1
+				x2 = x+1
+			scidatatmp[y,x] = \
+			    (scidatatmp[y,x1]+scidatatmp[y,x2])/2.
 
 		"""
 		Apply the flatfield and copy the data into the working array.
@@ -280,7 +291,8 @@ def lris_pipeline(prefix,dir,scinames,arcname,flatnames,out_prefix,useflat=0,use
 	if dich_file!='':
 		filename = lris_path+"/data/dichroics/dichroic_"+dich_file+"_t.dat"
 		infile = open(filename,"r")
-		input = sio.read_array(infile)
+		#input = sio.read_array(infile)
+		input = np.loadtxt(infile)
 		infile.close()
 		spline = interpolate.splrep(input[:,0],input[:,1],s=0)
 		dich = interpolate.splev(wave,spline)
@@ -387,7 +399,7 @@ def lris_pipeline(prefix,dir,scinames,arcname,flatnames,out_prefix,useflat=0,use
 	count = 1
 
 	""" Debugging feature; set to 1 to skip background subtraction """
-	lris.lris_red.skysub.RESAMPLE = 1
+	lris.lris_red.skysub.RESAMPLE = 0
 	for k in range(len(slits)):
 		i,j = slits[k]
 		a,b = wide_slits[k]
@@ -401,7 +413,7 @@ def lris_pipeline(prefix,dir,scinames,arcname,flatnames,out_prefix,useflat=0,use
 		# Determine the wavelength solution
 		sky2x,sky2y,ccd2wave = wavematch(a,scidata[:,a:b],arc_ycor[i:j],yforw[i:j],widemodel,finemodel,goodmodel,scale,mswave,redcutoff)
 		# Resample and background subtract
-		scidata[0,a:b] = arcblah[a:b]
+		scidata[0,a:b] = arcdata[a:b]
 		strt,bgsub,varimg = doskysub(i,j-i,outlength,scidata[:,a:b],yback[a:b],sky2x,sky2y,ccd2wave,scale,mswave,center,redcutoff,airmass)
 
 		# Store the resampled 2d spectra

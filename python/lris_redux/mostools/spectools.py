@@ -2,7 +2,8 @@
 A suite of functions for manipulating 2d and 1d spectra.
 """
 
-import scipy,pyfits
+import scipy
+from astropy.io import fits as pyfits
 
 
 def resample1d(data,coeffs,axis,const=0.0,offset=0.):
@@ -208,7 +209,7 @@ def logrebin(spectrum,crval,crpix,cd1):
 	return outwave,newspec
 
 def fits_logrebin(infile,outfile):
-	import pyfits
+	from astropy.io import fits as pyfits
 	f = pyfits.open(infile)
 	header = f[0].header
 	data = f[0].data.copy()

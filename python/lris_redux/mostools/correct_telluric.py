@@ -2,7 +2,7 @@
 Helper functions to remove telluric absorption based on a model from Keck.
 """
 
-import scipy
+import scipy,numpy
 from scipy import io as sio,ndimage,interpolate
 import mostools
 
@@ -64,9 +64,9 @@ def bband(inwave,airmass=1.,scale=0.85):
 	Telluric correction for the B-band
 	"""
 	path = mostools.__path__[0]
-	file = path+"/data/bband.dat"
+	infile = path+"/data/bband.dat"
 
-	bband = sio.read_array(file)
+	bband = numpy.loadtxt(infile)
 
 	wave = scipy.power(10.,bband[:,0])
 	data = bband[:,1].astype(scipy.float32)
@@ -79,9 +79,9 @@ def aband(inwave,airmass=1.,scale=0.85):
 	Telluric correction for the A-band
 	"""
 	path = mostools.__path__[0]
-	file = path+"/data/aband.dat"
+	infile = path+"/data/aband.dat"
 
-	aband = sio.read_array(file)
+	aband = numpy.loadtxt(infile)
 
 	wave = aband[:,0]
 	data = aband[:,1].astype(scipy.float32)

@@ -3,9 +3,10 @@ Determine the offset between multi-slit mask images.
 """
 
 import spectools,special_functions,scipy
-import pyfits
+from astropy.io import fits as pyfits
 
 from scipy import stats
+import numpy as np
 
 def findoffset(scidata,coord,offset,slice=None):
 	"""
@@ -29,7 +30,7 @@ def findoffset(scidata,coord,offset,slice=None):
 	  of this aperture is our star profile that we center wrt.
 	"""
 	straight = spectools.resampley(scidata,coord,offset,slice=slice)
-	illum = stats.stats.median(straight,axis=0)
+	illum = np.median(straight,axis=0)
 	peak = illum.argmax()
 	start = peak-100
 	end = peak+100
@@ -37,7 +38,7 @@ def findoffset(scidata,coord,offset,slice=None):
 		start = 0
 	if end>illum.size:
 		end = illum.size
-	slice = stats.stats.median(straight[:,start:end],axis=1)
+	slice = np.median(straight[:,start:end],axis=1)
 	xvals = scipy.arange(slice.size)*1.
 
 	""" Sharpen the stellar profile. """

@@ -18,9 +18,10 @@ from pickle import dump,load
 from math import ceil,fabs
 import os
 
-import scipy,pyfits
+import scipy
 from scipy import stats,interpolate,ndimage
 from scipy import io as sio
+from astropy.io import fits as pyfits
 
 # Pipeline to reduce LRIS red or blueside spectra
 # Inputs:

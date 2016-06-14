@@ -27,7 +27,7 @@ Outputs:
   1d extracted spectra, including a smoothed spectrum and variance spectrum
 """
 
-import pyfits
+from astropy.io import fits as pyfits
 
 def lris_pipeline(prefix,dir,science,arc,flats,out_prefix,useflat=0,usearc=0,cache=0,offsets=None):
 	""" Batch files will have a prefix """

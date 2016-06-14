@@ -3,8 +3,8 @@ Module to process the LRIS redside flat files. flatpipe() processes new files
   and flatload() loads pre-existing files.
 """
 
-import scipy,pyfits,pickle
-
+import scipy,pickle
+from astropy.io import fits as pyfits
 
 def flatpipe(flatfiles,out_prefix):
 	"""

@@ -9,9 +9,10 @@ from mostools import spectools
 from lris.lris_red import skysub
 import special_functions
 
-import pyfits,scipy
+import numpy as np
+import scipy
 from scipy import optimize,interpolate,ndimage,signal,stats
-
+from astropy.io import fits as pyfits
 
 """ Define saturation level for arclines """
 SATURATED = 57000.
@@ -130,27 +131,27 @@ Finds and centroids peaks in the spectrum.
 """
 def findlines(x,z,nsigma=5.):
 	""" Start by estimating the sky continuum background. """
-	min = ndimage.minimum_filter(z,9)
-	minx = scipy.where(min==z)[0]
-	min = z[minx]
+	zmin = ndimage.minimum_filter(z,9)
+	minx = scipy.where(zmin==z)[0]
+	zmin = z[minx]
 	fit = scipy.empty((minx.size,2))
 	fit[:,0] = minx.astype(scipy.float32)
-	fit[:,1] = min.copy()
+	fit[:,1] = zmin.copy()
 	bgfit = special_functions.lsqfit(fit,'chebyshev',7)
 
 	""" Trim outliers (usually from blended lines) """
 	while 1:
 		bg = special_functions.genfunc(minx,0,bgfit)
 		oldsize = minx.size
-		std = stats.stats.std(min-bg)
-		cond = ((min-bg)<3.*std)&((bg-min)<5.*std)
-		min = min[cond]
+		std = np.std(zmin-bg)
+		cond = ((zmin-bg)<3.*std)&((bg-zmin)<5.*std)
+		zmin = zmin[cond]
 		minx = minx[cond]
 		if minx.size==oldsize or minx.size==0:
 			break
 		fit = scipy.empty((minx.size,2))
 		fit[:,0] = minx.astype(scipy.float32)
-		fit[:,1] = min.copy()
+		fit[:,1] = zmin.copy()
 		bgfit = special_functions.lsqfit(fit,'chebyshev',7)
 	bg = special_functions.genfunc(scipy.arange(z.size),0,bgfit)
 
@@ -159,9 +160,17 @@ def findlines(x,z,nsigma=5.):
 	  level above the background.
 	"""
 	tmp = ndimage.maximum_filter(z,9)
+	mask = bg<0
+	if mask.sum()>0:
+		bgmin = bg[bg>0].min()
+		bg[mask] = bgmin
+		#print ''
+		#print 'ERROR: bg<0 in %d pixels' % (mask.sum())
+		#print bg.shape
+		#print ''
+		#exit()
 	threshold = bg+nsigma*(bg**0.5)
 	peaks = scipy.where((tmp==z)&(z>threshold))[0]
-
 
 	""" Centroid the lines, fixing the bias level of the gaussians """
 	fit = scipy.ones(8)
@@ -240,7 +249,7 @@ def matchlines(peaks,w,tol,order,clean=False):
 	"""
 	while clean:
 		size = diff.size
-		cond = abs(diff)<2.*stats.stats.std(diff)
+		cond = abs(diff)<2.*diff.std()
 		data = fitdata[:,0][cond]
 		if data.size==diff.size:
 			break
@@ -522,7 +531,7 @@ def skymatch(curve,sci,arc,yforw,widemodel,finemodel,goodmodel,disp,mswave,cutof
 		error,skycoeff = matchlines(peaks,skycoeff,disp,3,True)
 		wlen = special_functions.genfunc(newxdata,0,skycoeff)
 
-		print "  Image %d wavelength error: %5.3f angstroms from %d lines" % (k+1,stats.stats.std(error),error.size)
+		print "  Image %d wavelength error: %5.3f angstroms from %d lines" % (k+1,np.std(error),error.size)
 
 
 		"""

@@ -2,7 +2,8 @@
 Extracts a spectrum from 2d mask and variance images.
 """
 
-import pyfits,scipy,os
+import scipy,os
+from astropy.io import fits as pyfits
 from mostools import spectools
 import special_functions as sf
 from scipy import signal

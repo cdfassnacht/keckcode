@@ -28,9 +28,10 @@ import special_functions
 from math import ceil,fabs
 import time,pickle
 
-import scipy,pyfits
+import scipy
 from scipy import stats,interpolate,ndimage
 from scipy import io as sio
+from astropy.io import fits as pyfits
 
 """
 The top and the bottom of the mask are treated as separate detectors (since

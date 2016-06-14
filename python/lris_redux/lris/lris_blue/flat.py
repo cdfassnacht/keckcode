@@ -7,7 +7,8 @@ NOTES:	The pipeline treats the two CCDs as independent (since they are...).
 	  side to make them worthwhile), so no normalization is performed.
 """
 
-import scipy,pyfits,pickle
+import scipy,pickle
+from astropy.io import fits as pyfits
 
 def flatpipe(flatfiles,out_prefix):
 	"""

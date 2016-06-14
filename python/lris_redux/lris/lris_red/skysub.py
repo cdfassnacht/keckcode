@@ -5,9 +5,9 @@ Background subtract, resample, and coadd 2d spectra.
 from mostools import spectools,correct_telluric,skysub
 from special_functions import genfunc
 
-import pyfits,scipy
+import scipy
 from scipy import optimize,interpolate,ndimage,signal,stats
-
+from astropy.io import fits as pyfits
 
 RESAMPLE = 0		# 1 to only resample
 magicnum = -2**15
