@@ -535,4 +535,4 @@ def lris_pipeline(prefix,dir,scinames,arcname,flatnames,out_prefix,useflat=0,use
 		outfile.writeto(outname)
 		del outfile
 
-	del out,outfile
+	del out
