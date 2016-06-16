@@ -2,7 +2,7 @@ from lris.lris_pipeline import lris_pipeline
 
 rawdir = '../Raw/'
 prefix = 'lred'
-sciframes  = '0121,0124,0125,0128,129'
+sciframes  = '0121,0124,0125,0128,0129'
 arcframe   = '0123'
 flatframes = '0122,0126'
 use_arc = 0

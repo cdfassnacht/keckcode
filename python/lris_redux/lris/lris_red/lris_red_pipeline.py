@@ -400,6 +400,9 @@ def lris_pipeline(prefix,dir,scinames,arcname,flatnames,out_prefix,useflat=0,use
 
 	""" Debugging feature; set to 1 to skip background subtraction """
 	lris.lris_red.skysub.RESAMPLE = 0
+	""" Extract 1d spectra? """
+	do_extract = False
+
 	for k in range(len(slits)):
 		i,j = slits[k]
 		a,b = wide_slits[k]
@@ -445,36 +448,38 @@ def lris_pipeline(prefix,dir,scinames,arcname,flatnames,out_prefix,useflat=0,use
 
 
 		# Find and extract object traces
-		tmp = scipy.where(scipy.isnan(bgsub),0.,bgsub)
-		filter = tmp.sum(axis=0)
-		mod = scipy.where(filter!=0)
-		start = mod[0][0]
-		end = mod[0][-1]+1
-		del tmp
-		slit = bgsub[:,start:end]
-		spectra = extract(slit,varimg[:,start:end],extractwidth)
-		num = 1
-		crval = mswave-(0.5*bgsub.shape[1]-start)*scale
-		for spec in spectra:
-			for item in spec:
-				if item.size==4:
-					hdu = pyfits.PrimaryHDU()
-					hdu.header.update('CENTER',item[2])
-					hdu.header.update('WIDTH',item[3])
-					hdulist = pyfits.HDUList([hdu])
-				else:
-					thdu = pyfits.ImageHDU(item)
-					thdu.header.update('CRVAL1',crval)
-					thdu.header.update('CD1_1',scale)
-					thdu.header.update('CRPIX1',1)
-					thdu.header.update('CRVAL2',1)
-					thdu.header.update('CD2_2',1)
-					thdu.header.update('CRPIX2',1)
-					thdu.header.update('CTYPE1','LINEAR')
-					hdulist.append(thdu)
-			outname = out_prefix+"_spec_%02d_%02d.fits" % (count,num)
-			hdulist.writeto(outname)
-			num += 1
+		if do_extract:
+			print '  Extracting object spectra'
+			tmp = scipy.where(scipy.isnan(bgsub),0.,bgsub)
+			filter = tmp.sum(axis=0)
+			mod = scipy.where(filter!=0)
+			start = mod[0][0]
+			end = mod[0][-1]+1
+			del tmp
+			slit = bgsub[:,start:end]
+			spectra = extract(slit,varimg[:,start:end],extractwidth)
+			num = 1
+			crval = mswave-(0.5*bgsub.shape[1]-start)*scale
+			for spec in spectra:
+				for item in spec:
+					if item.size==4:
+						hdu = pyfits.PrimaryHDU()
+						hdu.header.update('CENTER',item[2])
+						hdu.header.update('WIDTH',item[3])
+						hdulist = pyfits.HDUList([hdu])
+					else:
+						thdu = pyfits.ImageHDU(item)
+						thdu.header.update('CRVAL1',crval)
+						thdu.header.update('CD1_1',scale)
+						thdu.header.update('CRPIX1',1)
+						thdu.header.update('CRVAL2',1)
+						thdu.header.update('CD2_2',1)
+						thdu.header.update('CRPIX2',1)
+						thdu.header.update('CTYPE1','LINEAR')
+						hdulist.append(thdu)
+					outname = out_prefix+"_spec_%02d_%02d.fits" % (count,num)
+					hdulist.writeto(outname)
+					num += 1
 
 		count += 1
 
@@ -513,19 +518,21 @@ def lris_pipeline(prefix,dir,scinames,arcname,flatnames,out_prefix,useflat=0,use
 		file = pyfits.open(strtfile)
 		out = file[0].data.copy()
 		del file
-	outname = out_prefix+"_straight.fits"
-	outfile = pyfits.PrimaryHDU(out[:,:,start:end])
-	outfile.header.update('CTYPE1','LINEAR')
-	outfile.header.update('CRPIX1',1)
-	outfile.header.update('CRVAL1',mswave-(0.5*out.shape[2]-start)*scale)
-	outfile.header.update('CD1_1',scale)
-	outfile.header.update('CRPIX2',1)
-	outfile.header.update('CRVAL2',1)
-	outfile.header.update('CD2_2',1)
-	if nsci>1:
-		outfile.header.update('CRPIX3',1)
-		outfile.header.update('CRVAL3',1)
-		outfile.header.update('CD3_3',1)	
-	outfile.writeto(outname)
+	for i in range(nsci):
+		outname = out_prefix+"_straight_%d.fits" % (i+1)
+		outfile = pyfits.PrimaryHDU(out[i,:,start:end])
+		outfile.header.update('CTYPE1','LINEAR')
+		outfile.header.update('CRPIX1',1)
+		outfile.header.update('CRVAL1',mswave-(0.5*out.shape[2]-start)*scale)
+		outfile.header.update('CD1_1',scale)
+		outfile.header.update('CRPIX2',1)
+		outfile.header.update('CRVAL2',1)
+		outfile.header.update('CD2_2',1)
+		#if nsci>1:
+		#	outfile.header.update('CRPIX3',1)
+		#	outfile.header.update('CRVAL3',1)
+		#	outfile.header.update('CD3_3',1)	
+		outfile.writeto(outname)
+		del outfile
 
 	del out,outfile
