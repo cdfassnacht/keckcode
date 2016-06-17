@@ -416,7 +416,8 @@ def lris_pipeline(prefix,dir,scinames,arcname,flatnames,out_prefix,useflat=0,use
 		# Determine the wavelength solution
 		sky2x,sky2y,ccd2wave = wavematch(a,scidata[:,a:b],arc_ycor[i:j],yforw[i:j],widemodel,finemodel,goodmodel,scale,mswave,redcutoff)
 		# Resample and background subtract
-		scidata[0,a:b] = arcdata[a:b]
+		print 'Doing background subtraction'
+		#scidata[0,a:b] = arcdata[a:b] # This line may be a debugging step that MWA put in.  See what happens with it missing.
 		strt,bgsub,varimg = doskysub(i,j-i,outlength,scidata[:,a:b],yback[a:b],sky2x,sky2y,ccd2wave,scale,mswave,center,redcutoff,airmass)
 
 		# Store the resampled 2d spectra
