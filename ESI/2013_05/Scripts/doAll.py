@@ -4,7 +4,12 @@ from esi import bgsub
 dir = '../Raw/'
 out = 'calib'
 
-import pyfits,glob
+import glob
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
+
 # Try to just select the science files
 # NOTE: the line below that looks at the first letter in the TARGNAME
 #  and only processes objects where the name begins with E or B is

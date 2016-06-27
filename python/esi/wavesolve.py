@@ -1,8 +1,12 @@
 import esi
 import special_functions as sf
 
-import pyfits,scipy,pickle,numpy
+import scipy,pickle,numpy
 from scipy import stats,io,ndimage
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 
 def clip(data,clip=3.):
     d = data.copy()

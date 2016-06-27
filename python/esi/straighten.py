@@ -3,8 +3,12 @@ from esi.biastrim import biastrim
 
 from special_functions import lsqfit,genfunc
 
-import numpy,scipy,pyfits,pickle
+import numpy,scipy,pickle
 from scipy import ndimage,stats
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 
 def starstack(starfiles,out_prefix):
     # Read data from files, biastrim and coadd

@@ -13,9 +13,13 @@ from pickle import dump,load
 from math import floor,ceil,fabs
 import os,sys
 
-import numpy,scipy,pyfits
+import numpy,scipy
 from scipy import stats,interpolate,ndimage
 from scipy import io as sio
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 
 
 def message(string):

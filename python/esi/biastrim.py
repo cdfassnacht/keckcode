@@ -1,4 +1,9 @@
-import pyfits,numpy
+import numpy
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
+
 
 def make_bias(filelist):
     count = 0

@@ -4,8 +4,12 @@ from esi.straighten import straighten,curve
 
 from special_functions import lsqfit,genfunc
 
-import numpy,scipy,pyfits,pickle
+import numpy,scipy,pickle
 from scipy import stats
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 
 
 def make_flat(flatfiles,out_prefix):
