@@ -1,4 +1,7 @@
-import pyfits
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 
 d = pyfits.open('../raw/e130514_0060.fits')
 cuar = pyfits.open('../raw/e130514_0002.fits')[0].data.copy()

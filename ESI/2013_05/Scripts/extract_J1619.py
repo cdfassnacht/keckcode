@@ -1,4 +1,7 @@
-import pyfits as py
+try:
+    import pyfits as py
+except:
+    from astropy.io import fits as py
 import numpy as np,pylab as pl
 from scipy import ndimage,interpolate
 import special_functions as sf

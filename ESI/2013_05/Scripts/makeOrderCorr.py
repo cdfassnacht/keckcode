@@ -1,6 +1,10 @@
-import pyfits,numpy,pylab,cPickle
+import numpy,pylab,cPickle
 from scipy import ndimage
 import special_functions as sf
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 
 #d = pyfits.open('EEL1248+4711_0033_2d.fits')
 #v = pyfits.open('EEL1248+4711_0033_var.fits')

@@ -1,6 +1,10 @@
-import pyfits,numpy,pylab
+import numpy,pylab
 from scipy import ndimage,interpolate
 import special_functions as sf
+try:
+    import pyfits
+except:
+    from astropy.io import fits as pyfits
 
 
 blue = [1500,1400,1300,1200,1100,900,600,200,0,0,0]
