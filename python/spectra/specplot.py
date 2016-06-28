@@ -1,5 +1,9 @@
-import pylab,scipy,pyfits,special_functions
+import pylab,scipy,special_functions
 import matplotlib as mpl
+try:
+	import pyfits
+except:
+	from astropy.io import fits as pyfits
 
 class SpecPlot:
 

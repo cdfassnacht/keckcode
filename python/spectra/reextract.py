@@ -1,4 +1,8 @@
-import extract,pyfits,sys,spectools,scipy
+import extract,sys,spectools,scipy
+try:
+	import pyfits
+except:
+	from astropy.io import fits as pyfits
 
 def write_slits(spectra,crpix,crval,scale,out_prefix,slitnum):
 	num = 1

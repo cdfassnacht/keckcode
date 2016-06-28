@@ -1,5 +1,9 @@
-import scipy,pyfits
+import scipy
 from scipy import ndimage
+try:
+	import pyfits
+except:
+	from astropy.io import fits as pyfits
 
 import special_functions
 

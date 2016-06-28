@@ -1,5 +1,8 @@
 import spectools,special_functions,scipy
-import pyfits
+try:
+	import pyfits
+except:
+	from astropy.io import fits as pyfits
 
 from scipy import stats
 

@@ -1,4 +1,8 @@
-import scipy,pyfits
+import scipy
+try:
+	import pyfits
+except:
+	from astropy.io import fits as pyfits
 
 # resample1d(data,coeffs,axis,const)
 # array_coords(shape)
@@ -142,7 +146,10 @@ def logrebin(spectrum,crval,crpix,cd1):
 	return outwave,newspec
 
 def fits_logrebin(infile,outfile):
-	import pyfits
+	try:
+		import pyfits
+	except:
+		from astropy.io import fits as pyfits
 	f = pyfits.open(infile)
 	header = f[0].header
 	data = f[0].data.copy()

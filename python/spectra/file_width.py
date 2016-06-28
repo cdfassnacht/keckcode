@@ -1,4 +1,8 @@
-import scipy,pyfits,special_functions
+import scipy,special_functions
+try:
+	import pyfits
+except:
+	from astropy.io import fits as pyfits
 from spectra import spectools
 
 def measure(file,num=25):

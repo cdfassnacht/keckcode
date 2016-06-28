@@ -1,4 +1,8 @@
-import scipy,pyfits
+import scipy
+try:
+	import pyfits
+except:
+	from astropy.io import fits as pyfits
 from scipy import ndimage
 
 def id_slits(flat_data):
