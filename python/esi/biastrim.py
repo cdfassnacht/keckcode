@@ -1,9 +1,4 @@
-import numpy
-try:
-    import pyfits
-except:
-    from astropy.io import fits as pyfits
-
+import pyfits,numpy
 
 def make_bias(filelist):
     count = 0
@@ -46,6 +41,7 @@ def biastrim(data,bias,bpm):
 
         # There is a small gain difference between the amplifiers
         off = numpy.median((data[1048]/data[1047])[data[1047]!=0])
+        off = 1.08
         data[24:1048] *= off
         return data[24:2072]*bpm*1.29
     else:
@@ -55,5 +51,6 @@ def biastrim(data,bias,bpm):
         data[12:524] -= b1
         data[524:1036] -= b2
         off = numpy.median(data[524]/data[523])
+        off = 1.08
         data[12:524] *= off
         return data[12:1036]*bpm*1.29
