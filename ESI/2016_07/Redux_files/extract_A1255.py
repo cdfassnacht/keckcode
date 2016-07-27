@@ -213,11 +213,11 @@ def extract(pref,nums,apnum,wid=1.,wht=False):
     
     return outwave,spec,var
 
-fullname = 'A1523-0517'
-name='A1523'
+fullname = 'A1255-0455'
+name='A1255'
 apcent = [0.,]
 aplab = ['A',]
-inframes = [47,48]
+inframes = [40,41]
 
 for jj in range(len(aplab)):
     ow,s,v = extract(fullname,inframes,jj,wid=2.0)
