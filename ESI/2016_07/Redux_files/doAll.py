@@ -22,9 +22,9 @@ files.sort()
 for f in files:
     print f
     h = pyfits.open(f)[0].header
-    if h['TARGNAME'][0:2] not in ['F0']:
+    if h['TARGNAME'][0:2] not in ['HS']:
         continue
-    #if h['TARGNAME'][0] not in ['F']:
+    #if h['TARGNAME'][0] not in ['1']:
     #    continue
     #if h['TARGNAME'][0] not in ['E', 'A', 'J', '1', 'F']:
     #    continue
