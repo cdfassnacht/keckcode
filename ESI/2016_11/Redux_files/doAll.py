@@ -17,8 +17,8 @@ except:
 #  specific to this data set.  All of the science targets in this 2013_05
 #  observing run were either EELs or had B1950-coordinate names.
 #
-files = glob.glob('%s/e%s_005?.fits'%(rawdir,obsdate))
-#files = glob.glob('%s/e%s_0061.fits'%(rawdir,obsdate))
+files = glob.glob('%s/e%s_006?.fits'%(rawdir,obsdate))
+#files = glob.glob('%s/e%s_0059.fits'%(rawdir,obsdate))
 #files = glob.glob('%s/e%s*.fits'%(rawdir,obsdate))
 files.sort()
 for f in files:
