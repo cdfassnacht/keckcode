@@ -1,8 +1,7 @@
 """
-This version of the generic extraction code is, with the exception of
-a few minor tweaks, the version that came from Lindsay's examples.
-The new extract_generic.py is being set up to work with the new
-Esi2d class and associated code in esi_spec.py
+This version of the extraction code has started with Lindsay's example
+but has been modified to work with the ESI code in esi_spec.py
+(in the KeckCDF github repo).
 """
 
 try:
@@ -15,6 +14,8 @@ import special_functions as sf
 from spectra import spectools as st
 import indexTricks as iT
 import spec_simple as ss
+import esi_spec as esi
+
 
 """ 
 Set the range of valid pixels for each order.
@@ -34,12 +35,14 @@ def clip(arr,nsig=3.):
         if a.size==l:
             return m,s
 
+#---------------------------------------------------------------------------
+
 def get_ap(slit, B, R, apcent, apnum, wid, order):
     xproj = np.median(slit[:,B:R],1) 
     m,s = clip(xproj)
            
     smooth = ndimage.gaussian_filter(xproj,1)
-    if order == 3.:
+    if order == 2: # NB: This was 3 in the original file, see note below
         smooth = ndimage.gaussian_filter(xproj[:-30],1)
     x = np.arange(xproj.size)*1. 
     """ 
@@ -63,6 +66,8 @@ def get_ap(slit, B, R, apcent, apnum, wid, order):
     ap = ap.repeat(slit.shape[1]).reshape(slit.shape)
     return ap,fit
 
+#---------------------------------------------------------------------------
+
 def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
             indir='.', wid=1., wht=False):
     ''' 
@@ -70,12 +75,11 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
     wht    = True gives a Gaussian aperture 
     wid    = how many sigmas wide your aperture is 
     '''
-    ospex = {} # spectrum
-    ovars = {} # variance
-    owave = {} # wavelength (one for each order of the echelle)
-    for order in range(1,11):
-        ospex[order] = []
-        ovars[order] = []
+
+    """ Create lists to hold the HDULists produced for each frame """
+    slist = []
+    vlist = []
+    wlist = []
 
     for numIndx in range(len(frames)):
         num = frames[numIndx]
@@ -86,28 +90,46 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
             idir = indir
         specname = '%s/%s_%04d_bgsub.fits'%(idir,pref,num)
         varname  = specname.replace('bgsub','var')
-        d = pf.open(specname)
-        v = pf.open(varname)
+        d = esi.Esi2d(specname)
+        v = esi.Esi2d(varname)
+
+        """ 
+        Set up HDUList containers for the extracted spectra (one for each order)
+        and the associated variance and wavelength files
+        """
+        sphdu = pf.PrimaryHDU()
+        vphdu = pf.PrimaryHDU()
+        wphdu = pf.PrimaryHDU()
+        shdu = pf.HDUList([sphdu])
+        vhdu = pf.HDUList([vphdu])
+        whdu = pf.HDUList([wphdu])
 
         scales = []
         plt.figure()
         #plt.subplot(111)
         #plt.title('%s Frame %d' % (pref,num))
-        for order in range(1,11):
-            B = blue[order-1]
-            R = red[order-1]
-            slit = d[order].data.copy()
-            vslit = v[order].data.copy()
+        """
+        In the original code, the spectral order in the following loop ran
+        from 1 to 10, since the spectral orders in the HDUList were in 
+        HDU1 to HDU10, and the PHDU was in HDU0.  However, when reading the
+        data in into a Esi2d structure, the spectral orders will run from
+        0 to 9.
+        """
+        for order in range(10):
+            B = blue[order]
+            R = red[order]
+            slit = d.order[order].data.copy()
+            vslit = v.order[order].data.copy()
             vslit[vslit<=0.] = 1e9
             vslit[np.isnan(vslit)] = 1e9
             vslit[np.isnan(slit)] = 1e9
-            h = d[order].header
+            h = d.order[order].hdr
             x = np.arange(slit.shape[1])*1.
             w = 10**(h['CRVAL1']+x*h['CD1_1']) 
 
             """ Make the apertures """
             ap,fit = get_ap(slit,B,R,apcent,apnum,wid,order)
-            apsize.append(2.355*fit[3]*arcsecperpix[order-1])
+            #apsize.append(2.355*fit[3]*arcsecperpix[order])
 
             """ Set up to do the extraction, including by normalizing ap """
             ap[vslit>=1e8] = 0.
@@ -127,26 +149,59 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
             vspec /= np.median(spec)**2
             spec /= np.median(spec)
 
-            ospex[order].append(spec)
-            ovars[order].append(vspec)
-            owave[order] = w
+            #ospex[order].append(spec)
+            #ovars[order].append(vspec)
+            #owave[order] = w
+            shdu.append(pf.ImageHDU(spec,name='order%02d'%num))
+            vhdu.append(pf.ImageHDU(vspec,name='order%02d'%num))
+            if numIndx == 0:
+                whdu.append(pf.ImageHDU(w,name='order%02d'%num))
             scales.append(h['CD1_1'])
-
+            
         plt.show()
 
-    """ 
-    -----------------------------------------------------------------------
-    Start of coadd
-    -----------------------------------------------------------------------
-    """
+        """ Add to the lists of HDULists """
+        slist.append(shdu)
+        vlist.append(vhdu)
+        wlist.append(whdu)
+
+    """ Coadd the spectra """
+    coadd(slist,vlist,wlist,stdOrderCorr,name)
+
+#---------------------------------------------------------------------------
+
+""" 
+-----------------------------------------------------------------------
+Start of coadd
+-----------------------------------------------------------------------
+"""
+
+def coadd(speclist, varlist, wlist, stdOrderCorr, name):
+
+    """ Transfer the information into the expected structures """
+    ospex = {} # spectrum
+    ovars = {} # variance
+    owave = [] # wavelength (one for each order of the echelle)
+    print ''
+    for order in range(10):
+        ospex[order] = []
+        ovars[order] = []
+    for i in range(len(speclist)):
+        for j in range(10):
+            ospex[j].append((speclist[i])[j+1].data)
+            ovars[j].append((varlist[i])[j+1].data)
+            if i==0:
+                owave.append((wlist[i])[j+1].data)
+
+    return ospex,ovars,owave
 
     """
     Now we have a spectrum for each order of the echelle, covering different 
     wavelength ranges...
     """
     scale = 1.7e-5 # of wavelengths. NB. cd1_1 = 1.65e-5, which is about 0.06 arcseconds/pixel
-    w0 = np.log10(owave[1][0])
-    w1 = np.log10(owave[10][-1]) # total wavelength coverage
+    w0 = np.log10(owave[0][0])
+    w1 = np.log10(owave[9][-1]) # total wavelength coverage
     outwave = np.arange(w0,w1,scale)
     outspec = np.zeros((outwave.size,10))*np.nan
     outvar = outspec.copy()
@@ -159,11 +214,11 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
     """
     Sum the different exposures, one order at a time.
     """
-    for order in range(2,11):
+    for order in range(1,10):
         w = owave[order]
         s = w*0.
         v = w*0.
-        for i in range(len(frames)):
+        for i in range(len(speclist)):
             tmp = ndimage.median_filter(ospex[order][i],7)
             s += tmp/ovars[order][i]
             v += 1./ovars[order][i]
@@ -174,11 +229,11 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
 
         for j in range(1):
             os = ndimage.median_filter(os,5)
-            s = np.empty((os.size,len(frames)))
+            s = np.empty((os.size,len(speclist)))
             v = s.copy()
             spec = w*0.
             var = w*0.
-            for i in range(len(frames)):
+            for i in range(len(speclist)):
                 s[:,i] = ospex[order][i]
                 v[:,i] = ovars[order][i]
 
