@@ -46,19 +46,19 @@ def get_ap(slit, B, R, apcent, apnum, wid, order):
         smooth = ndimage.gaussian_filter(xproj[:-30],1)
     x = np.arange(xproj.size)*1. 
     """ 
-    The four parameters immediately below are 
+    The four parameters immediately below are the initial guesses
     bkgd, amplitude, mean location, and sigma for a Gaussian fit
     """
     fit = np.array([0.,smooth.max(),smooth.argmax(),1.])
     fit = sf.ngaussfit(xproj,fit)[0] 
 
-    cent = fit[2] + apcent[apnum]/arcsecperpix[order-1]
+    cent = fit[2] + apcent[apnum]/arcsecperpix[order]
     print cent
     apmax = 0.1 * xproj.max()
-    ap = np.where(abs(x-cent)<wid/arcsecperpix[order-1],1.,0.)
+    ap = np.where(abs(x-cent)<wid/arcsecperpix[order],1.,0.)
 
     if order<60.:
-        plt.subplot(2,5,order)
+        plt.subplot(2,5,(order+1))
         plt.plot(x,apmax*ap) # Scale the aperture to easily see it
         plt.plot(x,xproj)
         plt.ylim(-apmax,1.1*xproj.max())
@@ -152,10 +152,10 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
             #ospex[order].append(spec)
             #ovars[order].append(vspec)
             #owave[order] = w
-            shdu.append(pf.ImageHDU(spec,name='order%02d'%num))
-            vhdu.append(pf.ImageHDU(vspec,name='order%02d'%num))
+            shdu.append(pf.ImageHDU(spec,name='order%02d'%(order+1)))
+            vhdu.append(pf.ImageHDU(vspec,name='order%02d'%(order+1)))
             if numIndx == 0:
-                whdu.append(pf.ImageHDU(w,name='order%02d'%num))
+                whdu.append(pf.ImageHDU(w,name='order%02d'%(order+1)))
             scales.append(h['CD1_1'])
             
         plt.show()
@@ -166,7 +166,9 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
         wlist.append(whdu)
 
     """ Coadd the spectra """
-    coadd(slist,vlist,wlist,stdOrderCorr,name)
+    print 'Finished the loop'
+    #return slist,vlist,wlist
+    coadd(slist,vlist,wlist,stdOrderCorr,name,aplab,apnum,pref)
 
 #---------------------------------------------------------------------------
 
@@ -176,32 +178,33 @@ Start of coadd
 -----------------------------------------------------------------------
 """
 
-def coadd(speclist, varlist, wlist, stdOrderCorr, name):
+def coadd(speclist, varlist, wlist, stdOrderCorr, name, aplab, apnum, pref):
 
     """ Transfer the information into the expected structures """
     ospex = {} # spectrum
     ovars = {} # variance
-    owave = [] # wavelength (one for each order of the echelle)
+    owave = {} # wavelength (one for each order of the echelle)
     print ''
-    for order in range(10):
+    for order in range(1,11):
         ospex[order] = []
         ovars[order] = []
     for i in range(len(speclist)):
-        for j in range(10):
-            ospex[j].append((speclist[i])[j+1].data)
-            ovars[j].append((varlist[i])[j+1].data)
+        for j in range(1,11):
+            ospex[j].append((speclist[i])[j].data)
+            ovars[j].append((varlist[i])[j].data)
             if i==0:
-                owave.append((wlist[i])[j+1].data)
+                owave[j] = (wlist[i])[j].data
 
-    return ospex,ovars,owave
+    print 'Finished the second loop'
+    #return ospex,ovars,owave
 
     """
     Now we have a spectrum for each order of the echelle, covering different 
     wavelength ranges...
     """
     scale = 1.7e-5 # of wavelengths. NB. cd1_1 = 1.65e-5, which is about 0.06 arcseconds/pixel
-    w0 = np.log10(owave[0][0])
-    w1 = np.log10(owave[9][-1]) # total wavelength coverage
+    w0 = np.log10(owave[1][0])
+    w1 = np.log10(owave[10][-1]) # total wavelength coverage
     outwave = np.arange(w0,w1,scale)
     outspec = np.zeros((outwave.size,10))*np.nan
     outvar = outspec.copy()
@@ -214,7 +217,7 @@ def coadd(speclist, varlist, wlist, stdOrderCorr, name):
     """
     Sum the different exposures, one order at a time.
     """
-    for order in range(1,10):
+    for order in range(2,11):
         w = owave[order]
         s = w*0.
         v = w*0.

@@ -34,6 +34,8 @@ def clip(arr,nsig=3.):
         if a.size==l:
             return m,s
 
+#---------------------------------------------------------------------------
+
 def get_ap(slit, B, R, apcent, apnum, wid, order):
     xproj = np.median(slit[:,B:R],1) 
     m,s = clip(xproj)
@@ -43,7 +45,7 @@ def get_ap(slit, B, R, apcent, apnum, wid, order):
         smooth = ndimage.gaussian_filter(xproj[:-30],1)
     x = np.arange(xproj.size)*1. 
     """ 
-    The four parameters immediately below are 
+    The four parameters immediately below are the initial guesses
     bkgd, amplitude, mean location, and sigma for a Gaussian fit
     """
     fit = np.array([0.,smooth.max(),smooth.argmax(),1.])
@@ -63,6 +65,8 @@ def get_ap(slit, B, R, apcent, apnum, wid, order):
     ap = ap.repeat(slit.shape[1]).reshape(slit.shape)
     return ap,fit
 
+#---------------------------------------------------------------------------
+
 def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
             indir='.', wid=1., wht=False):
     ''' 
@@ -70,6 +74,12 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
     wht    = True gives a Gaussian aperture 
     wid    = how many sigmas wide your aperture is 
     '''
+
+    """ 
+    Set up three dictionaries to hold the relevant information.  
+    The dictionary keys will be "1", "2", etc., and thus refer to the
+     appropriate spectral order
+    """
     ospex = {} # spectrum
     ovars = {} # variance
     owave = {} # wavelength (one for each order of the echelle)
@@ -134,6 +144,7 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
 
         plt.show()
 
+    print 'Finished the loop'
     return ospex,ovars,owave
 
     """ 
