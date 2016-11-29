@@ -76,11 +76,6 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
     wid    = how many sigmas wide your aperture is 
     '''
 
-    """ Create lists to hold the HDULists produced for each frame """
-    slist = []
-    vlist = []
-    wlist = []
-
     """ Create list to hold lists of Spec1d instances for each frame """
     speclist = []
 
@@ -94,18 +89,6 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
         specname = '%s/%s_%04d_bgsub.fits'%(idir,pref,num)
         varname  = specname.replace('bgsub','var')
         d = esi.Esi2d(specname,varfile=varname)
-        #v = esi.Esi2d(varname)
-
-        #""" 
-        #Set up HDUList containers for the extracted spectra (one for each order)
-        #and the associated variance and wavelength files
-        #"""
-        #sphdu = pf.PrimaryHDU()
-        #vphdu = pf.PrimaryHDU()
-        #wphdu = pf.PrimaryHDU()
-        #shdu = pf.HDUList([sphdu])
-        #vhdu = pf.HDUList([vphdu])
-        #whdu = pf.HDUList([wphdu])
 
         scales = []
         plt.figure()
