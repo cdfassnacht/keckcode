@@ -10,4 +10,5 @@ aplab = ['all']
 nsig = 1.3 # Width of aperture in terms of sigma.  Normal value is 1.0
 
 for jj in range(len(aplab)):
-    ow,s,v = extract(fullname,name,frames,jj,apcent,aplab,stdOrderCorr,wid=nsig)
+    extract(fullname,name,frames,jj,apcent,aplab,stdOrderCorr,wid=nsig)
+    #ow,s,v = extract(fullname,name,frames,jj,apcent,aplab,stdOrderCorr,wid=nsig)

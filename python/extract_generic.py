@@ -81,6 +81,9 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
     vlist = []
     wlist = []
 
+    """ Create list to hold lists of Spec1d instances for each frame """
+    speclist = []
+
     for numIndx in range(len(frames)):
         num = frames[numIndx]
         print pref,num
@@ -90,19 +93,19 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
             idir = indir
         specname = '%s/%s_%04d_bgsub.fits'%(idir,pref,num)
         varname  = specname.replace('bgsub','var')
-        d = esi.Esi2d(specname)
-        v = esi.Esi2d(varname)
+        d = esi.Esi2d(specname,varfile=varname)
+        #v = esi.Esi2d(varname)
 
-        """ 
-        Set up HDUList containers for the extracted spectra (one for each order)
-        and the associated variance and wavelength files
-        """
-        sphdu = pf.PrimaryHDU()
-        vphdu = pf.PrimaryHDU()
-        wphdu = pf.PrimaryHDU()
-        shdu = pf.HDUList([sphdu])
-        vhdu = pf.HDUList([vphdu])
-        whdu = pf.HDUList([wphdu])
+        #""" 
+        #Set up HDUList containers for the extracted spectra (one for each order)
+        #and the associated variance and wavelength files
+        #"""
+        #sphdu = pf.PrimaryHDU()
+        #vphdu = pf.PrimaryHDU()
+        #wphdu = pf.PrimaryHDU()
+        #shdu = pf.HDUList([sphdu])
+        #vhdu = pf.HDUList([vphdu])
+        #whdu = pf.HDUList([wphdu])
 
         scales = []
         plt.figure()
@@ -115,60 +118,22 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
         data in into a Esi2d structure, the spectral orders will run from
         0 to 9.
         """
+        tmplist = []
         for order in range(10):
-            B = blue[order]
-            R = red[order]
-            slit = d.order[order].data.copy()
-            vslit = v.order[order].data.copy()
-            vslit[vslit<=0.] = 1e9
-            vslit[np.isnan(vslit)] = 1e9
-            vslit[np.isnan(slit)] = 1e9
             h = d.order[order].hdr
-            x = np.arange(slit.shape[1])*1.
-            w = 10**(h['CRVAL1']+x*h['CD1_1']) 
-
-            """ Make the apertures """
-            ap,fit = get_ap(slit,B,R,apcent,apnum,wid,order)
-            #apsize.append(2.355*fit[3]*arcsecperpix[order])
-
-            """ Set up to do the extraction, including by normalizing ap """
-            ap[vslit>=1e8] = 0.
-            ap = ap/ap.sum(0)
-            ap[np.isnan(ap)] = 0.
-            slit[np.isnan(slit)] = 0.
-
-            """ Extract the spectrum (I do not understand the weighting here) """
-            spec = (slit*ap**2).sum(0) 
-            vspec = (vslit*ap**4).sum(0)
-
-            """ 
-            Normalize the spectrum and its associated variance 
-            Need to do the variance first, or else you would incorrectly
-             be using the normalized spectrum to normalize the variance
-            """
-            vspec /= np.median(spec)**2
-            spec /= np.median(spec)
-
-            #ospex[order].append(spec)
-            #ovars[order].append(vspec)
-            #owave[order] = w
-            shdu.append(pf.ImageHDU(spec,name='order%02d'%(order+1)))
-            vhdu.append(pf.ImageHDU(vspec,name='order%02d'%(order+1)))
-            if numIndx == 0:
-                whdu.append(pf.ImageHDU(w,name='order%02d'%(order+1)))
+            newspec = d.extract_ap_oldham(order,apcent,apnum,wid)
+            tmplist.append(newspec)
             scales.append(h['CD1_1'])
             
         plt.show()
 
         """ Add to the lists of HDULists """
-        slist.append(shdu)
-        vlist.append(vhdu)
-        wlist.append(whdu)
+        speclist.append(tmplist)
 
     """ Coadd the spectra """
     print 'Finished the loop'
     #return slist,vlist,wlist
-    coadd(slist,vlist,wlist,stdOrderCorr,name,aplab,apnum,pref)
+    coadd(speclist,stdOrderCorr,name,aplab,apnum,pref)
 
 #---------------------------------------------------------------------------
 
@@ -178,7 +143,7 @@ Start of coadd
 -----------------------------------------------------------------------
 """
 
-def coadd(speclist, varlist, wlist, stdOrderCorr, name, aplab, apnum, pref):
+def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
 
     """ Transfer the information into the expected structures """
     ospex = {} # spectrum
@@ -190,10 +155,10 @@ def coadd(speclist, varlist, wlist, stdOrderCorr, name, aplab, apnum, pref):
         ovars[order] = []
     for i in range(len(speclist)):
         for j in range(1,11):
-            ospex[j].append((speclist[i])[j].data)
-            ovars[j].append((varlist[i])[j].data)
+            ospex[j].append((speclist[i])[j-1].flux)
+            ovars[j].append((speclist[i])[j-1].var)
             if i==0:
-                owave[j] = (wlist[i])[j].data
+                owave[j] = (speclist[i])[j-1].wav
 
     print 'Finished the second loop'
     #return ospex,ovars,owave
@@ -312,4 +277,4 @@ def coadd(speclist, varlist, wlist, stdOrderCorr, name, aplab, apnum, pref):
     hdu.append(outvar)
     hdu.writeto(outname,clobber=True)
     
-    return outwave,spec,var
+    #return outwave,spec,var
