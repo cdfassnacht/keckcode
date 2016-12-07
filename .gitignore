@@ -1,6 +1,10 @@
 # emacs backups
 *~
 
+# Directories that will contain fits files
+Raw
+Redux
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
