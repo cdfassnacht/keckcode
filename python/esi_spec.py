@@ -56,37 +56,22 @@ class Esi2d(ss.Spec2d):
         print ''
         print self.infile
 
+        """ If there is an external variance file, open that """
+        if varfile is not None:
+            self.extvar = pf.open(varfile)
+
         """ Load each order into its own Spec2d container """
         self.order = []
         print ''
         print 'Order  Shape    Dispaxis'
         print '----- --------- --------'
         for i in range(10):
-            tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,verbose=False,
-                                logwav=True,fixnans=False)
+            tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,extvar=self.extvar,
+                                verbose=False,logwav=True,fixnans=False)
             print ' %2d   %dx%d     %s' % \
                 ((i+1),tmpspec.data.shape[1],tmpspec.data.shape[0],
                  tmpspec.dispaxis)
             self.order.append(tmpspec)
-
-        """ 
-        If an external variance spectrum is provided, then load it in as well
-        """
-        if varfile is not None:
-            self.varfile = varfile
-            try:
-                self.varhdu = pf.open(varfile)
-            except:
-                print ''
-                print 'ERROR: Could not read variance spectrum: %s' % varfile
-                print ''
-                return None
-            self.varorder = []
-            for i in range(10):
-                tmpspec = ss.Spec2d(None,hdulist=self.varhdu,hext=i+1,
-                                    verbose=False,logwav=True,fixnans=False)
-                self.varorder.append(tmpspec)
-
 
     #-----------------------------------------------------------------------
 
@@ -141,7 +126,7 @@ class Esi2d(ss.Spec2d):
 
     #-----------------------------------------------------------------------
 
-    def extract_ap_oldham(self, order, apcent, apnum, wid):
+    def extract_oldham(self, order, apcent, apnum, wid):
         """
         Implements Lindsay Oldham's (or perhaps Matt Auger's) method
          for extracting the spectrum from an individual spectral order
@@ -155,12 +140,13 @@ class Esi2d(ss.Spec2d):
         Make temporary copies of the science and variance spectra, and
         get information about their properties
         """
-        slit  = self.order[order].data.copy()
-        vslit = self.varorder[order].data.copy()
+        spec  = self.order[order]
+        slit  = spec.data.copy()
+        vslit = spec.vardata.copy()
         vslit[vslit<=0.] = 1e9
         vslit[np.isnan(vslit)] = 1e9
         vslit[np.isnan(slit)] = 1e9
-        h = self.order[order].hdr
+        h = spec.hdr
         x = np.arange(slit.shape[1])*1.
         w = 10**(h['CRVAL1']+x*h['CD1_1']) 
 
@@ -194,9 +180,34 @@ class Esi2d(ss.Spec2d):
 
     #-----------------------------------------------------------------------
 
-    def extract_all(self):
+    def extract_all(self, method='oldham', doplot=True):
         """
         Goes through each of the 10 orders on the ESI spectrograph and
-        does the two-step extraction procedure from the Spec2d class in
-        spec_simple.py: find_and_trace and extract_spectrum
+        extracts the spectrum via one of two procedures:
+        1. Using the Spec2d class methods from spec_simple.py (method='cdf')
+          This approach does the two-step extraction procedure using the
+          relevant methods in the Spec2d class in spec_simple.py, namely
+          (1) find_and_trace and (2) extract_spectrum.
+          xxxxx
+        2. Using the code from Lindsay Oldham (or perhaps Matt Auger) implemented
+          above (method='oldham')
+          In this approach, the two step procedure is (1) get_ap_oldham, and
+          (2) extract_oldham
+          xxxxx
         """
+
+        """ First plot all the spatial profiles """
+        plt.figure(1)
+        plt.clf()
+        self.plot_profiles()
+
+        """ 
+        Extract the spectra 
+        EXPERIMENTAL VERSION RIGHT NOW
+        """
+        for i in range(10):
+            if method == 'cdf':
+                plt.figure(i+1)
+                plt.clf()
+                self.order[i].find_and_trace()
+                self.order[i].extract_new()
