@@ -42,6 +42,7 @@ class Esi2d(ss.Spec2d):
                 0.163, # order 9
                 0.168  # order 10
                 ])
+        self.extvar = None
 
         """ 
         Set the range of valid pixels for each order, expressed as 
@@ -66,8 +67,13 @@ class Esi2d(ss.Spec2d):
         print 'Order  Shape    Dispaxis'
         print '----- --------- --------'
         for i in range(10):
-            tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,extvar=self.extvar,
-                                verbose=False,logwav=True,fixnans=False)
+            if self.extvar is not None:
+                tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,
+                                    extvar=self.extvar,verbose=False,
+                                    logwav=True,fixnans=False)
+            else:
+                tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,verbose=False,
+                                    logwav=True,fixnans=False)
             print ' %2d   %dx%d     %s' % \
                 ((i+1),tmpspec.data.shape[1],tmpspec.data.shape[0],
                  tmpspec.dispaxis)
