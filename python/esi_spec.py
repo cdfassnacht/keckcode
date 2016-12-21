@@ -180,13 +180,13 @@ class Esi2d(ss.Spec2d):
         spec /= np.median(spec)
 
         """ Save the output in a Spec1d container """
-        newspec = ss.Spec1d(wav=w,flux=spec,var=vspec)
-        # scales.append(h['CD1_1'])
-        return newspec
+        #newspec = ss.Spec1d(wav=w,flux=spec,var=vspec)
+        self.order[order].spec1d = ss.Spec1d(wav=w,flux=spec,var=vspec)
 
     #-----------------------------------------------------------------------
 
-    def extract_all(self, method='oldham', doplot=True):
+    def extract_all(self, method='oldham', apnum=0, apcent=None, wid=1.0, 
+                    doplot=False):
         """
         Goes through each of the 10 orders on the ESI spectrograph and
         extracts the spectrum via one of two procedures:
@@ -205,7 +205,8 @@ class Esi2d(ss.Spec2d):
         """ First plot all the spatial profiles """
         plt.figure(1)
         plt.clf()
-        self.plot_profiles()
+        if method == 'cdf':
+            self.plot_profiles()
 
         """ 
         Extract the spectra 
@@ -213,7 +214,26 @@ class Esi2d(ss.Spec2d):
         """
         for i in range(10):
             if method == 'cdf':
-                plt.figure(i+1)
-                plt.clf()
-                self.order[i].find_and_trace()
+                if doplot:
+                    plt.figure(i+2)
+                    plt.clf()
+                """ 
+                For now assume that the data reduction has properly rectified
+                the 2D spectra, so that it is not necessary to trace a varying
+                position and width as the position changes
+                """
+                muorder = -1
+                sigorder = -1
+                self.order[i].find_and_trace(doplot=False,muorder=muorder,
+                                             sigorder=sigorder)
                 self.order[i].extract_new()
+
+                """
+                Also normalize the flux and variance of the extracted
+                spectrum in the same way that the Oldham extraction does
+                """
+                medflux = np.median(self.order[i].spec1d.flux)
+                self.order[i].spec1d.flux /= medflux
+                self.order[i].spec1d.var /= medflux**2
+            elif method == 'oldham':
+                self.extract_oldham(i,apcent,apnum,wid)

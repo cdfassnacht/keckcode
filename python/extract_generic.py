@@ -15,6 +15,7 @@ from spectra import spectools as st
 import indexTricks as iT
 import spec_simple as ss
 import esi_spec as esi
+import sys
 
 
 """ 
@@ -27,56 +28,15 @@ red = [3000,3400,3700,-1,-1,-1,-1,-1,-1,-1]
 arcsecperpix = [0.120,0.127,0.134,0.137,0.144,0.149,0.153,0.158,0.163,0.168]
 apsize = []
 
-def clip(arr,nsig=3.):
-    a = arr.flatten()
-    while 1:
-        m,s,l = a.mean(),a.std(),a.size
-        a = a[abs(a-m)<s*nsig]
-        if a.size==l:
-            return m,s
-
-#---------------------------------------------------------------------------
-
-def get_ap(slit, B, R, apcent, apnum, wid, order):
-    xproj = np.median(slit[:,B:R],1) 
-    m,s = clip(xproj)
-           
-    smooth = ndimage.gaussian_filter(xproj,1)
-    if order == 2: # NB: This was 3 in the original file, see note below
-        smooth = ndimage.gaussian_filter(xproj[:-30],1)
-    x = np.arange(xproj.size)*1. 
-    """ 
-    The four parameters immediately below are the initial guesses
-    bkgd, amplitude, mean location, and sigma for a Gaussian fit
-    """
-    fit = np.array([0.,smooth.max(),smooth.argmax(),1.])
-    fit = sf.ngaussfit(xproj,fit)[0] 
-
-    cent = fit[2] + apcent[apnum]/arcsecperpix[order]
-    print cent
-    apmax = 0.1 * xproj.max()
-    ap = np.where(abs(x-cent)<wid/arcsecperpix[order],1.,0.)
-
-    if order<60.:
-        plt.subplot(2,5,(order+1))
-        plt.plot(x,apmax*ap) # Scale the aperture to easily see it
-        plt.plot(x,xproj)
-        plt.ylim(-apmax,1.1*xproj.max())
-    
-    ap = ap.repeat(slit.shape[1]).reshape(slit.shape)
-    return ap,fit
-
-#---------------------------------------------------------------------------
-
 def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
-            indir='.', wid=1., wht=False):
+            indir='.', wid=1., wht=False, method='oldham'):
     ''' 
     frames = input frame numbers - give a list
     wht    = True gives a Gaussian aperture 
     wid    = how many sigmas wide your aperture is 
     '''
 
-    """ Create list to hold lists of Spec1d instances for each frame """
+    """ Create list to hold the Spec2d instance for each frame """
     speclist = []
 
     for numIndx in range(len(frames)):
@@ -90,32 +50,32 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
         varname  = specname.replace('bgsub','var')
         d = esi.Esi2d(specname,varfile=varname)
 
-        scales = []
         plt.figure()
         #plt.subplot(111)
         #plt.title('%s Frame %d' % (pref,num))
         """
-        In the original code, the spectral order in the following loop ran
-        from 1 to 10, since the spectral orders in the HDUList were in 
-        HDU1 to HDU10, and the PHDU was in HDU0.  However, when reading the
-        data in into a Esi2d structure, the spectral orders will run from
-        0 to 9.
+        The esi_spec code has now been re-written to loop over the orders
+        to do the extraction, at least in theory.
         """
-        tmplist = []
-        for order in range(10):
-            h = d.order[order].hdr
-            newspec = d.extract_ap_oldham(order,apcent,apnum,wid)
-            tmplist.append(newspec)
-            scales.append(h['CD1_1'])
-            
+        d.extract_all(method,apnum,apcent,wid)
         plt.show()
 
-        """ Add to the lists of HDULists """
-        speclist.append(tmplist)
+        """
+        This scales variable does not seem to get used anywhere below,
+        but keep it for now for legacy purposes
+        """
+        scales = []
+        for order in range(10):
+            h = d.order[order].hdr
+            scales.append(h['CD1_1'])
+
+        """ Add to the lists of Spec2d containers """
+        speclist.append(d)
 
     """ Coadd the spectra """
     print 'Finished the loop'
     #return slist,vlist,wlist
+    #sys.exit()
     coadd(speclist,stdOrderCorr,name,aplab,apnum,pref)
 
 #---------------------------------------------------------------------------
@@ -138,10 +98,10 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
         ovars[order] = []
     for i in range(len(speclist)):
         for j in range(1,11):
-            ospex[j].append((speclist[i])[j-1].flux)
-            ovars[j].append((speclist[i])[j-1].var)
+            ospex[j].append(speclist[i].order[j-1].spec1d.flux)
+            ovars[j].append(speclist[i].order[j-1].spec1d.var)
             if i==0:
-                owave[j] = (speclist[i])[j-1].wav
+                owave[j] = speclist[i].order[j-1].spec1d.wav
 
     print 'Finished the second loop'
     #return ospex,ovars,owave
@@ -169,6 +129,7 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
         w = owave[order]
         s = w*0.
         v = w*0.
+        """ This is an inverse-variance weighted sum"""
         for i in range(len(speclist)):
             tmp = ndimage.median_filter(ospex[order][i],7)
             s += tmp/ovars[order][i]
@@ -178,6 +139,12 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
         ov = 1./v
         r = ov.max()*100
 
+        """ 
+        This second pass rejects pixels in individual images that are outliers
+         compared to the smoothed summed image.  
+        If an individual pixel differs by more than 5 sigma from the smoothed
+         summed image then it is rejected.
+        """
         for j in range(1):
             os = ndimage.median_filter(os,5)
             s = np.empty((os.size,len(speclist)))
