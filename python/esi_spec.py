@@ -81,16 +81,61 @@ class Esi2d(ss.Spec2d):
 
     #-----------------------------------------------------------------------
 
-    def plot_profiles(self):
+    def plot_profiles(self, bgsub=True):
         """
 
         Plots, in one figure, the spatial profiles for all the 10 orders
 
+        Optional inputs
+          bgsub - Set to true (the default) if the data have had the sky
+                   subtracted already at this point.  If this is the case,
+                   then the "sky" level in each profile should be close to
+                   zero and, therefore, the subplots can be displayed in a
+                   way that does not require y-axis labels for each profile
         """
 
+        if bgsub:
+            normspec = True
+            plt.subplots_adjust(wspace=0.001)
+        else:
+            normspec = False
+        plt.subplots_adjust(hspace=0.001)
+
+        """ Set the common widths of the plots """
+        #xmax = 0
+        #for i in range(1,11):
+        #    if self.hdu[i].data.shape[0] > xmax:
+        #        xmax = self.hdu[i].data.shape[0]
+            
+
+        """ Set up the figure and the full-sized frame for the final labels """
+        fig = plt.gcf()
+        ax = fig.add_subplot(111)
+        plt.setp(ax.get_xticklabels(),visible=False)
+        plt.setp(ax.get_yticklabels(),visible=False)
+
         for i in range(10):
-            plt.subplot(2,5,(i+1))
-            self.order[i].spatial_profile()
+            #plt.subplot(2,5,(i+1))
+            axi = fig.add_subplot(2,5,(i+1))
+            self.order[i].spatial_profile(normalize=normspec,title=None)
+            plt.xlim(-1,120)
+            if normspec:
+                plt.ylim(-0.1,1.1)
+            if i==0 or i==5:
+                pass
+            else:
+                plt.setp(axi.get_yticklabels(),visible=False)
+                axi.set_ylabel('',visible=False)
+            if i<5:
+                plt.setp(axi.get_xticklabels(),visible=False)
+            axi.set_xlabel('',visible=False)
+            axi.annotate('%d'%(i+1),(10.,0.95))
+
+        ax.set_title('Spatial Profiles')
+        ax.set_xlabel('Spatial Direction')
+        ax.set_ylabel('Relative Flux')
+        ax.xaxis.set_label_coords(0.5, -0.05)
+        ax.yaxis.set_label_coords(-0.03,0.5)
 
     #---------------------------------------------------------------------------
 
