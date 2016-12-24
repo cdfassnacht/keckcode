@@ -49,7 +49,7 @@ class Esi2d(ss.Spec2d):
         blue (start of good pixels) to red (end of good pixels) 
         """
         self.blue = [1500,1400,1300,1200,1100,900,600,200,0,0,0]
-        self.red = [3000,3400,3700,-1,-1,-1,-1,-1,-1,-1]
+        self.red  = [3000,3400,3700,-1,-1,-1,-1,-1,-1,-1]
 
         """ Open the multiextension fits file that contains the 10 orders """
         self.infile = infile
@@ -230,8 +230,19 @@ class Esi2d(ss.Spec2d):
 
     #-----------------------------------------------------------------------
 
-    def extract_all(self, method='oldham', apnum=0, apcent=None, wid=1.0, 
-                    doplot=False):
+    def plot_spec1d(self,xmin=3840., xmax=10910., ymin=-0.2, ymax=5.):
+        """
+        Plots the 10 extracted 1d spectra on a single plot
+        """
+        for i in range(10):
+            self.order[i].spec1d.plot()
+        plt.xlim(xmin,xmax)
+        plt.ylim(ymin,ymax)
+
+    #-----------------------------------------------------------------------
+
+    def extract_all(self, method='oldham', apnum=0, apcent=[0.,], wid=1.0, 
+                    doplot=False, xmin=3840., xmax=10910., ymin=-0.2, ymax=5.):
         """
         Goes through each of the 10 orders on the ESI spectrograph and
         extracts the spectrum via one of two procedures:
@@ -260,7 +271,7 @@ class Esi2d(ss.Spec2d):
         for i in range(10):
             if method == 'cdf':
                 if doplot:
-                    plt.figure(i+2)
+                    plt.figure(i+3)
                     plt.clf()
                 """ 
                 For now assume that the data reduction has properly rectified
@@ -269,8 +280,12 @@ class Esi2d(ss.Spec2d):
                 """
                 muorder = -1
                 sigorder = -1
-                self.order[i].find_and_trace(doplot=False,muorder=muorder,
-                                             sigorder=sigorder)
+                print ''
+                print '=================================================='
+                print 'Order: %d' % (i+1)
+                print ''
+                self.order[i].find_and_trace(doplot=doplot,muorder=muorder,
+                                             sigorder=sigorder,verbose=False)
                 self.order[i].extract_new()
 
                 """
@@ -282,3 +297,11 @@ class Esi2d(ss.Spec2d):
                 self.order[i].spec1d.var /= medflux**2
             elif method == 'oldham':
                 self.extract_oldham(i,apcent,apnum,wid)
+
+        """
+        Plot the extracted spectra
+        """
+        plt.figure(2)
+        plt.clf()
+        self.plot_spec1d()
+        
