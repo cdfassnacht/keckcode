@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 from ccdredux import sigma_clip
 from scipy import ndimage,interpolate
 import special_functions as sf
+from math import log10
 
 class Esi2d(ss.Spec2d):
     """
@@ -27,29 +28,27 @@ class Esi2d(ss.Spec2d):
         """
 
         """
-        Start by setting up some default values
-        Each order for ESI has a different plate scale in arcsec/pix 
+        Start by setting up some default values and put it all into a
+         recarray structure for ease in extracting values.
+         pixscale     - each order for ESI has a different plate scale in
+                        arcsec/pix
+         blue and red - define the range of good pixels that the Oldham
+                        extraction uses to define its aperture
         """
-        self.arcsecperpix = np.array([
-                0.120, # order 1
-                0.127, # order 2
-                0.134, # order 3
-                0.137, # order 4
-                0.144, # order 5
-                0.149, # order 6
-                0.153, # order 7
-                0.158, # order 8
-                0.163, # order 9
-                0.168  # order 10
-                ])
-        self.extvar = None
-
-        """ 
-        Set the range of valid pixels for each order, expressed as 
-        blue (start of good pixels) to red (end of good pixels) 
-        """
-        self.blue = [1500,1400,1300,1200,1100,900,600,200,0,0,0]
-        self.red  = [3000,3400,3700,-1,-1,-1,-1,-1,-1,-1]
+        dtype = [('name','S8'), ('pixscale',float), ('blue',int), ('red',int)]
+        self.orderinfo = np.array([
+                ('order 1', 0.120, 1500, 3000),
+                ('order 2', 0.127, 1400, 3400),
+                ('order 3', 0.134, 1300, 3700),
+                ('order 4', 0.137, 1200,   -1),
+                ('order 5', 0.144, 1100,   -1),
+                ('order 6', 0.149,  900,   -1),
+                ('order 7', 0.153,  600,   -1),
+                ('order 8', 0.158,  200,   -1),
+                ('order 9', 0.163,    0,   -1),
+                ('order 10',0.168,    0,   -1),
+                ], dtype=dtype)
+        self.orderinfo = self.orderinfo.view(np.recarray)
 
         """ Open the multiextension fits file that contains the 10 orders """
         self.infile = infile
@@ -58,6 +57,7 @@ class Esi2d(ss.Spec2d):
         print self.infile
 
         """ If there is an external variance file, open that """
+        self.extvar = None
         if varfile is not None:
             self.extvar = pf.open(varfile)
 
@@ -161,10 +161,10 @@ class Esi2d(ss.Spec2d):
         fit = np.array([0.,smooth.max(),smooth.argmax(),1.])
         fit = sf.ngaussfit(xproj,fit)[0] 
 
-        cent = fit[2] + apcent[apnum]/self.arcsecperpix[order]
+        cent = fit[2] + apcent[apnum]/self.orderinfo.pixscale[order]
         print cent
         apmax = 0.1 * xproj.max()
-        ap = np.where(abs(x-cent)<wid/self.arcsecperpix[order],1.,0.)
+        ap = np.where(abs(x-cent)<wid/self.orderinfo.pixscale[order],1.,0.)
 
         if doplot & order<60:
             plt.subplot(2,5,(order+1))
@@ -202,8 +202,8 @@ class Esi2d(ss.Spec2d):
         w = 10**(h['CRVAL1']+x*h['CD1_1']) 
 
         """ Make the apertures """
-        B = self.blue[order]
-        R = self.red[order]
+        B = self.orderinfo.blue[order]
+        R = self.orderinfo.red[order]
         ap,fit = self.get_ap_oldham(slit,B,R,apcent,apnum,wid,order)
 
         """ Set up to do the extraction, including by normalizing ap """
@@ -230,19 +230,74 @@ class Esi2d(ss.Spec2d):
 
     #-----------------------------------------------------------------------
 
-    def plot_spec1d(self,xmin=3840., xmax=10910., ymin=-0.2, ymax=5.):
+    def respcorr_oldham(self, flux, var, respfile):
+        """
+        Does the response correction using the technique that Lindsay Oldham /
+        Matt Auger have used.
+        """
+        corr = np.load(respfile)
+        right = None
+        rb = None
+        rr = None
+        scale = 1.7e-5
+        w0 = log10(self.order[0].spec1d.wav[0])
+        w1 = log10(self.order[9].spec1d.wav[-1])
+        outwav = np.arange(w0,w1,scale)
+
+        for i in range(1,10):
+            w0,w1,mod = corr[order+1]
+            mod = sf.genfunc(w,0.,mod)
+            flux /= mod
+            var /= mod**2 
+
+            c = np.isnan(spec)
+            flux[c] = 0.
+            var[c] = 1e9
+
+            c = (w>w0)&(w<w1)
+
+            w = w[c]
+            spec = flux[c]
+            var = var[c]
+            if right is not None:
+                left = np.median(spec[(w>rb)&(w<rr)])
+                spec *= right/left
+                var *= (right/left)**2
+            try:
+                rb = owave[order+1][0] # blue end is start of next order
+                rr = w[-1] # red end is end of this spectrum
+                right = np.median(spec[(w>rb)&(w<rr)]) 
+            except:
+                pass
+
+            lw = np.log10(w)
+            c = (outwave>=lw[0])&(outwave<=lw[-1])
+            mod = interpolate.splrep(lw,spec,k=1)
+            outspec[c,order-1] = interpolate.splev(outwave[c],mod)
+            mod = interpolate.splrep(lw,var,k=1)
+            outvar[c,order-1] = interpolate.splev(outwave[c],mod)
+        
+        spec = np.nansum(outspec/outvar,1)/np.nansum(1./outvar,1)
+        var = np.nansum(1./outvar,1)**-1
+            
+
+    #-----------------------------------------------------------------------
+
+    def plot_spec1d(self, xmin=3840., xmax=10910., ymin=-0.2, ymax=5.,
+                    color='b'):
         """
         Plots the 10 extracted 1d spectra on a single plot
         """
         for i in range(10):
-            self.order[i].spec1d.plot()
+            self.order[i].spec1d.plot(color=color)
         plt.xlim(xmin,xmax)
         plt.ylim(ymin,ymax)
 
     #-----------------------------------------------------------------------
 
     def extract_all(self, method='oldham', apnum=0, apcent=[0.,], wid=1.0, 
-                    doplot=False, xmin=3840., xmax=10910., ymin=-0.2, ymax=5.):
+                    plot_profiles=True, plot_traces=False, plot_extracted=True, 
+                    xmin=3840., xmax=10910., ymin=-0.2, ymax=5.):
         """
         Goes through each of the 10 orders on the ESI spectrograph and
         extracts the spectrum via one of two procedures:
@@ -259,18 +314,18 @@ class Esi2d(ss.Spec2d):
         """
 
         """ First plot all the spatial profiles """
-        plt.figure(1)
-        plt.clf()
-        if method == 'cdf':
-            self.plot_profiles()
+        if plot_profiles:
+            plt.figure(1)
+            plt.clf()
+            if method == 'cdf':
+                self.plot_profiles()
 
         """ 
         Extract the spectra 
-        EXPERIMENTAL VERSION RIGHT NOW
         """
         for i in range(10):
             if method == 'cdf':
-                if doplot:
+                if plot_traces:
                     plt.figure(i+3)
                     plt.clf()
                 """ 
@@ -284,7 +339,7 @@ class Esi2d(ss.Spec2d):
                 print '=================================================='
                 print 'Order: %d' % (i+1)
                 print ''
-                self.order[i].find_and_trace(doplot=doplot,muorder=muorder,
+                self.order[i].find_and_trace(doplot=plot_traces,muorder=muorder,
                                              sigorder=sigorder,verbose=False)
                 self.order[i].extract_new()
 
@@ -295,13 +350,45 @@ class Esi2d(ss.Spec2d):
                 medflux = np.median(self.order[i].spec1d.flux)
                 self.order[i].spec1d.flux /= medflux
                 self.order[i].spec1d.var /= medflux**2
+
+
             elif method == 'oldham':
                 self.extract_oldham(i,apcent,apnum,wid)
 
         """
         Plot the extracted spectra
         """
-        plt.figure(2)
-        plt.clf()
-        self.plot_spec1d()
+        if plot_extracted:
+            plt.figure(2)
+            plt.clf()
+            self.plot_spec1d()
+
+    #-----------------------------------------------------------------------    
         
+    def stitch(self, respfile, method='oldham', respfunc='divide'):
+        """
+
+        This method does the two final steps needed to create a 1d spectrum:
+
+         1. Corrects each order for the spectral response function.  If the
+            observations were done in a specific manner, then this would be
+            flux calibration, but most observations of the standard star
+            are taken with a fairly narrow slit and, therefore, true flux
+            calibration cannot be done.  Instead, the response correction will
+            produce a spectrum for which the relative flux densities are
+            correct even though the absolute values are not.
+
+         2. Stitches the 10 spectral orders together into a single spectrum,
+            doing the necessary small corrections in the overlap regions to
+            make the final spectrum relatively smooth.
+
+        Inputs:
+           respfile - File containing the response correction
+        Optional inputs:
+           method   - Technique for doing the response correction.  Only two
+                      possibilities: 'oldham' or 'cdf' ('cdf' NOT functional yet)
+           respfunc - How to apply the response correction.  Two possibilities:
+                      1. 'divide':   divide orders by the response fn (default)
+                      2. 'multiply': multiply orders by the response fn (NOT
+                          yet implemented)
+        """

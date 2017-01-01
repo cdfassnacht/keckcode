@@ -18,14 +18,6 @@ import esi_spec as esi
 import sys
 
 
-""" 
-Set the range of valid pixels for each order.
- blue - sets the starting pixel to use for the extraction
- red  - sets the ending pixel to use for the extraction
-"""
-blue = [1500,1400,1300,1200,1100,900,600,200,0,0,0]
-red = [3000,3400,3700,-1,-1,-1,-1,-1,-1,-1]
-arcsecperpix = [0.120,0.127,0.134,0.137,0.144,0.149,0.153,0.158,0.163,0.168]
 apsize = []
 
 def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
@@ -51,11 +43,10 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
         d = esi.Esi2d(specname,varfile=varname)
 
         plt.figure()
-        #plt.subplot(111)
-        #plt.title('%s Frame %d' % (pref,num))
+
         """
         The esi_spec code has now been re-written to loop over the orders
-        to do the extraction, at least in theory.
+        to do the extraction
         """
         d.extract_all(method,apnum,apcent,wid)
         plt.show()
@@ -74,8 +65,6 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
 
     """ Coadd the spectra """
     print 'Finished the loop'
-    #return slist,vlist,wlist
-    #sys.exit()
     coadd(speclist,stdOrderCorr,name,aplab,apnum,pref)
 
 #---------------------------------------------------------------------------
@@ -102,9 +91,6 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
             ovars[j].append(speclist[i].order[j-1].spec1d.var)
             if i==0:
                 owave[j] = speclist[i].order[j-1].spec1d.wav
-
-    print 'Finished the second loop'
-    #return ospex,ovars,owave
 
     """
     Now we have a spectrum for each order of the echelle, covering different 
