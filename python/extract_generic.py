@@ -21,7 +21,8 @@ import sys
 apsize = []
 
 def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
-            indir='.', wid=1., wht=False, method='oldham'):
+            indir='.', wid=1., wht=False, method='oldham', apmin=-4.,
+            apmax=4.):
     ''' 
     frames = input frame numbers - give a list
     wht    = True gives a Gaussian aperture 
@@ -48,7 +49,7 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
         The esi_spec code has now been re-written to loop over the orders
         to do the extraction
         """
-        d.extract_all(method,apnum,apcent,wid)
+        d.extract_all(method,apnum,apcent,wid,apmin=apmin,apmax=apmax)
         plt.show()
 
         """
@@ -150,6 +151,11 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
             os = np.nansum(s/v,1)/np.nansum(1./v,1)
             ov = np.nansum(1./v,1)**-1
             
+        """
+        ------------------------------------------------------------
+        Do response correction
+        ------------------------------------------------------------
+        """
         spec = os
         var = ov
 
