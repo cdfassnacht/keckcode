@@ -1,6 +1,18 @@
 """
 Code to take over after the calibration, etc., that is done by the code
-in the esi directory.
+in the esi directory.  There are two new classes, plus some code that deals
+with combining multiple input files.  The two classes are:
+
+* Esi2d - used to find and trace spectra, and to convert the 2d spectra into
+          an output 1d spectrum in the form of an Esi1d instance.
+          This class is effectively an array of Spec2d instances, plus 
+          some additional code that handles the complexity of a 10-member
+          structure.
+* Esi1d - Similar to Esi2d, but in this case effectively an array of
+          Spec1d instances, plus code to deal with the 10-order structure
+          of ESI data.  There is also code to combine these ten orders into
+          a single Spec1d output.
+          UNDER CONSTRUCTION
 """
 
 import numpy as np
@@ -11,6 +23,10 @@ from ccdredux import sigma_clip
 from scipy import ndimage,interpolate
 import special_functions as sf
 from math import log10
+
+"""
+============================== Esi2d class ==============================
+"""
 
 class Esi2d(ss.Spec2d):
     """
@@ -69,12 +85,19 @@ class Esi2d(ss.Spec2d):
         print '----- --------- --------'
         for i in range(10):
             if self.extvar is not None:
-                tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,
+                tmpspec = ss.Spec2d(self.hdu,hext=i+1,
                                     extvar=self.extvar,verbose=False,
                                     logwav=True,fixnans=False)
             else:
-                tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,verbose=False,
+                tmpspec = ss.Spec2d(self.hdu,hext=i+1,verbose=False,
                                     logwav=True,fixnans=False)
+            #if self.extvar is not None:
+            #    tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,
+            #                        extvar=self.extvar,verbose=False,
+            #                        logwav=True,fixnans=False)
+            #else:
+            #    tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,verbose=False,
+            #                        logwav=True,fixnans=False)
             print ' %2d   %dx%d     %s' % \
                 ((i+1),tmpspec.data.shape[1],tmpspec.data.shape[0],
                  tmpspec.dispaxis)
@@ -434,3 +457,61 @@ class Esi2d(ss.Spec2d):
                       2. 'multiply': multiply orders by the response fn (NOT
                           yet implemented)
         """
+
+"""
+============================== Esi1d class ==============================
+"""
+
+class Esi1d(ss.Spec1d):
+    """
+    A class for ESI 1D spectra, which have been extracted by the Esi2d
+    methods, but have not yet been combined into one final output spectrum.
+    Therefore, there are 10 extracted 1d spectra, one for each order. 
+    These 10 extracted spectra will be stored in an array of Spec1d instances.
+
+    The main purpose of this class is to combine the 10 orders into one
+    output spectrum.  This functionality is split out from the Spec2d
+    class because in some cases, e.g., co-adding several spectra of the same
+    object, it may be easier to deal with the orders separately rather than
+    after they have been combined into one Spec1d spectrum (however, this 
+    assertione may not be correc)
+    """
+
+    def __init__(self, infile):
+        """
+
+        Create an instance of this class by loading the data from the input
+        file into 10 Spec1d instances.
+
+        """
+
+        """ Open the multiextension fits file that contains the 10 orders """
+        self.infile = infile
+        self.hdu = pf.open(infile)
+        print ''
+        print 'Science file:  %s' % self.infile
+
+        # """ If there is an external variance file, open that """
+        # self.extvar = None
+        # if varfile is not None:
+        #     self.extvar = pf.open(varfile)
+        #     print 'Variance file: %s' % varfile
+        # 
+        # """ Load each order into its own Spec2d container """
+        # self.order = []
+        # print ''
+        # print 'Order  Shape    Dispaxis'
+        # print '----- --------- --------'
+        # for i in range(10):
+        #     if self.extvar is not None:
+        #         tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,
+        #                             extvar=self.extvar,verbose=False,
+        #                             logwav=True,fixnans=False)
+        #     else:
+        #         tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,verbose=False,
+        #                             logwav=True,fixnans=False)
+        #     print ' %2d   %dx%d     %s' % \
+        #         ((i+1),tmpspec.data.shape[1],tmpspec.data.shape[0],
+        #          tmpspec.dispaxis)
+        #     self.order.append(tmpspec)
+

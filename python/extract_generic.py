@@ -21,8 +21,8 @@ import sys
 apsize = []
 
 def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
-            indir='.', wid=1., wht=False, method='oldham', apmin=-4.,
-            apmax=4.):
+            indir='.', wid=1., wht=False, method='oldham', plot_extracted=False,
+            apmin=-4., apmax=4.):
     ''' 
     frames = input frame numbers - give a list
     wht    = True gives a Gaussian aperture 
@@ -49,7 +49,8 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
         The esi_spec code has now been re-written to loop over the orders
         to do the extraction
         """
-        d.extract_all(method,apnum,apcent,wid,apmin=apmin,apmax=apmax)
+        d.extract_all(method,apnum,apcent,wid,apmin=apmin,apmax=apmax,
+                      plot_extracted=plot_extracted)
         plt.show()
 
         """
