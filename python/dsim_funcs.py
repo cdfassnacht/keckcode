@@ -34,11 +34,9 @@ class dsimCat(cf.Secat):
       self.id        = None
       self.pri       = None
       self.theta     = None
-      self.theta_out = None
+      self.pa        = None
       self.selband   = None
       self.bandname  = None
-      self.starband  = None
-      self.selmask   = None
       self.dstab     = None
 
       """ 
@@ -68,6 +66,50 @@ class dsimCat(cf.Secat):
       #pri   = np.zeros(self.nrows)
       #theta = np.zeros(self.nrows)
       #self.dstab = Table([name,pri,theta], names=('name','pri','theta'))
+
+   #----------------------------------------------------------------------
+
+   def make_ids(self, root, ndigits=4):
+      """
+      Creates an array of object ids based on the position within the array
+      """
+
+      self.id = np.zeros(self.nrows,dtype='S16')
+      for i in range(self.nrows):
+         self.id[i] = '%s%04d' % (root,i+1)
+
+   #----------------------------------------------------------------------
+
+   def make_magmask(self, magname, mfaint=None, mbright=None):
+      """
+      Makes a mask that is True for magnitudes brighter than mfaint and
+       fainter than mbright.
+      Note that one of these two could have the value None, in which case
+       it would be ignored.  For example, if mbright is None, then the mask
+       will be True for all galaxies brighter than mfaint
+
+      Inputs:
+       magname - the name in the catalog for the column that represents the
+                  object magnitudes.  This could be something like, e.g., 'r' 
+                  or 'MAG_AUTO'
+      """
+
+      mag = self.data[magname]
+      if mfaint is None and mbright is None:
+         self.magmask = np.ones(self.nrows,dtype=bool)
+      elif mfaint is None:
+         self.magmask = mag >= mbright
+      elif mbright is None:
+         self.magmask = mag <= mfaint
+      else:
+         self.magmask = (mag>=mbright) & (mag<=mfaint)
+
+   #----------------------------------------------------------------------
+
+   #def make_dstab(self):
+   #   """
+   #   Creates a table of additional information about the selected objects.
+   #   """
 
    #----------------------------------------------------------------------
 
@@ -117,10 +159,10 @@ class dsimCat(cf.Secat):
       """
       nsel = self.selmask.sum()
       dfmt = ['S16','S12','S13',float,float,'S2',int,int,int,float]
-      dnames = ['name','ra','dec','equinox','mag','band','pri','samp','sel',
+      dnames = ['id','ra','dec','equinox','mag','band','pri','samp','sel',
                 'pa']
       outarr = np.zeros(nsel,dtype={'names':dnames,'formats':dfmt})
-      outarr['name'] = self.dstab['name']
+      outarr['id'] = self.dstab['id']
       outarr['ra'] = tmpra
       outarr['dec'] = tmpdec
       outarr['equinox'] += 2000.
