@@ -36,7 +36,7 @@ class dsimCat(cf.Secat):
       self.theta     = None
       self.pa        = None
       self.selband   = None
-      self.bandname  = None
+      self.magname   = None
       self.dstab     = None
 
       """ 
@@ -80,36 +80,43 @@ class dsimCat(cf.Secat):
 
    #----------------------------------------------------------------------
 
-   def make_magmask(self, magname, mfaint=None, mbright=None):
+   def make_dstab(self, pri=None):
       """
-      Makes a mask that is True for magnitudes brighter than mfaint and
-       fainter than mbright.
-      Note that one of these two could have the value None, in which case
-       it would be ignored.  For example, if mbright is None, then the mask
-       will be True for all galaxies brighter than mfaint
-
-      Inputs:
-       magname - the name in the catalog for the column that represents the
-                  object magnitudes.  This could be something like, e.g., 'r' 
-                  or 'MAG_AUTO'
+      Creates a table of additional information about the selected objects.
+      There are several assumptions that go into this:
+        1. The selection mask, represented by the selmask array within the
+           dsimCat structure, has been set.  If not, then dstab will be
+           set with all of the members of the catalog.
+        2. The make_ids method has previously run.  If self->id is None,
+           as it is initialized to be during the creation of the structure,
+           then make_ids is called with a root of 'obj'
+        3. The galaxy position angles, represented by the theta array within
+           the dsimCat structure have been set.  If self->theta is None
+           (as it is initialized to be when the structure is created) then
+           the 'pa' values within dstab will all be set to zero.
+      With these assumptions, the size of dstab is set and the 'id' and 'pa'
+      columns can be filled with initial values.  The 'pri' column will be
+      set to its passed value if that is not None, otherwise it will be set
+      to be identically zero.
       """
 
-      mag = self.data[magname]
-      if mfaint is None and mbright is None:
-         self.magmask = np.ones(self.nrows,dtype=bool)
-      elif mfaint is None:
-         self.magmask = mag >= mbright
-      elif mbright is None:
-         self.magmask = mag <= mfaint
-      else:
-         self.magmask = (mag>=mbright) & (mag<=mfaint)
+      """ 
+      Test for existence of arrays that are needed to create the dstab 
+      """
+      if self.selmask is None:
+         self.selmask = np.ones(self.nrows,dtype=bool)
+      nsel = self.selmask.sum()
+      if self.id is None:
+         self.make_ids('obj')
+      if self.theta is None:
+         self.theta = np.zeros(self.nrows)
 
-   #----------------------------------------------------------------------
-
-   #def make_dstab(self):
-   #   """
-   #   Creates a table of additional information about the selected objects.
-   #   """
+      """ Set the colums of dstab and create the table """
+      selid = self.id[self.selmask]
+      pa = self.theta[self.selmask]
+      if pri is None:
+         pri = np.zeros(nsel)
+      self.dstab = Table([selid,pri,pa], names=('id','pri','pa'))
 
    #----------------------------------------------------------------------
 
@@ -166,7 +173,7 @@ class dsimCat(cf.Secat):
       outarr['ra'] = tmpra
       outarr['dec'] = tmpdec
       outarr['equinox'] += 2000.
-      outarr['mag'] = seldata[self.selband]
+      outarr['mag'] = seldata[self.magname]
       outarr['band'] = self.selband
       outarr['pri'] = self.dstab['pri']
       outarr['samp'] += 1
@@ -174,7 +181,7 @@ class dsimCat(cf.Secat):
       #print outarr
 
       """ Write to the output file """
-      outfmt = '%-16s %s %s %.1f %5.2f %s %d %d %d %.1f'
+      outfmt = '%-16s %s %s %.1f %5.2f %s %4d %d %d %.1f'
       np.savetxt(outfile,outarr,fmt=outfmt)
 
 #---------------------------------------------------------------------------
