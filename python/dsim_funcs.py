@@ -24,7 +24,8 @@ class dsimCat(cf.Secat):
    """
 
    def __init__(self, catfile, catformat, verbose=True, namecol=None,
-                racol=None, deccol=None, usecols=False):
+                racol=None, deccol=None, usecols=False, rafield=None,
+                decfield=None):
       """
       Creates an instance of the dsimCat class and loads it with data from
       the input file (catfile)
@@ -38,12 +39,15 @@ class dsimCat(cf.Secat):
       self.selband   = None
       self.magname   = None
       self.dstab     = None
+      self.selmask   = None
 
       """ 
       Read in the catalog and call the superclass initialization (to cf.Secat)
       for useful attributes
       """
-      cf.Secat.__init__(self,catfile,catformat=catformat)
+      cf.Secat.__init__(self,catfile,catformat=catformat,namecol=namecol,
+                        racol=racol,deccol=deccol,rafield=rafield,
+                        decfield=decfield,usecols=usecols)
 
       """ 
       Make sure that there are RA and Dec coordinates, otherwise the catalog
