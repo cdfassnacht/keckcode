@@ -24,8 +24,8 @@ class dsimCat(cf.Secat):
    """
 
    def __init__(self, catfile, catformat, verbose=True, namecol=None,
-                racol=None, deccol=None, usecols=False, rafield=None,
-                decfield=None):
+                racol=None, deccol=None, usecols=False, rafield='ra',
+                decfield='dec'):
       """
       Creates an instance of the dsimCat class and loads it with data from
       the input file (catfile)
