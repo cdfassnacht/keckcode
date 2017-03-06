@@ -80,7 +80,14 @@ class dsimCat(cf.Secat):
 
       self.id = np.zeros(self.nrows,dtype='S16')
       for i in range(self.nrows):
-         self.id[i] = '%s%04d' % (root,i+1)
+         if ndigits == 3:
+            self.id[i] = '%s%03d' % (root,i+1)
+         elif ndigits == 4:
+            self.id[i] = '%s%04d' % (root,i+1)
+         elif ndigits == 5:
+            self.id[i] = '%s%05d' % (root,i+1)
+         else:
+            self.id[i] = '%s%d' % (root,i+1)
 
    #----------------------------------------------------------------------
 
@@ -186,6 +193,66 @@ class dsimCat(cf.Secat):
 
       """ Write to the output file """
       outfmt = '%-16s %s %s %.1f %5.2f %s %4d %d %d %.1f'
+      np.savetxt(outfile,outarr,fmt=outfmt)
+
+   #----------------------------------------------------------------------
+
+   def write_stars(self, outfile, verbose=False):
+      """
+      Writes out the selected stars in the format needed for DSIMULATOR
+      input of possible guide/alignment stars. 
+
+      NOTE: Many of the parameters that used to be passed to the stand-alone
+      function, e.g., the priority vector, are now contained within the
+      dsimCat structure itself and so no longer have to be explicitly
+      passed in the call.
+      """
+
+      """ 
+      Check to make sure that the selection mask has been made.  If not, make
+      a mask that selects all of the catalog members.
+      """
+      if self.selmask is None:
+         self.selmask = np.ones(self.nrows,dtype=bool)
+
+      """
+      Check to make sure that the id array has been created and, if not,
+      make it
+      """
+      if self.id is None:
+         self.make_ids('S')
+
+      """ Use the selection mask to pull out the selected objects """
+      seldata  = self.data[self.selmask]
+      selradec = self.radec[self.selmask]
+
+      """ Convert the radec info into the appropriate format """
+      tmpra = selradec.ra.to_string(unit=u.hourangle,decimal=False,sep=':',
+                                    precision=3,pad=True)
+      tmpdec = selradec.dec.to_string(decimal=False,sep=':',precision=3,
+                                      alwayssign=True,pad=True)
+
+      """ 
+      Store the output information in a numpy array for improved
+      speed in writing out the data.
+      """
+      nsel = self.selmask.sum()
+      #dfmt = ['S16','S12','S13',float,float,'S2',int,int,int,float]
+      #dnames = ['id','ra','dec','equinox','mag','band','pri','samp','sel',
+      #          'pa']
+      dfmt = ['S16','S12','S13',float,'S2']
+      dnames = ['id','ra','dec','mag','band']
+      outarr = np.zeros(nsel,dtype={'names':dnames,'formats':dfmt})
+      outarr['id'] = self.id[self.selmask]
+      outarr['ra'] = tmpra
+      outarr['dec'] = tmpdec
+      #outarr['equinox'] += 2000.
+      outarr['mag'] = seldata[self.magname]
+      outarr['band'] = self.selband
+      #outarr['pri'] = self.dstab['pri']
+
+      """ Write to the output file """
+      outfmt = '%-16s %s %s 2000.0 %5.2f %s -2'
       np.savetxt(outfile,outarr,fmt=outfmt)
 
 #---------------------------------------------------------------------------
