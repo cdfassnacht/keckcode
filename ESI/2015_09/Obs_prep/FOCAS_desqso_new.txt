@@ -1,0 +1,149 @@
+###
+Please describe your observing plan (time line) including overheads.
+For each of the 13 targets, we need the following:
+ acquisition : 600 sec
+ readout  : 3 exp. * 23 sec (2x1 bin.) per object
+ exposure : 
+
+DESJ0229+0320 :  30  * 3 exp.
+DESJ0240-0208 :  30  * 3 exp.
+DESJ2057+0006 :  40  * 3 exp.
+DESJ2337+0056 :  50  * 3 exp.
+DESJ0034-3412 :  60  * 3 exp.
+DESJ2322-2858 :  80  * 3 exp.
+DESJ0017-0124 : 120  * 3 exp.
+DESJ0138-0912 : 130  * 3 exp.
+DESJ2205+0031 : 150  * 3 exp.
+DESJ2157-1406 : 160  * 3 exp.
+DESJ2247+0027 : 300  * 3 exp.
+DESJ0050+0010 : 320  * 3 exp.
+DESJ2236+0019 : 330  * 3 exp.  
+
+ total : 7800+897+5400=14097 sec
+
+
+###
+ 1. Target/field name
+ DESJ0229+0320 
+ DESJ0240-0208 
+ DESJ2057+0006 
+ DESJ2337+0056 
+ DESJ0034-3412 
+ DESJ2322-2858 
+ DESJ0017-0124 
+ DESJ0138-0912 
+ DESJ2205+0031 
+ DESJ2157-1406 
+ DESJ2247+0027 
+ DESJ0050+0010 
+ DESJ2236+0019 
+
+ 2. Magnitude/range of magnitudes in i-band (AB):
+ 18.080 
+ 18.100 
+ 18.438 
+ 18.530 
+ 18.646 
+ 18.903 
+ 19.200 
+ 19.537 
+ 19.639 
+ 19.686 
+ 20.382 
+ 20.544 
+ 20.807 
+
+ 3. Are photometric conditions necessary? (Yes/No)
+	No
+
+ 4. What is the maximum acceptable seeing size in arcseconds?
+	1.0"
+
+ 5. Right ascension of the target in format HHMMSS.SSS
+022958.21 
+024018.40 
+205752.47 
+233713.66 
+003417.00 
+232234.10 
+001732.27 
+013813.53 
+220501.19 
+215726.34 
+224735.86 
+005040.58 
+223632.84 
+
+ 6. Declination of the target in format (+/-)DDMMSS.SS
+ +032030.2 
+ -020850.3 
+ +000635.3
+ +005610.8
+ -341238.6 
+ -285825.6 
+ -012407.1
+ -091239.8
+ +003122.9
+ -140636.8
+ +002717.5
+ +001030.5
+ +001940.7
+
+ 7. Equinox of position in format YYYY.Y
+	2000.0
+
+ 8. Position angle in degrees (-180 to +180)
+(slit along E-W, counting positive from North)
+ -15.0
+ -25.0  
+ +7.0   
+ +7.0   
+ -25.0  
+ +20.0  
+ +88.0  
+ +15.0  
+ +85.0  
+ -15.0  
+ +88.0  
+ -15.0  
+ -30.0 
+
+ 9. Observing mode (imaging/long-slit/mos)
+ 	long-slit
+
+ 10. Filter/grism/slit settings for observation.
+ 	0".80 slit + 300B+SY47
+
+ 11. CCD binning (X-axis x Y-axis)
+	Spectroscopy: 2x1 (spatial direction x spectral direction)
+
+ 12. Exposure parameters for each setting
+ 	The exposure times for each object are given at the beginning of this file.
+	3-point dithering along slit: (-5.0",0,+5.0")  
+
+ 13. Requests for calibration
+	Only the standard set of calibration data (dome flat + arc + bias) in the evening or morning.
+
+ 14. Special requests for observation (if any)
+	None
+
+###
+ A-1. Number of finding charts contained (number of pages of the PDF file).
+	1 ( 13 pages)
+
+ A-2. Give information 1 to 5 below for each of the finding chart.
+    (1. Page number 2. Object name 3. Size of the chart 4. Orientation of the chart (north and east) 5. Other comments (if any))
+
+	1	 DESJ0229+0320:	 30"x30" and 6'x6'	N-UP E-LEFT	
+	2	 DESJ0240-0208:  30"x30" and 6'x6'	N-UP E-LEFT	
+	3	 DESJ2057+0006:	 30"x30" and 6'x6'	N-UP E-LEFT	
+	4	 DESJ2337+0056:	 30"x30" and 6'x6'	N-UP E-LEFT	
+	5	 DESJ0034-3412:	 30"x30" and 6'x6'	N-UP E-LEFT	
+	6	 DESJ2322-2858:	 30"x30" and 6'x6'	N-UP E-LEFT	
+	7	 DESJ0017-0124:	 30"x30" and 6'x6'	N-UP E-LEFT	
+	8	 DESJ0138-0912:	 30"x30" and 6'x6'	N-UP E-LEFT	
+    9    DESJ2205+0031:	 30"x30" and 6'x6'	N-UP E-LEFT	
+   10    DESJ2157-1406:	 30"x30" and 6'x6'	N-UP E-LEFT	
+   11    DESJ2247+0027:	 30"x30" and 6'x6'	N-UP E-LEFT	
+   12    DESJ0050+0010:	 30"x30" and 6'x6'	N-UP E-LEFT	
+   12    DESJ2236+0019:	 30"x30" and 6'x6'	N-UP E-LEFT	

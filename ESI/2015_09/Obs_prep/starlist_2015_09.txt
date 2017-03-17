@@ -1,0 +1,37 @@
+# STRIDES targets
+J2057+0006       20 57 52.47  +00 06 35.3  2000.0 rotmode=pa rotdest=+7.0  vmag=18.4
+J2112+0001       21 12 41.20  +00 01 07.2  2000.0 rotmode=pa rotdest=-37.3
+J2127-0134       21 27 43.3   -01 34 26.0  2000.0 rotmode=pa rotdest=-2.3  vmag=20.6
+J2127+0118       21 27 07.69  +01 18 53.1  2000.0 rotmode=pa rotdest=+28.4
+J2132-0123       21 32 45.39  -01 23 19.7  2000.0 rotmode=pa rotdest=+70.6
+J2134-0037       21 34 44.14  -00 37 40.0  2000.0 rotmode=pa rotdest=+50.0
+J2138-0118       21 38 32.16  -01 18 15.9  2000.0 rotmode=pa rotdest=-48.4
+J2157-1406       21 57 26.34  -14 06 36.8  2000.0 rotmode=pa rotdest=-15.0 vmag=19.7
+J2205+0031       22 05 01.19  +00 31 22.9  2000.0 rotmode=pa rotdest=+81.5 vmag=19.6
+J2222+0107       22 22 07.66  +01 07 49.8  2000.0 rotmode=pa rotdest=-27.2
+J2226+0109       22 26 08.46  +01 09 22.2  2000.0 rotmode=pa rotdest=-37.6 
+J2236+0019       22 36 32.84  +00 19 40.7  2000.0 rotmode=pa rotdest=-43.4 vmag=20.8
+J2247+0027       22 47 35.86  +00 27 17.5  2000.0 rotmode=pa rotdest=+88.0 vmag=20.4
+J2322-2858       23 22 34.10  -28 58 25.6  2000.0 rotmode=pa rotdest=+20.0 vmag=18.9
+J2337+0056       23 37 13.66  +00 56 10.8  2000.0 rotmode=pa rotdest=+7.0  vmag=18.5
+J2339-0118       23 39 46.25  -01 18 22.32 2000.0 rotmode=pa rotdest=-3.8  vmag=21.4
+J0008-0103       00 08 37.67  -01 03 13.73 2000.0 rotmode=pa rotdest=-12.4 vmag=21.0
+J0017-0124       00 17 32.27  -01 24 07.1  2000.0 rotmode=pa rotdest=+88.0 vmag=19.2
+J0034-3412       00 34 17.00  -34 12 38.6  2000.0 rotmode=pa rotdest=-25.0 vmag=18.6
+J0050+0010       00 50 40.58  +00 10 30.5  2000.0 rotmode=pa rotdest=-15.0 vmag=20.5
+J0138-0912       01 38 13.53  -09 12 39.8  2000.0 rotmode=pa rotdest=+15.0 vmag=19.5
+J0200-1509       02 00 20.93  -15 09 39.0  2000.0 rotmode=pa rotdest=+75.0 vmag=18.9
+J0229+0320       02 29 58.21  +03 20 30.2  2000.0 rotmode=pa rotdest=-15.0 vmag=18.1
+J0240-0208       02 40 18.40  -02 08 50.3  2000.0 rotmode=pa rotdest=-25.0 vmag=18.1
+J0516-2414       05 16 39.77  -24 14 29.71 2000.0 rotmode=pa rotdest=+10.0
+# Other new lens (candidates)
+MO_J0141+0039    01 41 52.46  +00 39 56.15 2000.0 rotmode=pa rotdest=-79.2 vmag=20.6
+# H0licow++ targets
+HE0047-1756      00 50 27.80  -17 40 09.00 2000.0 rotmode=pa rotdest=-9.1 
+J0246-0825       02 46 34.11  -08 25 36.20 2000.0 rotmode=pa rotdest=-56.1 vmag=17.6
+HS2209+1914      22 11 30.30  +19 29 12.00 2000.0 rotmode=pa rotdest=-18.5 vmag=15.4
+# Standard Stars
+BD332642         15 51 59.9   +32 56 55.0  2000.0 vmag=10.81
+BD284211         21 51 11.1   +28 51 52.0  2000.0 vmag=10.51
+G158-100         00 33 54.3   -12 07 57.0  2000.0
+GD50             03 48 50.1   -00 58 30.0  2000.0

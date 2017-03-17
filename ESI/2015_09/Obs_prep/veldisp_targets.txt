@@ -1,0 +1,23 @@
+#                                                F814W  F160W_lens  Reference
+# Lens           RA2000       Dec2000       z_l  Vega  F160W
+#------------  ------------- ------------  ----- ----- ----- ------------------
+HE0047-1756    00 50 27.8000 -17 40 09.00  0.407 18.97 17.17 CASTLES, Chantry
+SDSS0246-0825  02 46 34.1100 -08 25 36.20  0.723 20.82 18.42 CASTLES, Eigenbrod
+HS2209+1914    22 11 30.3000 +19 29 12.00  ??     ??   21.58 Chantry
+
+# Chantry = Chantry et al. 2010, A&A, 522, 95
+# Eigenbrod = Eigenbrod, Courbin, & Meylan 2007, A&A, 465, 51
+
+#SDSS1206+4332  12 06 29.6500 +43 32 17.60 
+#  NB: Already has veldisp in the optical; bad OSIRIS data in April
+#With OSIRIS we have 3 hours on 0435 from 2014B
+
+What about 1131 and 1104? they scheduled to be observed with OSIRIS but not
+ optical vel disp? TT to find out from SHS
+
+Current plan for ESI is to do do
+
+2 hrs on 0047 [to get veldisp]
+3 hrs on 0246 [to get veldisp]
+2 hrs on 2209 [to get redshift]
+
