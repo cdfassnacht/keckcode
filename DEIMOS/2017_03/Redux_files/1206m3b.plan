@@ -1,0 +1,19 @@
+# Plan file for spec2d pipeline created for reduction of mask dongS1B
+# Grating: 600G Central Wavelength: 7150 A
+MASK: 1206m3b
+poly
+CHIPS: 1,2,3,4,5,6,7,8
+LINELIST: lamp_NIST_blue.dat 
+RAWDATADIR: ../Raw
+FLATNAME: d0329_0081.fits 
+FLATNAME: d0329_0082.fits
+FLATNAME: d0329_0083.fits
+FLATNAME: d0329_0084.fits
+BLUEARCNAME: d0329_0070.fits
+BLUEARCNAME: d0329_0075.fits
+BLUEARCNAME: d0329_0080.fits
+REDARCNAME: d0329_0080.fits
+RAWDATADIR: ../Raw
+SCIENCENAME: d0329_0036.fits 
+SCIENCENAME: d0329_0038.fits
+SCIENCENAME: d0329_0039.fits
