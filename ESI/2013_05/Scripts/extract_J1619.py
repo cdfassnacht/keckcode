@@ -101,7 +101,7 @@ def extract(pref,nums,wid=1.,wht=False):
     outspec = np.zeros((outwave.size,10))*np.nan
     outvar = outspec.copy()
 
-    np.save('J1248_apertures',apsize)
+    np.save('J1619_apertures',apsize)
 
     corr = np.load('orderCorr_BD284211.dat')
     right = None
