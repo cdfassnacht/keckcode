@@ -1,0 +1,5 @@
+           2 objects with Q = 0
+           5 objects with Q = 1
+           1 objects with Q = 2
+           3 objects with Q = 3
+          57 objects with Q = 4
