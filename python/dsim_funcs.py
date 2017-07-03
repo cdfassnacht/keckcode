@@ -176,6 +176,7 @@ class dsimCat(cf.Secat):
       speed in writing out the data.
       """
       nsel = self.selmask.sum()
+      print 'Writing out %d selected galaxies to %s' % (nsel,outfile)
       dfmt = ['S16','S12','S13',float,float,'S2',int,int,int,float]
       dnames = ['id','ra','dec','equinox','mag','band','pri','samp','sel',
                 'pa']
