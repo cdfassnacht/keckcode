@@ -1,0 +1,6 @@
+           2 objects with Q = -1
+           4 objects with Q = 0
+           7 objects with Q = 1
+           1 objects with Q = 2
+           7 objects with Q = 3
+          42 objects with Q = 4
