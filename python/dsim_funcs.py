@@ -45,9 +45,9 @@ class dsimCat(cf.Secat):
       Read in the catalog and call the superclass initialization (to cf.Secat)
       for useful attributes
       """
-      cf.Secat.__init__(self,catfile,catformat=catformat,namecol=namecol,
-                        racol=racol,deccol=deccol,rafield=rafield,
-                        decfield=decfield,usecols=usecols)
+      cf.Secat.__init__(self, catfile, catformat=catformat, namecol=namecol,
+                        racol=racol, deccol=deccol, rafield=rafield,
+                        decfield=decfield, usecols=usecols)
 
       """ 
       Make sure that there are RA and Dec coordinates, otherwise the catalog
@@ -60,7 +60,7 @@ class dsimCat(cf.Secat):
          print 'ERROR: Input file %s does not have recognized RA and Dec data' \
              % self.infile
          print ''
-         sys.exit()
+         return None
 
       """ 
       Set up a second table that, for now, has dummy values but which will
