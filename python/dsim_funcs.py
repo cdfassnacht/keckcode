@@ -88,6 +88,7 @@ class dsimCat(cf.Secat):
             self.id[i] = '%s%05d' % (root,i+1)
          else:
             self.id[i] = '%s%d' % (root,i+1)
+      self.data['dsimID'] = self.id
 
    #----------------------------------------------------------------------
 
