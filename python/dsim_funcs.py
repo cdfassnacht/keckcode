@@ -241,18 +241,36 @@ class dsimCat(cf.Secat):
       #dfmt = ['S16','S12','S13',float,float,'S2',int,int,int,float]
       #dnames = ['id','ra','dec','equinox','mag','band','pri','samp','sel',
       #          'pa']
-      dfmt = ['S16','S12','S13',float,'S2']
-      dnames = ['id','ra','dec','mag','band']
-      outarr = np.zeros(nsel, dtype={'names':dnames, 'formats':dfmt})
+      dfmt = ['S16', 'S12', 'S13', float, 'S2', int]
+      dnames = ['id', 'ra', 'dec', 'mag', 'band', 'pri']
+      outarr = np.zeros(nsel,dtype={'names':dnames,'formats':dfmt})
       outarr['id'] = self.id[self.selmask]
       outarr['ra'] = tmpra
       outarr['dec'] = tmpdec
       outarr['mag'] = seldata[self.magname]
       outarr['band'] = self.selband
-      #outarr['pri'] = self.dstab['pri']
+      outarr['pri'] -= 2
+
+      """ 
+      Add a line for the lens system, which should have been read in as
+      the centpos element of this class
+      """
+      if self.centpos is not None:
+         lensrow = np.zeros(1, dtype={'names':dnames,'formats':dfmt})
+         lensrow['id'] = 'Lens'
+         ra = self.centpos.ra.to_string(unit=u.hourangle, decimal=False,
+                                        sep=':', precision=3, pad=True)
+         lensrow['ra'] = ra
+         dec = self.centpos.dec.to_string(decimal=False, sep=':', precision=3,
+                                          alwayssign=True, pad=True)
+         lensrow['dec'] = dec
+         lensrow['equinox'] = 2000.
+         lensrow['mag'] = 15.  # Not a real value: just a placeholder
+         lensrow['band'] = 'i'
+         lensrow['pri'] = -1
 
       """ Write to the output file """
-      outfmt = '%-16s %s %s 2000.0 %5.2f %s -2'
+      outfmt = '%-16s %s %s 2000.0 %5.2f %s %d'
       np.savetxt(outfile, outarr, fmt=outfmt)
       if verbose:
          print('Wrote %d objects to DSIM input file called %s' % 
