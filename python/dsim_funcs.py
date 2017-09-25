@@ -3,16 +3,16 @@ A set of functions related to preparing files related to using the DSIMULATOR
 package for preparing DEIMOS slitmasks
 """
 
+import sys
 import numpy as np
 import astropy
+from astropy import units as u
+from astropy.table import Table
 if astropy.__version__[:3] == '0.3':
    from astropy.coordinates import ICRS as SkyCoord
 else:
    from astropy.coordinates import SkyCoord
-from astropy import units as u
-from astropy.table import Table
 import catfuncs as cf
-import sys
 
 #---------------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ class dsimCat(cf.Secat):
    the files needed for and produced by DSIMULATOR
    """
 
-   def __init__(self, catfile, catformat, verbose=True, namecol=None,
+   def __init__(self, catfile, catformat='ldac', verbose=True, namecol=None,
                 racol=None, deccol=None, usecols=False, rafield='ra',
                 decfield='dec'):
       """
@@ -73,12 +73,12 @@ class dsimCat(cf.Secat):
 
    #----------------------------------------------------------------------
 
-   def make_ids(self, root, ndigits=4):
+   def make_ids(self, root, ndigits=4, mask=None):
       """
       Creates an array of object ids based on the position within the array
       """
 
-      self.id = np.zeros(self.nrows,dtype='S16')
+      self.id = np.zeros(self.nrows, dtype='S16')
       for i in range(self.nrows):
          if ndigits == 3:
             self.id[i] = '%s%03d' % (root,i+1)
@@ -115,7 +115,7 @@ class dsimCat(cf.Secat):
       Test for existence of arrays that are needed to create the dstab 
       """
       if self.selmask is None:
-         self.selmask = np.ones(self.nrows,dtype=bool)
+         self.selmask = np.ones(self.nrows, dtype=bool)
       nsel = self.selmask.sum()
       if self.id is None:
          self.make_ids('obj')
@@ -198,7 +198,7 @@ class dsimCat(cf.Secat):
 
    #----------------------------------------------------------------------
 
-   def write_stars(self, outfile, verbose=False):
+   def write_stars(self, outfile, verbose=True):
       """
       Writes out the selected stars in the format needed for DSIMULATOR
       input of possible guide/alignment stars. 
@@ -243,18 +243,20 @@ class dsimCat(cf.Secat):
       #          'pa']
       dfmt = ['S16','S12','S13',float,'S2']
       dnames = ['id','ra','dec','mag','band']
-      outarr = np.zeros(nsel,dtype={'names':dnames,'formats':dfmt})
+      outarr = np.zeros(nsel, dtype={'names':dnames, 'formats':dfmt})
       outarr['id'] = self.id[self.selmask]
       outarr['ra'] = tmpra
       outarr['dec'] = tmpdec
-      #outarr['equinox'] += 2000.
       outarr['mag'] = seldata[self.magname]
       outarr['band'] = self.selband
       #outarr['pri'] = self.dstab['pri']
 
       """ Write to the output file """
       outfmt = '%-16s %s %s 2000.0 %5.2f %s -2'
-      np.savetxt(outfile,outarr,fmt=outfmt)
+      np.savetxt(outfile, outarr, fmt=outfmt)
+      if verbose:
+         print('Wrote %d objects to DSIM input file called %s' % 
+               (nsel,outfile))
 
 #---------------------------------------------------------------------------
 
