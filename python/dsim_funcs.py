@@ -259,16 +259,17 @@ class dsimCat(cf.Secat):
       if self.centpos is not None:
          lensrow = np.zeros(1, dtype={'names':dnames,'formats':dfmt})
          lensrow['id'] = 'Lens'
-         ra = self.centpos.ra.to_string(unit=u.hourangle, decimal=False,
-                                        sep=':', precision=3, pad=True)
+         ra = str(self.centpos.ra.to_string(unit=u.hourangle, decimal=False,
+                                            sep=':', precision=3, pad=True))
          lensrow['ra'] = ra
-         dec = self.centpos.dec.to_string(decimal=False, sep=':', precision=3,
-                                          alwayssign=True, pad=True)
+         dec = str(self.centpos.dec.to_string(decimal=False, sep=':',
+                                              precision=3, alwayssign=True,
+                                              pad=True))
          lensrow['dec'] = dec
-         lensrow['equinox'] = 2000.
          lensrow['mag'] = 15.  # Not a real value: just a placeholder
          lensrow['band'] = 'i'
          lensrow['pri'] = -1
+         outarr = np.append(outarr, lensrow)
 
       """ Write to the output file """
       outfmt = '%-16s %s %s 2000.0 %5.2f %s %d'
