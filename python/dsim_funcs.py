@@ -132,73 +132,6 @@ class dsimCat(cf.Secat):
 
    #----------------------------------------------------------------------
 
-   def write_gal(self, outfile, verbose=False):
-      """
-      Writes out the selected galaxies in the format needed for DSIMULATOR
-      input. 
-
-      NOTE: Many of the parameters that used to be passed to the stand-alone
-      function, e.g., the priority vector, are now contained within the
-      dsimCat structure itself and so no longer have to be explicitly
-      passed in the call.
-      """
-
-      """ 
-      Make sure that the priorities, etc. have been put into the dstab
-      array within the dsimCat structure
-      """
-      if self.dstab is None:
-         print ''
-         print 'ERROR: Cannot write out galaxies without dstab (priorities,etc.)'
-         print ' being set'
-         print ''
-         return
-
-      """ 
-      Check to make sure that the selection mask has been made.  If not, make
-      a mask that selects all of the catalog members.
-      """
-      if self.selmask is None:
-         self.selmask = np.ones(self.nrows,dtype=bool)
-
-      """ Use the selection mask to pull out the selected objects """
-      seldata  = self.data[self.selmask]
-      selradec = self.radec[self.selmask]
-      #selinfo  = self.dstab[self.selmask]
-
-      """ Convert the radec info into the appropriate format """
-      tmpra = selradec.ra.to_string(unit=u.hourangle,decimal=False,sep=':',
-                                    precision=3,pad=True)
-      tmpdec = selradec.dec.to_string(decimal=False,sep=':',precision=3,
-                                      alwayssign=True,pad=True)
-
-      """ 
-      Store the output information in a numpy array for improved (hopefully)
-      speed in writing out the data.
-      """
-      nsel = self.selmask.sum()
-      print 'Writing out %d selected galaxies to %s' % (nsel,outfile)
-      dfmt = ['S16','S12','S13',float,float,'S2',int,int,int,float]
-      dnames = ['id','ra','dec','equinox','mag','band','pri','samp','sel',
-                'pa']
-      outarr = np.zeros(nsel,dtype={'names':dnames,'formats':dfmt})
-      outarr['id'] = self.dstab['id']
-      outarr['ra'] = tmpra
-      outarr['dec'] = tmpdec
-      outarr['equinox'] += 2000.
-      outarr['mag'] = seldata[self.magname]
-      outarr['band'] = self.selband
-      outarr['pri'] = self.dstab['pri']
-      outarr['samp'] += 1
-      outarr['pa'] = self.dstab['pa']
-      #print outarr
-
-      """ Write to the output file """
-      outfmt = '%-16s %s %s %.1f %5.2f %s %4d %d %d %.1f'
-      np.savetxt(outfile,outarr,fmt=outfmt)
-
-   #----------------------------------------------------------------------
-
    def write_stars(self, outfile, verbose=True):
       """
       Writes out the selected stars in the format needed for DSIMULATOR
@@ -277,6 +210,170 @@ class dsimCat(cf.Secat):
       if verbose:
          print('Wrote %d objects to DSIM input file called %s' % 
                (nsel,outfile))
+
+   #----------------------------------------------------------------------
+
+   def write_gal(self, outfile, verbose=False):
+      """
+      Writes out the selected galaxies in the format needed for DSIMULATOR
+      input. 
+
+      NOTE: Many of the parameters that used to be passed to the stand-alone
+      function, e.g., the priority vector, are now contained within the
+      dsimCat structure itself and so no longer have to be explicitly
+      passed in the call.
+      """
+
+      """ 
+      Make sure that the priorities, etc. have been put into the dstab
+      array within the dsimCat structure
+      """
+      if self.dstab is None:
+         print ''
+         print 'ERROR: Cannot write out galaxies without dstab (priorities,etc.)'
+         print ' being set'
+         print ''
+         return
+
+      """ 
+      Check to make sure that the selection mask has been made.  If not, make
+      a mask that selects all of the catalog members.
+      """
+      if self.selmask is None:
+         self.selmask = np.ones(self.nrows,dtype=bool)
+
+      """ Use the selection mask to pull out the selected objects """
+      seldata  = self.data[self.selmask]
+      selradec = self.radec[self.selmask]
+      #selinfo  = self.dstab[self.selmask]
+
+      """ Convert the radec info into the appropriate format """
+      tmpra = selradec.ra.to_string(unit=u.hourangle,decimal=False,sep=':',
+                                    precision=3,pad=True)
+      tmpdec = selradec.dec.to_string(decimal=False,sep=':',precision=3,
+                                      alwayssign=True,pad=True)
+
+      """ 
+      Store the output information in a numpy array for improved (hopefully)
+      speed in writing out the data.
+      """
+      nsel = self.selmask.sum()
+      print 'Writing out %d selected galaxies to %s' % (nsel,outfile)
+      dfmt = ['S16','S12','S13',float,float,'S2',int,int,int,float]
+      dnames = ['id','ra','dec','equinox','mag','band','pri','samp','sel',
+                'pa']
+      outarr = np.zeros(nsel,dtype={'names':dnames,'formats':dfmt})
+      outarr['id'] = self.dstab['id']
+      outarr['ra'] = tmpra
+      outarr['dec'] = tmpdec
+      outarr['equinox'] += 2000.
+      outarr['mag'] = seldata[self.magname]
+      outarr['band'] = self.selband
+      outarr['pri'] = self.dstab['pri']
+      outarr['samp'] += 1
+      outarr['pa'] = self.dstab['pa']
+      #print outarr
+
+      """ Write to the output file """
+      outfmt = '%-16s %s %s %.1f %5.2f %s %4d %d %d %.1f'
+      np.savetxt(outfile,outarr,fmt=outfmt)
+
+   # -----------------------------------------------------------------------
+
+   def select_stars(self, band, magname, posfile, outfile=None, starmask=None,
+                    rmax=15., smag1=15., smag2=17., smag3=20., starroot='S',
+                    verbose=True):
+      """
+      From the input catalog select stars that can be used for mask coarse
+      and fine alignment.  For this instance, the dsimCat instance is
+      assumed to contain only stars (based on how the calling function
+      typically has been used).  Appropriate stars are furthermore selected
+      as satisfying:
+        smag1 < mag < smag3
+        separation < rmax
+      """
+
+      self.read_centpos(posfile, verbose=verbose)
+      self.sort_by_pos(self.centpos)
+      self.make_ids(starroot)
+      rmask = self.sep.arcmin <= rmax
+      self.make_magmask(magname, mbright=smag1, mfaint=smag3)
+      if starmask is not None:
+         self.selmask = (starmask) & (rmask) & (self.magmask)
+      else:
+         self.selmask = (rmask) & (self.magmask)
+      self.make_reg_file(outfile.replace('.in', '.reg'), 1.4, color='red',
+                         mask=self.selmask, labcol='dsimID')
+      print('')
+      print('Stars')
+      print('-------------------------------------')
+      print('Selection conditions')
+      print('--------------------')
+      print(' Within %2.0f arcmin of lens' % rmax)
+      print(' %4.1f <= %s <= %4.1f (coarse alignment)' % (smag1, band, smag2))
+      print(' %4.1f <= %s <= %4.1f (fine alignment)' % (smag1, band, smag3))
+      print('Total number:                     %d' % len(self.data))
+      print('Number of fine alignment stars:   %d' % self.selmask.sum())
+
+      """ 
+      Write out the selected fine alignment stars
+      Why not coarse alignment stars?  At least for now take the following
+      iterative approach:
+      - Call dsimulator with just fine alignment stars
+      - Shift and rotate until there are at least two stars that can be used for
+      coarse alignment in the appropriate area
+      - Quit dsimulator and edit the input file to mark those stars as coarse
+      alignment stars rather than fine alignment stars
+      - Re-run dsimulator with the new version of the input list.
+      """
+      self.selband = band
+      self.magname = magname
+      self.make_dstab()
+      if outfile is not None:
+         self.write_stars(outfile)
+
+   # -----------------------------------------------------------------------
+
+   def select_gals(self, band, magname, faintmag, posfile, outfile=None,
+                   theta=None, zmask=None, primag=None,
+                   rmax=15., selmag1=None, root='G',
+                   verbose=True):
+
+      self.read_centpos(posfile, verbose=verbose)
+      self.sort_by_pos(self.centpos)
+      self.make_magmask(magname, mfaint=faintmag)
+      rmask    = self.sep.arcmin <= rmax
+      if zmask is not None:
+         allsmask = (rmask) & (self.magmask) & (zmask)
+      else:
+         allsmask = (rmask) & (self.magmask)
+      self.selmask = allsmask
+      self.selband = band
+      self.magname = magname
+      self.make_ids(root)
+      if theta is not None:
+         self.theta = theta
+      outinfo  = self.data[allsmask]
+      nsel     = allsmask.sum()
+      pri      = np.arange(nsel,0,-1) + 4
+      if primag is not None:
+         pri[outinfo[band] <= primag] += 2000
+      self.make_dstab(pri=pri)
+      # print ''
+      # print 'SDSS Galaxies'
+      # print '-------------------------------------'
+      # print 'Selection conditions'
+      # print '--------------------'
+      # print ' Within %2.0f arcmin of lens' % rmax
+      # print ' %s <= %4.1f' % (sselband,sselmag)
+      # print ' No redshift in SDSS'
+      # print 'Total number:                %d' % self.nrows
+      # print 'Number of selected galaxies: %d' % nsel
+      if outfile is not None:
+         self.write_gal(outfile)
+
+
+# ===========================================================================
 
 #---------------------------------------------------------------------------
 
