@@ -335,21 +335,21 @@ class dsimCat(cf.Secat):
    # -----------------------------------------------------------------------
 
    def select_gals(self, band, magname, faintmag, posfile, outfile=None,
-                   theta=None, zmask=None, primag=None,
-                   rmax=15., selmag1=None, root='G',
+                   theta=None, galmask=None, primag=None,
+                   rmax=15., selmag1=None, root='G', color='green', rcirc=1.6,
                    verbose=True):
 
       self.read_centpos(posfile, verbose=verbose)
       self.sort_by_pos(self.centpos)
       self.make_magmask(magname, mfaint=faintmag)
       rmask    = self.sep.arcmin <= rmax
-      if zmask is not None:
-         zmask = zmask[self.sortind]
-         self.selmask = (rmask) & (self.magmask) & (zmask)
+      if galmask is not None:
+         galmask = galmask[self.sortind]
+         self.selmask = (rmask) & (self.magmask) & (galmask)
       else:
          self.selmask = (rmask) & (self.magmask)
       self.make_ids(root)
-      self.make_reg_file(outfile.replace('.in', '.reg'), 1.6, color='green',
+      self.make_reg_file(outfile.replace('.in', '.reg'), rcirc, color=color,
                          mask=self.selmask)
       self.selband = band
       self.magname = magname
