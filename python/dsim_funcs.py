@@ -128,7 +128,7 @@ class dsimCat(cf.Secat):
       pa = self.theta[self.selmask]
       if pri is None:
          pri = np.zeros(nsel)
-      self.dstab = Table([selid,pri,pa], names=('id','pri','pa'))
+      self.dstab = Table([selid, pri, pa], names=('id', 'pri', 'pa'))
 
    #----------------------------------------------------------------------
 
@@ -295,13 +295,13 @@ class dsimCat(cf.Secat):
 
       self.read_centpos(posfile, verbose=verbose)
       self.sort_by_pos(self.centpos)
-      self.make_ids(starroot)
       rmask = self.sep.arcmin <= rmax
       self.make_magmask(magname, mbright=smag1, mfaint=smag3)
       if starmask is not None:
          self.selmask = (starmask) & (rmask) & (self.magmask)
       else:
          self.selmask = (rmask) & (self.magmask)
+      self.make_ids(starroot)
       self.make_reg_file(outfile.replace('.in', '.reg'), 1.4, color='red',
                          mask=self.selmask, labcol='dsimID')
       print('')
@@ -344,20 +344,22 @@ class dsimCat(cf.Secat):
       self.make_magmask(magname, mfaint=faintmag)
       rmask    = self.sep.arcmin <= rmax
       if zmask is not None:
-         allsmask = (rmask) & (self.magmask) & (zmask)
+         zmask = zmask[self.sortind]
+         self.selmask = (rmask) & (self.magmask) & (zmask)
       else:
-         allsmask = (rmask) & (self.magmask)
-      self.selmask = allsmask
+         self.selmask = (rmask) & (self.magmask)
+      self.make_ids(root)
+      self.make_reg_file(outfile.replace('.in', '.reg'), 1.6, color='green',
+                         mask=self.selmask)
       self.selband = band
       self.magname = magname
-      self.make_ids(root)
       if theta is not None:
          self.theta = theta
-      outinfo  = self.data[allsmask]
-      nsel     = allsmask.sum()
+      outinfo  = self.data[self.selmask]
+      nsel     = self.selmask.sum()
       pri      = np.arange(nsel,0,-1) + 4
       if primag is not None:
-         pri[outinfo[band] <= primag] += 2000
+         pri[outinfo[magname] <= primag] += 2000
       self.make_dstab(pri=pri)
       # print ''
       # print 'SDSS Galaxies'
