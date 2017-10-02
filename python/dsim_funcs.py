@@ -213,7 +213,7 @@ class dsimCat(cf.Secat):
 
    #----------------------------------------------------------------------
 
-   def write_gal(self, outfile, verbose=False):
+   def write_gal(self, outfile, sample=1, verbose=False):
       """
       Writes out the selected galaxies in the format needed for DSIMULATOR
       input. 
@@ -270,7 +270,7 @@ class dsimCat(cf.Secat):
       outarr['mag'] = seldata[self.magname]
       outarr['band'] = self.selband
       outarr['pri'] = self.dstab['pri']
-      outarr['samp'] += 1
+      outarr['samp'] = sample
       outarr['pa'] = self.dstab['pa']
       #print outarr
 
@@ -335,9 +335,9 @@ class dsimCat(cf.Secat):
    # -----------------------------------------------------------------------
 
    def select_gals(self, band, magname, faintmag, posfile, outfile=None,
-                   theta=None, galmask=None, primax=None, primag=None,
-                   rmax=15., selmag1=None, root='G', color='green', rcirc=1.6,
-                   verbose=True):
+                   sample=1, theta=None, galmask=None, primax=None,
+                   primag=None, rmax=15., selmag1=None, root='G',
+                   color='green', rcirc=1.6, verbose=True):
 
       self.read_centpos(posfile, verbose=verbose)
       self.sort_by_pos(self.centpos)
@@ -373,7 +373,7 @@ class dsimCat(cf.Secat):
       # print 'Total number:                %d' % self.nrows
       # print 'Number of selected galaxies: %d' % nsel
       if outfile is not None:
-         self.write_gal(outfile)
+         self.write_gal(outfile, sample=sample)
 
 
 # ===========================================================================
