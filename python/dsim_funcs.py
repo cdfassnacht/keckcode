@@ -335,7 +335,7 @@ class dsimCat(cf.Secat):
    # -----------------------------------------------------------------------
 
    def select_gals(self, band, magname, faintmag, posfile, outfile=None,
-                   theta=None, galmask=None, primag=None,
+                   theta=None, galmask=None, primax=None, primag=None,
                    rmax=15., selmag1=None, root='G', color='green', rcirc=1.6,
                    verbose=True):
 
@@ -357,7 +357,8 @@ class dsimCat(cf.Secat):
          self.theta = theta
       outinfo  = self.data[self.selmask]
       nsel     = self.selmask.sum()
-      pri      = np.arange(nsel,0,-1) + 4
+      if primax is not None:
+         pri = np.linspace(primax, 4, nsel).astype(int)
       if primag is not None:
          pri[outinfo[magname] <= primag] += 2000
       self.make_dstab(pri=pri)
