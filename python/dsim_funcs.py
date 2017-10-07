@@ -359,6 +359,8 @@ class dsimCat(cf.Secat):
       nsel     = self.selmask.sum()
       if primax is not None:
          pri = np.linspace(primax, 4, nsel).astype(int)
+      else:
+         pri = np.arange(nsel, 0, -1) + 4
       if primag is not None:
          pri[outinfo[magname] <= primag] += 2000
       self.make_dstab(pri=pri)
