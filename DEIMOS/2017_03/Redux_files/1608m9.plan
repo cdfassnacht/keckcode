@@ -1,0 +1,19 @@
+# Plan file for spec2d pipeline created for reduction of mask 1608m9
+# Grating: 600G Central Wavelength: 7150 A
+MASK: 1608m9
+poly
+CHIPS: 1,2,3,4,5,6,7,8
+LINELIST: lamp_NIST_blue.dat 
+RAWDATADIR: ../Raw
+FLATNAME: d0329_0096.fits 
+FLATNAME: d0329_0097.fits
+FLATNAME: d0329_0098.fits
+FLATNAME: d0329_0099.fits
+BLUEARCNAME: d0329_0073.fits
+BLUEARCNAME: d0329_0078.fits
+BLUEARCNAME: d0329_0095.fits
+REDARCNAME: d0329_0095.fits
+RAWDATADIR: ../Raw
+# SCIENCENAME: d0329_0061.fits # Not sure if to include this 1200s exp or not
+SCIENCENAME: d0329_0062.fits
+SCIENCENAME: d0329_0063.fits
