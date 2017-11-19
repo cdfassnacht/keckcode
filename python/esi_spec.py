@@ -274,8 +274,8 @@ class Esi2d(ss.Spec2d):
 
         """ Set up the wavelength vector for the corrected 1-d spectrum """
         scale = 1.7e-5
-        w0 = log10(self.order[0].spec1d.wav[0])
-        w1 = log10(self.order[9].spec1d.wav[-1])
+        w0 = log10(self.order[0].spec1d['wav'][0])
+        w1 = log10(self.order[9].spec1d['wav'][-1])
         outwav  = np.arange(w0,w1,scale)
         outflux = np.ones((outwav.size,10))*np.nan
         outvar  = outflux.copy()
@@ -285,11 +285,11 @@ class Esi2d(ss.Spec2d):
             Create the response correction for this order and then correct
             the flux and the variance
             """
-            w    = self.order[i].spec1d.wav
+            w    = self.order[i].spec1d['wav']
             w0,w1,mod = corr[i+1]
             mod = sf.genfunc(w,0.,mod)
-            spec = self.order[i].spec1d.flux / mod
-            var  = self.order[i].spec1d.var / mod**2 
+            spec = self.order[i].spec1d['flux'] / mod
+            var  = self.order[i].spec1d['var'] / mod**2 
 
             """ Mask out NaNs """
             mask = np.isnan(spec)
@@ -313,7 +313,7 @@ class Esi2d(ss.Spec2d):
                  - blue end (rb) is the start of the next order
                  - red end (rr) is the end of this current spectrum
                 """
-                rb = self.order[i+1].spec1d.wav[0]
+                rb = self.order[i+1].spec1d['wav'][0]
                 rr = w[-1]
                 right = np.median(spec[(w>rb)&(w<rr)]) 
             except:
@@ -325,8 +325,8 @@ class Esi2d(ss.Spec2d):
             outflux[c,i-1] = interpolate.splev(outwav[c],mod)
             mod = interpolate.splrep(lw,var,k=1)
             outvar[c,i-1] = interpolate.splev(outwav[c],mod)
-            #self.order[i].spec1d.flux = spec
-            #self.order[i].spec1d.var = var
+            #self.order[i].spec1d['flux'] = spec
+            #self.order[i].spec1d['var'] = var
 
         outvar[outvar==0.] = 1.e9
         flux = np.nansum(outflux/outvar,1)/np.nansum(1./outvar,1)
@@ -401,16 +401,16 @@ class Esi2d(ss.Spec2d):
                 self.order[i].find_and_trace(doplot=plot_traces,muorder=muorder,
                                              sigorder=sigorder,fitrange=[B,R],
                                              verbose=False)
-                self.order[i].extract_new()
+                self.order[i].extract()
                 print self.order[i].p0
 
                 """
                 Also normalize the flux and variance of the extracted
                 spectrum in the same way that the Oldham extraction does
                 """
-                medflux = np.median(self.order[i].spec1d.flux)
-                self.order[i].spec1d.flux /= medflux
-                self.order[i].spec1d.var /= medflux**2
+                medflux = np.median(self.order[i].spec1d['flux'])
+                self.order[i].spec1d['flux'] /= medflux
+                self.order[i].spec1d['var'] /= medflux**2
 
 
             elif method == 'oldham':

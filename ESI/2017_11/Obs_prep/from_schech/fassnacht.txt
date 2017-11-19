@@ -1,0 +1,57 @@
+2017 November 16th
+
+Dear Chris,
+
+This tarball contains three files:
+
+table1134.pdf
+888_113440.5-210323_i.fits
+fassnacht.txt
+
+table1134.pdf: This is taken directly from http://www.arxiv.org/pdf/1711.02674
+In addition to the relative astrometry and photometry you get a sense
+of how challenging the lens is going to be.
+
+888_113440.5-210323_i.fits: a 2x2' Sloan i cutout from ATLAS.
+
+fassnacht.txt: this message
+
+Based on griz we estimate z_Q = 3.5.
+Based on J-K  we estimate z_L = 1.0.
+
+I go back and forth on whether the best approach is crossed slits or
+parallel.  At this instant I favor crossed slits.  We want D to be as
+clean as it can be and an AD slit should do well in keeping out light
+from B and C.
+
+Slit PAs:
+
+AD: 42.3 WofN or -42.3 EofN
+BC: 46.7 EofN
+
+[Calculation: arctan(2.67/2.52) = 46.7 EofN]
+
+Considerations:
+
+1. Frederic is keen to add this to h0licow.
+
+2. We might get lucky and find a strong absorption line system
+associated with the lens.
+
+3. This was part of the mid-cycle proposal.  In the meantime emission
+line flux ratios would help with the model.
+
+4. The shear is wicked strong.  AD ought to point to a cluster of
+galaxies.  With imagination I can see something in the PanSTARRS y and
+Vista K.
+
+5. 113440.5-210323 => 11:34:40.5 -21:03:23
+
+
+
+
+
+
+
+
+
