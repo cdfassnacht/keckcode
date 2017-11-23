@@ -22,9 +22,12 @@ class osCube(imf.Image):
         """ Read the data into an Image structure """
         imf.Image.__init__(self, infile, verbose=verbose)
 
+        """ Set a default image plane to plot """
+        self.set_imslice(0, display=False)
+
     # -----------------------------------------------------------------------
 
-    def set_imslice(self, imslice=0, hext=0):
+    def set_imslice(self, imslice=0, hext=0, display=True):
         """
         Sets the 2-dimension slice to use for the display functions.
 
@@ -66,6 +69,11 @@ class osCube(imf.Image):
             print('')
             raise IndexError
 
-        self.data = self.hdu[hext].data[:, :, imslice]
+        self.data = self.hdu[hext].data[:, :, imslice].copy()
+
+        """ Display the image slice if requested """
+        if display:
+            self.display(title='Image Plane %d (zero-indexed)' % imslice)
+
 
 
