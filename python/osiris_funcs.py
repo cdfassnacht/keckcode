@@ -6,6 +6,7 @@ osiris_funcs.py
 
 import numpy as np
 import imfuncs as imf
+import spec_simple as ss
 
 class osCube(imf.Image):
     """
@@ -15,8 +16,8 @@ class osCube(imf.Image):
     def __init__(self, infile, verbose=True):
         """
         Loads in an OSIRIS data cube that was processed through the
-        standard data reduction pipeline and, possibly, has had some additional
-        processing done.
+        standard data reduction pipeline and, possibly, has had some
+        additional processing done.
         """
 
         """ Read the data into an Image structure """
@@ -25,9 +26,17 @@ class osCube(imf.Image):
         """ Set a default image plane to plot """
         self.set_imslice(0, display=False)
 
+        """ Set up the wavelength vector based on the header information """
+        hdr = self.hdu[0].header
+        nwav = hdr['naxis1']
+        self.wav = np.arange(nwav)
+        self.wav = hdr['crval1'] + self.wav * hdr['cdelt1']
+        """ Convert to angstroms from nm """
+        self.wav *= 10.
+
     # -----------------------------------------------------------------------
 
-    def set_imslice(self, imslice=0, hext=0, display=True):
+    def set_imslice(self, imslice=0, hext=0, display=True, mode='xy'):
         """
         Sets the 2-dimension slice to use for the display functions.
 
@@ -73,7 +82,23 @@ class osCube(imf.Image):
 
         """ Display the image slice if requested """
         if display:
-            self.display(title='Image Plane %d (zero-indexed)' % imslice)
+            self.display(title='Image Plane %d (zero-indexed)' % imslice,
+                         mode=mode)
 
+    # -----------------------------------------------------------------------
 
+    def set_1dspec(self, x, y, hext=0, display=True):
+        """
+        Takes a spaxel designated by its (x, y) coordinates and extracts the
+        spectral information into a Spec1d container.
+        Also plot the 1d spectrum if requested.
+        """
 
+        flux = self.hdu[hext].data[y, x, :]
+        print(self.wav.size, flux.size)
+        spec = ss.Spec1d(wav=self.wav, flux=flux)
+
+        if display:
+            spec.plot()
+
+        return spec
