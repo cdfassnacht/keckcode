@@ -8,6 +8,8 @@ import numpy as np
 import imfuncs as imf
 import spec_simple as ss
 
+# ===========================================================================
+
 class osCube(imf.Image):
     """
     A class used to visualize and analyze OSIRIS data
@@ -33,6 +35,14 @@ class osCube(imf.Image):
         self.wav = hdr['crval1'] + self.wav * hdr['cdelt1']
         """ Convert to angstroms from nm """
         self.wav *= 10.
+
+        """ Save the sizes of the array in easily accessible form """
+        self.xsize = self.hdr[0].data.shape[0]
+        self.ysize = self.hdr[0].data.shape[1]
+        self.wsize = self.hdr[0].data.shape[2]
+
+        """ Set default values """
+        self.cube = None
 
     # -----------------------------------------------------------------------
 
@@ -123,9 +133,9 @@ class osCube(imf.Image):
 
         """ Compress the temporary cube along the spectral axis """
         if combmode == 'median':
-            self.data = np.median(cube, axis=2)
+            self.data = np.transpose(np.median(cube, axis=2))
         else:
-            self.data = cube.sum(axis=2)
+            self.data = np.transpose(cube.sum(axis=2))
 
         """ Display the result if requested """
         if display:
@@ -133,6 +143,25 @@ class osCube(imf.Image):
 
         """ Clean up """
         del(cube)
+
+    # -----------------------------------------------------------------------
+
+    def whitelight(self, combmode='sum', hext=0, display=True, verbose=True,
+                   **kwargs):
+        """
+        Creates, and displays if requested, the "white light" image.
+        This is a specialized version of the compress_spec method, which
+        compresses the cube along the spectral direction, but for the full
+        data cube.
+        """
+
+        if verbose:
+            print('Creating white light image')
+
+        """ Set up for running compress_spec on the full data cube """
+        wmax = self.hdu[hext].data.shape[2] - 1
+        self.compress_spec(wmin=0, wmax=wmax, wmode='slice', combmode=combmode,
+                           hext=hext, display=display, **kwargs)
 
     # -----------------------------------------------------------------------
 
@@ -151,3 +180,28 @@ class osCube(imf.Image):
             spec.plot(**kwargs)
 
         return spec
+
+    # -----------------------------------------------------------------------
+
+    def select_cube(self, wmin=None, wmax=None, xmin=None, xmax=None,
+                    ymin=None, ymax=None, wmode='slice', hext=0):
+        """
+        Creates a cube to analyze, defined by ranges in x, y, and wavelength.
+        """
+
+        """ Use default values if none are requested """
+        if xmin = None:
+            xmin = 0
+        if xmax = None:
+            xmax = self.xsize
+        if ymin = None:
+            ymin = 0
+        if ymax = None:
+            ymax = self.ysize
+        if wmin = None:
+            wmin = 0
+        if wmax = None:
+            wmax = self.wsize
+
+        """ Select the cube """
+        self.cube = self.hdu[0].data[xmin:xmax, ymin:ymax, wmin:wmax]
