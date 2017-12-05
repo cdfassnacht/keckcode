@@ -17,7 +17,8 @@ except:
 #  specific to this data set.  All of the science targets in this 2013_05
 #  observing run were either EELs or had B1950-coordinate names.
 #
-files = glob.glob('%s/e%s_00[3456]?.fits'%(rawdir,obsdate))
+#files = glob.glob('%s/e%s_00[3456]?.fits'%(rawdir,obsdate))
+files = glob.glob('%s/e%s_006?.fits'%(rawdir,obsdate))
 #files = glob.glob('%s/e%s_0059.fits'%(rawdir,obsdate))
 #files = glob.glob('%s/e%s*.fits'%(rawdir,obsdate))
 files.sort()
@@ -32,7 +33,7 @@ for f in files:
     #    continue
     #if h['TARGNAME'][0] not in ['1']:
     #    continue
-    if h['TARGNAME'][0].upper() not in ['A', 'C', 'F', 'L', 'P']:
+    if h['TARGNAME'][0].upper() not in ['A', 'C', 'F', 'L', 'P', '2']:
         continue
     print h['TARGNAME']
     o = '%s_%s'%(h['TARGNAME'],f.split('_')[1].split('.')[0])

@@ -203,6 +203,7 @@ class Esi2d(ss.Spec2d):
             plt.plot(x,apmax*ap) # Scale the aperture to easily see it
             plt.plot(x,xproj)
             plt.ylim(-apmax,1.1*xproj.max())
+            plt.axvline(cent, color='k', ls='dotted')
     
         ap = ap.repeat(slit.shape[1]).reshape(slit.shape)
         return ap,fit
