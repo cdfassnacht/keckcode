@@ -37,9 +37,9 @@ class osCube(imf.Image):
         self.wav *= 10.
 
         """ Save the sizes of the array in easily accessible form """
-        self.xsize = self.hdr[0].data.shape[0]
-        self.ysize = self.hdr[0].data.shape[1]
-        self.wsize = self.hdr[0].data.shape[2]
+        self.xsize = self.hdu[0].data.shape[0]
+        self.ysize = self.hdu[0].data.shape[1]
+        self.wsize = self.hdu[0].data.shape[2]
 
         """ Set default values """
         self.cube = None
@@ -92,6 +92,7 @@ class osCube(imf.Image):
         self.data = np.transpose(self.hdu[hext].data[:, :, imslice].copy())
 
         """ Display the image slice if requested """
+        self.found_rms = False
         if display:
             self.display(title='Image Plane %d (zero-indexed)' % imslice,
                          mode=mode, **kwargs)
@@ -190,17 +191,17 @@ class osCube(imf.Image):
         """
 
         """ Use default values if none are requested """
-        if xmin = None:
+        if xmin == None:
             xmin = 0
-        if xmax = None:
+        if xmax == None:
             xmax = self.xsize
-        if ymin = None:
+        if ymin == None:
             ymin = 0
-        if ymax = None:
+        if ymax == None:
             ymax = self.ysize
-        if wmin = None:
+        if wmin == None:
             wmin = 0
-        if wmax = None:
+        if wmax == None:
             wmax = self.wsize
 
         """ Select the cube """
