@@ -1,6 +1,0 @@
-           1 objects with Q = -1
-           3 objects with Q = 0
-           1 objects with Q = 1
-           3 objects with Q = 2
-           1 objects with Q = 3
-          56 objects with Q = 4
