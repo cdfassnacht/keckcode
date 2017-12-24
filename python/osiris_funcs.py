@@ -5,6 +5,7 @@ osiris_funcs.py
 """
 
 import numpy as np
+from matplotlib import pyplot as plt
 import imfuncs as imf
 import spec_simple as ss
 
@@ -178,9 +179,22 @@ class osCube(imf.Image):
         spec = ss.Spec1d(wav=self.wav, flux=flux)
 
         if display:
+            fnum = max(plt.get_fignums()) + 1
+            plt.figure(fnum)
             spec.plot(**kwargs)
 
-        return spec
+        self.spec = spec
+
+    # -----------------------------------------------------------------------
+
+    def click_1dspec(self, hext=0, xysmooth=1, **kwargs):
+        """
+        An interactive interface to set_1dspec.  Produces the 1D spectrum
+        associated with the spaxel that is clicked.
+        """
+
+        self.start_interactive()
+        self.set_1dspec(int(self.xclick), int(self.yclick), **kwargs)
 
     # -----------------------------------------------------------------------
 

@@ -39,9 +39,9 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
             idir = indir[numIndx]
         else:
             idir = indir
-        specname = '%s/%s_%04d_bgsub.fits'%(idir,pref,num)
-        varname  = specname.replace('bgsub','var')
-        d = esi.Esi2d(specname,varfile=varname)
+        specname = '%s/%s_%04d_bgsub.fits' % (idir, pref, num)
+        varname  = specname.replace('bgsub', 'var')
+        d = esi.Esi2d(specname, varfile=varname)
 
         plt.figure()
 
@@ -49,7 +49,7 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
         The esi_spec code has now been re-written to loop over the orders
         to do the extraction
         """
-        d.extract_all(method,apnum,apcent,wid,apmin=apmin,apmax=apmax,
+        d.extract_all(method, apnum, apcent, wid, apmin=apmin, apmax=apmax,
                       plot_extracted=plot_extracted)
         plt.show()
 
@@ -67,7 +67,7 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
 
     """ Coadd the spectra """
     print 'Finished the loop'
-    coadd(speclist,stdOrderCorr,name,aplab,apnum,pref)
+    coadd(speclist, stdOrderCorr, name, aplab, apnum, pref)
 
 #---------------------------------------------------------------------------
 
@@ -101,8 +101,8 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
     scale = 1.7e-5 # of wavelengths. NB. cd1_1 = 1.65e-5, which is about 0.06 arcseconds/pixel
     w0 = np.log10(owave[1][0])
     w1 = np.log10(owave[10][-1]) # total wavelength coverage
-    outwave = np.arange(w0,w1,scale)
-    outspec = np.zeros((outwave.size,10))*np.nan
+    outwave = np.arange(w0, w1, scale)
+    outspec = np.zeros((outwave.size, 10)) * np.nan
     outvar = outspec.copy()
 
     corr = np.load(stdOrderCorr)
@@ -115,17 +115,17 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
     """
     for order in range(2,11):
         w = owave[order]
-        s = w*0.
-        v = w*0.
+        s = w * 0.
+        v = w * 0.
         """ This is an inverse-variance weighted sum"""
         for i in range(len(speclist)):
-            tmp = ndimage.median_filter(ospex[order][i],7)
-            s += tmp/ovars[order][i]
-            v += 1./ovars[order][i]
+            tmp = ndimage.median_filter(ospex[order][i], 7)
+            s += tmp / ovars[order][i]
+            v += 1. / ovars[order][i]
 
-        os = s/v
-        ov = 1./v
-        r = ov.max()*100
+        os = s / v
+        ov = 1. / v
+        r = ov.max() * 100
 
         """ 
         This second pass rejects pixels in individual images that are outliers
@@ -134,18 +134,18 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
          summed image then it is rejected.
         """
         for j in range(1):
-            os = ndimage.median_filter(os,5)
+            os = ndimage.median_filter(os, 5)
             s = np.empty((os.size,len(speclist)))
             v = s.copy()
-            spec = w*0.
-            var = w*0.
+            spec = w * 0.
+            var = w * 0.
             for i in range(len(speclist)):
-                s[:,i] = ospex[order][i]
-                v[:,i] = ovars[order][i]
+                s[:, i] = ospex[order][i]
+                v[:, i] = ovars[order][i]
 
-            S2N = (os-s.T).T/(v.T+ov).T**0.5 
+            S2N = (os - s.T).T/(v.T + ov).T**0.5 
 
-            c = abs(S2N)<5. 
+            c = abs(S2N) < 5.
 
             s[~c] = np.nan
             v[~c] = np.nan
@@ -218,6 +218,6 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
     hdu.append(outwv)
     hdu.append(outflux)
     hdu.append(outvar)
-    hdu.writeto(outname,clobber=True)
+    hdu.writeto(outname, overwrite=True)
     
     #return outwave,spec,var
