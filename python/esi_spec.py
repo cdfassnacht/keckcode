@@ -16,13 +16,13 @@ with combining multiple input files.  The two classes are:
 """
 
 import numpy as np
-from astropy.io import fits as pf
-import spec_simple as ss
-from matplotlib import pyplot as plt
-from ccdredux import sigma_clip
-from scipy import ndimage,interpolate
-import special_functions as sf
 from math import log10
+from scipy import ndimage,interpolate
+from matplotlib import pyplot as plt
+from astropy.io import fits as pf
+from ccdredux import sigma_clip
+import special_functions as sf
+from SpecIm import spec_simple as ss
 
 """
 ============================== Esi2d class ==============================
