@@ -1,0 +1,108 @@
+TO INSTALL OSIRIS DRP
+
+1. Have working IDL license
+
+contact IT to gain access to departments IDL license pool
+Add the following lines to your .bashrc file
+
+source (PATH_TO_idl_setup.bash)
+export IDL_PATH = $IDL_PATH+(PATH_TO_idl85)
+export LM_LICENSE_FILE=port@host
+
+Where port and host can be found in the license_borrow.dat file from IT. Port is the number at the end of the SERVER line, and the host name is immediately after the word SERVER. I have my license.dat file in the idl85 folder.
+
+For example, mine look like
+
+	source /Users/jesshirt/Applications/exelis/idl85/bin/idl_setup.bash
+	export IDL_PATH=$IDL_PATH+/Users/jesshirt/Applications/exelis/idl85/
+	export LM_LICENSE_FILE=1700@license.metro.ucdavis.edu
+
+Downloading idl makes a new applications folder (different from the applications folder that already exists on your computer). I'm not sure why and I'm not sure how to get around this, so I've just left idl in the new applications folder.
+
+To automatically source .bashrc, add the following line to .bash_profile
+
+	if [ -s ~/.bashrc ]; then source ~/.bashrc; fi
+
+
+
+2. Install Python (I use anaconda)
+
+Download and install from the following link:
+
+	https://conda.io/docs/user-guide/install/index.html
+
+3. Install cfitsio (I use homebrew as a package manager to install things)
+	
+Download homebrew:
+	https://brew.sh/
+
+Download packages within homebrew:
+type brew install NAME_OF_PACKAGE into terminal. For cfitsio, I type:
+
+	brew install cfitsio
+
+and the package manager takes care of the rest
+	
+
+
+
+4. Go to OSIRIS GitHub webpage:
+
+	https://github.com/Keck-DataReductionPipelines/OsirisDRP/tree/master
+
+To clone or download the master branch, save where you would like to save the pipeline
+(Also has installation directions)
+
+5. Set up OSIRIS DRP environment -- add the following lines to .bashrc
+
+OSIRIS_VERBOSE = 0 #silences output of setup scripts
+source /my/path/to/osiris/drp/scripts/osirisSetup.sh
+osirisSetup /my/path/to/osiris/drp
+export PATH=$PATH:/Applications/exelis/idl/bin
+
+
+Mine looks like:
+	OSIRIS_VERBOSE=0
+	source /Users/jesshirt/research/osiris_drp/scripts/osirisSetup.sh
+	osirisSetup /Users/jesshirt/research/osiris_drp/
+	export PATH=$PATH:/Applications/exelis/idl/bin
+
+You may also need to include:
+IDL_INCLUDE=/Applications/exelis/idl/external/include
+CFITSIOLIBDIR=/opt/local/lib
+
+Mine looked like:
+	IDL_INCLUDE=/Applications/exelis/idl/external/include
+	CFITSIOLIBDIR=/usr/local/Cellar
+
+According to the link in step 4, you can remove these after compiling (I removed these lines from my .bashrc file after the pipeline first ran, and it still runs fine, but I think you can also choose to leave these in).
+
+6. I needed to install java (I started from a completely new machine so I had no previous java installation -- I tried running odrfgui to open the gui and there was an error stating I needed java, you may not need to do this step):
+	brew cask install java
+
+
+
+MY .bashrc FILE AT THE END OF INSTALLATION:
+
+# IDL SETUP
+
+source /Users/jesshirt/Applications/exelis/idl85/bin/idl_setup.bash
+export IDL_PATH=$IDL_PATH+/Users/jesshirt/Applications/exelis/idl85/
+export LM_LICENSE_FILE=1700@license.metro.ucdavis.edu
+
+# OSIRIS SETUP
+
+OSIRIS_VERBOSE=0
+source /Users/jesshirt/research/osiris_drp/scripts/osirisSetup.sh
+osirisSetup /Users/jesshirt/research/osiris_drp/
+export PATH=$PATH:/Applications/exelis/idl/bin
+
+
+MY .bash_profile AT THE END OF INSTALLATION:
+
+if [ -s ~/.bashrc ]; then source ~/.bashrc; fi
+
+
+
+
+
