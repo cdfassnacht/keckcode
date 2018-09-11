@@ -6,8 +6,9 @@ osiris_funcs.py
 
 import numpy as np
 from matplotlib import pyplot as plt
-import imfuncs as imf
-import spec_simple as ss
+from astropy.io import fits as pf
+from SpecIm import imfuncs as imf
+from SpecIm import spec_simple as ss
 
 # ===========================================================================
 
@@ -34,8 +35,11 @@ class osCube(imf.Image):
         nwav = hdr['naxis1']
         self.wav = np.arange(nwav)
         self.wav = hdr['crval1'] + self.wav * hdr['cdelt1']
-        """ Convert to angstroms from nm """
+
+        """ Convert from nm to angstroms, including in the header """
         self.wav *= 10.
+        hdr['crval1'] *= 10.
+        hdr['cdelt1'] *= 10.
 
         """ Save the sizes of the array in easily accessible form """
         self.xsize = self.hdu[0].data.shape[0]
@@ -199,7 +203,8 @@ class osCube(imf.Image):
     # -----------------------------------------------------------------------
 
     def select_cube(self, wmin=None, wmax=None, xmin=None, xmax=None,
-                    ymin=None, ymax=None, wmode='slice', hext=0):
+                    ymin=None, ymax=None, wmode='slice', hext=0,
+                    verbose=False):
         """
         Creates a cube to analyze, defined by ranges in x, y, and wavelength.
         """
@@ -218,5 +223,91 @@ class osCube(imf.Image):
         if wmax == None:
             wmax = self.wsize
 
+        if verbose:
+            print('')
+            print('Creating a cube from original data with ranges:')
+            print('  x:      %d - %d' % (xmin,xmax))
+            print('  y:      %d - %d' % (ymin,ymax))
+            print('  lambda: %d - %d (slice number)' % (wmin,wmax))
+
         """ Select the cube """
         self.cube = self.hdu[0].data[xmin:xmax, ymin:ymax, wmin:wmax]
+        self.cubehdr = self.hdu[0].header.copy()
+        self.cubehdr['crpix1'] -= wmin
+        self.cubehdr['crpix2'] -= ymin
+        self.cubehdr['crpix3'] -= xmin
+
+    # -----------------------------------------------------------------------
+
+    def save_xyl(self, outfits, outtext=None, **kwargs):
+        """
+        
+        Saves the data cube as a fits file but with the spectral axis
+         as axis 3 (in fits parlance) rather than axis 1.
+         The OSIRIS data reduction pipeline produces a data cube with
+         FITS data axis order of (lambda, y, x).  This method produces
+         an output cube with a FITS data axis order of (x, y, lambda)
+        If the optional outtext parameter is set to a filename, then an
+         output text file will be created in the format expected by
+         Francesca Rizzo's modeling code
+
+        Required inputs:
+          outfits - name of output fits file
+
+        Optional inputs:
+          outtext - if set to a string value, then save an output text file
+                    in the format expected by Francesca Rizzo's modeling code.
+                    The default value (None) means that no output file is
+                    created.
+        """
+
+        """
+        Create a copy of the data cube and swap the axes
+        """
+
+        self.select_cube(verbose=True, **kwargs)
+        tmp = self.cube.copy()
+        tmp2 = np.swapaxes(tmp, 0, 2)
+
+        """
+        Create a new header and write the output file
+        """
+        hdr0 = self.cubehdr
+        tmphdu = pf.PrimaryHDU(tmp2)
+        hdr = tmphdu.header
+        klist = ['bunit', 'bscale', 'bzero', 'itime', 'coadds', 'sampmode',
+                 'numreads', 'saturate', 'instr', 'pscale', 'object',
+                 'pa_spec', 'sfilter', 'telescop', 'instrume', 'targwave',
+                 'airmass', 'wcsaxes']
+        for k in klist:
+            try:
+                hdr[k] = hdr0[k]
+            except KeyError:
+                continue
+        crlist = ['ctype', 'cunit', 'crval', 'crpix', 'cdelt']
+        for k in crlist:
+            hdr['%s1' % k] = hdr0['%s3' % k]
+            hdr['%s2' % k] = hdr0['%s2' % k]
+            hdr['%s3' % k] = hdr0['%s1' % k]
+        hdr['cunit3'] = 'Ang'
+        print('')
+        print('Saving to output file %s' % outfits)
+        tmphdu.writeto(outfits, overwrite=True)
+
+        """ Create an output text file if requested """
+        if outtext is not None:
+            print('Creating kinematics data file %s' % outtext)
+            f = open(outtext, 'w')
+            f.write('#Cube\n')
+            f.write('nch %d\n' % tmp2.shape[0])
+            f.write('ctype wave\n')
+            f.write('cunit angstrom\n')
+            f.write('cd3 %f\n' % hdr['cdelt3'])
+            f.write('cv3 %f\n' % hdr['crval3'])
+            f.write('crpix3 %d\n' % hdr['crpix3'])
+            f.write('crota %7.2f\n' % self.impa)
+            f.close()
+
+        """ Clean up before exiting """
+        del(tmp, tmphdu)
+
