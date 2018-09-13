@@ -1,1 +1,0 @@
-../Docs/osiris_drp_installation_notes.txt
