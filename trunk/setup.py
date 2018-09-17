@@ -35,10 +35,11 @@ except ImportError:
     sys.exit('### Error: python module CDFutils not found. '
              'Download and install from github cdfassnacht/CDFutils')
 
-
-#try: find_module('MySQLdb')
-#except: sys.exit('### Error: python module MySQLdb not found')
-
+try:
+    find_module('SpecIm')
+except ImportError:
+    sys.exit('### Error: python module SpecIm not found. '
+             'Download and install from github cdfassnacht/CDFutils')
 
 verstr = "unknown"
 try:
@@ -52,7 +53,8 @@ else:
     if mo:
         verstr = mo.group(1)
     else:
-        raise RuntimeError("unable to find version in " + parentdir + "+src/agnkey/_version.py")
+        errstr = 'unable to find version in %s+src/_version.py' % parentdir
+        raise RuntimeError(errstr)
 
 
 setup(
@@ -65,8 +67,8 @@ setup(
     license = 'LICENSE.txt',
     description = 'Code for analyzing data from various Keck instruments',
     long_description = open('README.txt').read(),
-    requires = ['numpy','scipy','astropy','matplotlib'],
-    packages = ['KeckCode'],
+    requires = ['numpy', 'scipy', 'astropy', 'matplotlib'],
+    packages = ['KeckCode', 'KeckCode.osiris'],
     package_dir = {'':'src'},
 #    package_data = {'esi_redux' : ['data/*']}
 )

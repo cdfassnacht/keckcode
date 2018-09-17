@@ -275,6 +275,7 @@ class osCube(imf.Image):
         hdr0 = self.cubehdr
         tmphdu = pf.PrimaryHDU(tmp2)
         hdr = tmphdu.header
+        """ Non-coordinate keywords """
         klist = ['bunit', 'bscale', 'bzero', 'itime', 'coadds', 'sampmode',
                  'numreads', 'saturate', 'instr', 'pscale', 'object',
                  'pa_spec', 'sfilter', 'telescop', 'instrume', 'targwave',
@@ -284,12 +285,23 @@ class osCube(imf.Image):
                 hdr[k] = hdr0[k]
             except KeyError:
                 continue
+        """
+        Coordinate keywords.
+        For now we're assuming that the input was (Wavelength, Dec, RA) and
+         the output will be (RA, Dec, Wavelength)
+        """
         crlist = ['ctype', 'cunit', 'crval', 'crpix', 'cdelt']
         for k in crlist:
             hdr['%s1' % k] = hdr0['%s3' % k]
             hdr['%s2' % k] = hdr0['%s2' % k]
             hdr['%s3' % k] = hdr0['%s1' % k]
         hdr['cunit3'] = 'Ang'
+        """ PC matrix """
+        hdr['pc1_1'] = hdr0['pc%d_%d' % (self.raaxis, self.raaxis)]
+        hdr['pc1_2'] = hdr0['pc%d_%d' % (self.raaxis, self.decaxis)]
+        hdr['pc2_1'] = hdr0['pc%d_%d' % (self.decaxis, self.raaxis)]
+        hdr['pc2_2'] = hdr0['pc%d_%d' % (self.decaxis, self.decaxis)]
+
         print('')
         print('Saving to output file %s' % outfits)
         tmphdu.writeto(outfits, overwrite=True)
