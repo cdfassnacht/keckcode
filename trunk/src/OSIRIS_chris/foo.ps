@@ -1,0 +1,897 @@
+%!PS-Adobe-3.0
+%%BoundingBox: 38 24 574 768
+%%Title: Enscript Output
+%%For: Chris Fassnacht
+%%Creator: GNU Enscript 1.6.6
+%%CreationDate: Mon Oct  8 16:59:22 2018
+%%Orientation: Landscape
+%%Pages: (atend)
+%%DocumentMedia: Letter 612 792 0 () ()
+%%DocumentNeededResources: (atend)
+%%EndComments
+%%BeginProlog
+%%BeginResource: procset Enscript-Prolog 1.6 6
+%
+% Procedures.
+%
+
+/_S {	% save current state
+  /_s save def
+} def
+/_R {	% restore from saved state
+  _s restore
+} def
+
+/S {	% showpage protecting gstate
+  gsave
+  showpage
+  grestore
+} bind def
+
+/MF {	% fontname newfontname -> -	make a new encoded font
+  /newfontname exch def
+  /fontname exch def
+
+  /fontdict fontname findfont def
+  /newfont fontdict maxlength dict def
+
+  fontdict {
+    exch
+    dup /FID eq {
+      % skip FID pair
+      pop pop
+    } {
+      % copy to the new font dictionary
+      exch newfont 3 1 roll put
+    } ifelse
+  } forall
+
+  newfont /FontName newfontname put
+
+  % insert only valid encoding vectors
+  encoding_vector length 256 eq {
+    newfont /Encoding encoding_vector put
+  } if
+
+  newfontname newfont definefont pop
+} def
+
+/MF_PS { % fontname newfontname -> -	make a new font preserving its enc
+  /newfontname exch def
+  /fontname exch def
+
+  /fontdict fontname findfont def
+  /newfont fontdict maxlength dict def
+
+  fontdict {
+    exch
+    dup /FID eq {
+      % skip FID pair
+      pop pop
+    } {
+      % copy to the new font dictionary
+      exch newfont 3 1 roll put
+    } ifelse
+  } forall
+
+  newfont /FontName newfontname put
+
+  newfontname newfont definefont pop
+} def
+
+/SF { % fontname width height -> -	set a new font
+  /height exch def
+  /width exch def
+
+  findfont
+  [width 0 0 height 0 0] makefont setfont
+} def
+
+/SUF { % fontname width height -> -	set a new user font
+  /height exch def
+  /width exch def
+
+  /F-gs-user-font MF
+  /F-gs-user-font width height SF
+} def
+
+/SUF_PS { % fontname width height -> -	set a new user font preserving its enc
+  /height exch def
+  /width exch def
+
+  /F-gs-user-font MF_PS
+  /F-gs-user-font width height SF
+} def
+
+/M {moveto} bind def
+/s {show} bind def
+
+/Box {	% x y w h -> -			define box path
+  /d_h exch def /d_w exch def /d_y exch def /d_x exch def
+  d_x d_y  moveto
+  d_w 0 rlineto
+  0 d_h rlineto
+  d_w neg 0 rlineto
+  closepath
+} def
+
+/bgs {	% x y height blskip gray str -> -	show string with bg color
+  /str exch def
+  /gray exch def
+  /blskip exch def
+  /height exch def
+  /y exch def
+  /x exch def
+
+  gsave
+    x y blskip sub str stringwidth pop height Box
+    gray setgray
+    fill
+  grestore
+  x y M str s
+} def
+
+/bgcs { % x y height blskip red green blue str -> -  show string with bg color
+  /str exch def
+  /blue exch def
+  /green exch def
+  /red exch def
+  /blskip exch def
+  /height exch def
+  /y exch def
+  /x exch def
+
+  gsave
+    x y blskip sub str stringwidth pop height Box
+    red green blue setrgbcolor
+    fill
+  grestore
+  x y M str s
+} def
+
+% Highlight bars.
+/highlight_bars {	% nlines lineheight output_y_margin gray -> -
+  gsave
+    setgray
+    /ymarg exch def
+    /lineheight exch def
+    /nlines exch def
+
+    % This 2 is just a magic number to sync highlight lines to text.
+    0 d_header_y ymarg sub 2 sub translate
+
+    /cw d_output_w cols div def
+    /nrows d_output_h ymarg 2 mul sub lineheight div cvi def
+
+    % for each column
+    0 1 cols 1 sub {
+      cw mul /xp exch def
+
+      % for each rows
+      0 1 nrows 1 sub {
+        /rn exch def
+        rn lineheight mul neg /yp exch def
+        rn nlines idiv 2 mod 0 eq {
+	  % Draw highlight bar.  4 is just a magic indentation.
+	  xp 4 add yp cw 8 sub lineheight neg Box fill
+	} if
+      } for
+    } for
+
+  grestore
+} def
+
+% Line highlight bar.
+/line_highlight {	% x y width height gray -> -
+  gsave
+    /gray exch def
+    Box gray setgray fill
+  grestore
+} def
+
+% Column separator lines.
+/column_lines {
+  gsave
+    .1 setlinewidth
+    0 d_footer_h translate
+    /cw d_output_w cols div def
+    1 1 cols 1 sub {
+      cw mul 0 moveto
+      0 d_output_h rlineto stroke
+    } for
+  grestore
+} def
+
+% Column borders.
+/column_borders {
+  gsave
+    .1 setlinewidth
+    0 d_footer_h moveto
+    0 d_output_h rlineto
+    d_output_w 0 rlineto
+    0 d_output_h neg rlineto
+    closepath stroke
+  grestore
+} def
+
+% Do the actual underlay drawing
+/draw_underlay {
+  ul_style 0 eq {
+    ul_str true charpath stroke
+  } {
+    ul_str show
+  } ifelse
+} def
+
+% Underlay
+/underlay {	% - -> -
+  gsave
+    0 d_page_h translate
+    d_page_h neg d_page_w atan rotate
+
+    ul_gray setgray
+    ul_font setfont
+    /dw d_page_h dup mul d_page_w dup mul add sqrt def
+    ul_str stringwidth pop dw exch sub 2 div ul_h_ptsize -2 div moveto
+    draw_underlay
+  grestore
+} def
+
+/user_underlay {	% - -> -
+  gsave
+    ul_x ul_y translate
+    ul_angle rotate
+    ul_gray setgray
+    ul_font setfont
+    0 0 ul_h_ptsize 2 div sub moveto
+    draw_underlay
+  grestore
+} def
+
+% Page prefeed
+/page_prefeed {		% bool -> -
+  statusdict /prefeed known {
+    statusdict exch /prefeed exch put
+  } {
+    pop
+  } ifelse
+} def
+
+% Wrapped line markers
+/wrapped_line_mark {	% x y charwith charheight type -> -
+  /type exch def
+  /h exch def
+  /w exch def
+  /y exch def
+  /x exch def
+
+  type 2 eq {
+    % Black boxes (like TeX does)
+    gsave
+      0 setlinewidth
+      x w 4 div add y M
+      0 h rlineto w 2 div 0 rlineto 0 h neg rlineto
+      closepath fill
+    grestore
+  } {
+    type 3 eq {
+      % Small arrows
+      gsave
+        .2 setlinewidth
+        x w 2 div add y h 2 div add M
+        w 4 div 0 rlineto
+        x w 4 div add y lineto stroke
+
+        x w 4 div add w 8 div add y h 4 div add M
+        x w 4 div add y lineto
+	w 4 div h 8 div rlineto stroke
+      grestore
+    } {
+      % do nothing
+    } ifelse
+  } ifelse
+} def
+
+% EPSF import.
+
+/BeginEPSF {
+  /b4_Inc_state save def    		% Save state for cleanup
+  /dict_count countdictstack def	% Count objects on dict stack
+  /op_count count 1 sub def		% Count objects on operand stack
+  userdict begin
+  /showpage { } def
+  0 setgray 0 setlinecap
+  1 setlinewidth 0 setlinejoin
+  10 setmiterlimit [ ] 0 setdash newpath
+  /languagelevel where {
+    pop languagelevel
+    1 ne {
+      false setstrokeadjust false setoverprint
+    } if
+  } if
+} bind def
+
+/EndEPSF {
+  count op_count sub { pos } repeat	% Clean up stacks
+  countdictstack dict_count sub { end } repeat
+  b4_Inc_state restore
+} bind def
+
+% Check PostScript language level.
+/languagelevel where {
+  pop /gs_languagelevel languagelevel def
+} {
+  /gs_languagelevel 1 def
+} ifelse
+%%EndResource
+%%BeginResource: procset Enscript-Encoding-88591 1.6 6
+/encoding_vector [
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/space        	/exclam       	/quotedbl     	/numbersign   	
+/dollar       	/percent      	/ampersand    	/quoteright   	
+/parenleft    	/parenright   	/asterisk     	/plus         	
+/comma        	/hyphen       	/period       	/slash        	
+/zero         	/one          	/two          	/three        	
+/four         	/five         	/six          	/seven        	
+/eight        	/nine         	/colon        	/semicolon    	
+/less         	/equal        	/greater      	/question     	
+/at           	/A            	/B            	/C            	
+/D            	/E            	/F            	/G            	
+/H            	/I            	/J            	/K            	
+/L            	/M            	/N            	/O            	
+/P            	/Q            	/R            	/S            	
+/T            	/U            	/V            	/W            	
+/X            	/Y            	/Z            	/bracketleft  	
+/backslash    	/bracketright 	/asciicircum  	/underscore   	
+/quoteleft    	/a            	/b            	/c            	
+/d            	/e            	/f            	/g            	
+/h            	/i            	/j            	/k            	
+/l            	/m            	/n            	/o            	
+/p            	/q            	/r            	/s            	
+/t            	/u            	/v            	/w            	
+/x            	/y            	/z            	/braceleft    	
+/bar          	/braceright   	/tilde        	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/.notdef      	/.notdef      	/.notdef      	/.notdef      	
+/space        	/exclamdown   	/cent         	/sterling     	
+/currency     	/yen          	/brokenbar    	/section      	
+/dieresis     	/copyright    	/ordfeminine  	/guillemotleft	
+/logicalnot   	/hyphen       	/registered   	/macron       	
+/degree       	/plusminus    	/twosuperior  	/threesuperior	
+/acute        	/mu           	/paragraph    	/bullet       	
+/cedilla      	/onesuperior  	/ordmasculine 	/guillemotright	
+/onequarter   	/onehalf      	/threequarters	/questiondown 	
+/Agrave       	/Aacute       	/Acircumflex  	/Atilde       	
+/Adieresis    	/Aring        	/AE           	/Ccedilla     	
+/Egrave       	/Eacute       	/Ecircumflex  	/Edieresis    	
+/Igrave       	/Iacute       	/Icircumflex  	/Idieresis    	
+/Eth          	/Ntilde       	/Ograve       	/Oacute       	
+/Ocircumflex  	/Otilde       	/Odieresis    	/multiply     	
+/Oslash       	/Ugrave       	/Uacute       	/Ucircumflex  	
+/Udieresis    	/Yacute       	/Thorn        	/germandbls   	
+/agrave       	/aacute       	/acircumflex  	/atilde       	
+/adieresis    	/aring        	/ae           	/ccedilla     	
+/egrave       	/eacute       	/ecircumflex  	/edieresis    	
+/igrave       	/iacute       	/icircumflex  	/idieresis    	
+/eth          	/ntilde       	/ograve       	/oacute       	
+/ocircumflex  	/otilde       	/odieresis    	/divide       	
+/oslash       	/ugrave       	/uacute       	/ucircumflex  	
+/udieresis    	/yacute       	/thorn        	/ydieresis    	
+] def
+%%EndResource
+%%EndProlog
+%%BeginSetup
+%%IncludeResource: font Courier-Bold
+%%IncludeResource: font Courier
+/HFpt_w 10 def
+/HFpt_h 10 def
+/Courier-Bold /HF-gs-font MF
+/HF /HF-gs-font findfont [HFpt_w 0 0 HFpt_h 0 0] makefont def
+/Courier /F-gs-font MF
+/F-gs-font 7 7 SF
+/#copies 1 def
+% Pagedevice definitions:
+gs_languagelevel 1 gt {
+  <<
+    /PageSize [612 792] 
+  >> setpagedevice
+} if
+%%BeginResource: procset Enscript-Header-simple 1.6 6
+
+/do_header {	% print default simple header
+  gsave
+    d_header_x d_header_y HFpt_h 3 div add translate
+
+    HF setfont
+    user_header_p {
+      5 0 moveto user_header_left_str show
+
+      d_header_w user_header_center_str stringwidth pop sub 2 div
+      0 moveto user_header_center_str show
+
+      d_header_w user_header_right_str stringwidth pop sub 5 sub
+      0 moveto user_header_right_str show
+    } {
+      5 0 moveto fname show
+      45 0 rmoveto fmodstr show
+      45 0 rmoveto pagenumstr show
+    } ifelse
+
+  grestore
+} def
+%%EndResource
+/d_page_w 744 def
+/d_page_h 536 def
+/d_header_x 0 def
+/d_header_y 521 def
+/d_header_w 744 def
+/d_header_h 15 def
+/d_footer_x 0 def
+/d_footer_y 0 def
+/d_footer_w 744 def
+/d_footer_h 0 def
+/d_output_w 744 def
+/d_output_h 521 def
+/cols 2 def
+%%EndSetup
+%%Page: (1) 1
+%%BeginPageSetup
+_S
+90 rotate
+24 -574 translate
+/pagenum 1 def
+/fname (uncorrected_maps.py) def
+/fdir (.) def
+/ftail (uncorrected_maps.py) def
+% User defined strings:
+/fmodstr (Wed Aug 29 11:50:50 2018) def
+/pagenumstr (1) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 511 M
+(from astropy.io import fits) s
+5 503 M
+(import numpy as np) s
+5 495 M
+(from scipy.ndimage.filters import gaussian_filter) s
+5 487 M
+(from scipy.optimize import curve_fit) s
+5 479 M
+(import numpy.ma as ma) s
+5 471 M
+(import matplotlib.pyplot as plt) s
+5 463 M
+(import matplotlib) s
+5 447 M
+(from emission_line_fitting import gauss) s
+5 431 M
+(def flux\(CUBE, sky_ra_min, sky_ra_max, sky_dec_min, sky_dec_max\):) s
+5 423 M
+(    # define parameters from header) s
+5 415 M
+(    cube = fits.open\(CUBE\)) s
+5 399 M
+(    # number of pixels across) s
+5 391 M
+(    n1 = cube[0].header['naxis1']) s
+5 383 M
+(    # starting/lowest wavelength observed) s
+5 375 M
+(    wl = cube[0].header['crval1']) s
+5 367 M
+(    # change in wavelength per pixel) s
+5 359 M
+(    dw = cube[0].header['cdelt1']) s
+5 351 M
+(    # number of pixels vertical) s
+5 343 M
+(    n2 = cube[0].header['naxis2']) s
+5 335 M
+(    # number of slices) s
+5 327 M
+(    n3 = cube[0].header['naxis3']) s
+5 319 M
+(    ) s
+5 311 M
+(    # scale -- number of arcseconds per pixel) s
+5 303 M
+(    scale = float\(cube[0].header['sscale']\)) s
+5 295 M
+(    ) s
+5 287 M
+(    # create list of all measured wavelengths) s
+5 279 M
+(    wave_list = []) s
+5 271 M
+(    for j in range\(0, n1\):) s
+5 263 M
+(        val = dw * j + wl) s
+5 255 M
+(        wave_list.append\(val\)) s
+5 247 M
+(        ) s
+5 239 M
+(    # access and get information about primaryHDU -- \(slice #, y, x\)) s
+5 231 M
+(    # for axis order, 1,2,3 --> RA, DEC, wavelength) s
+5 223 M
+(    cube1 = cube[0].data) s
+5 207 M
+(    # estimate error from a clean sky region) s
+5 199 M
+(    sky = cube1[sky_ra_min:sky_ra_max, sky_dec_min:sky_dec_max,:]) s
+5 191 M
+(    err = []) s
+5 175 M
+(    for j in range\(0,n1\):) s
+5 167 M
+(        error = np.std\(sky[:,:,j]\)) s
+5 159 M
+(        err.append\(error\)) s
+5 151 M
+(        ) s
+5 143 M
+(    # define pixel flux list + calculate total flux for each point in space \(for each ) s
+5 135 M
+(RA and dec\)) s
+5 127 M
+(    flux = []) s
+5 119 M
+(    for j in range\(0,n3\):) s
+5 111 M
+(        for k in range\(0,n2\):) s
+5 103 M
+(            datapt = cube1[j,k,:]) s
+5 95 M
+(            flux.append\(datapt\)) s
+5 87 M
+(        ) s
+5 79 M
+(    # separate data into lists for each RA slice) s
+5 71 M
+(    data = [flux[n2*j:n2*\(j+1\)] for j in range\(0, n3\)]) s
+5 55 M
+(    # data has n3 elements -- each RA slice) s
+5 47 M
+(    # data[i] has n2 elements -- each DEC slice for 'i'th RA) s
+5 39 M
+(    # data[i][j] has n1 elements -- flux value for each wavelength at 'i'th RA and 'j') s
+5 31 M
+(th DEC) s
+5 23 M
+(    ) s
+5 15 M
+(    #flux_data = np.sum\(data[:,:,284:295], axis=2\)[signal_ra_min:signal_ra_max, signal) s
+5 7 M
+(_dec_min:signal_dec_max]) s
+377 511 M
+(    ) s
+377 503 M
+(    return wave_list, data, err, scale) s
+377 487 M
+(def uncorrected_kin_maps\(CUBE, sky_ra_min, sky_ra_max, sky_dec_min, sky_dec_max, signa) s
+377 479 M
+(l_ra_min, signal_ra_max, signal_dec_min, signal_dec_max, guess, bounds, filt, channel_) s
+377 471 M
+(low, channel_high, edges = False\):) s
+377 463 M
+(    ) s
+377 455 M
+(    params = []) s
+377 447 M
+(    uncerts = []) s
+377 439 M
+(    velocity_dispersion = []) s
+377 431 M
+(    wave = []) s
+377 423 M
+(    SN = []) s
+377 415 M
+(    #flux_data = []) s
+377 407 M
+(    ) s
+377 399 M
+(    c = 2.998 * 10**5) s
+377 391 M
+(    ) s
+377 383 M
+(    wave_list, data, err, scale = flux\(CUBE, sky_ra_min, sky_ra_max, sky_dec_min, sky_) s
+377 375 M
+(dec_max\)) s
+377 359 M
+(    # smooth the data with a gaussian filter) s
+377 351 M
+(    filtereddata = gaussian_filter\(data, sigma = [filt, filt, 0]\)) s
+377 343 M
+(    ) s
+377 335 M
+(    tot_flux = []) s
+377 327 M
+(    for i in filtereddata[signal_ra_min:signal_ra_max]:) s
+377 319 M
+(        flux_j = []) s
+377 311 M
+(        for j in i[signal_dec_min:signal_dec_max]:) s
+377 303 M
+(            val = np.sum\(j[channel_low:channel_high]\)) s
+377 295 M
+(            flux_j.append\(val\)) s
+377 287 M
+(        tot_flux.append\(flux_j\)) s
+377 279 M
+(    ) s
+377 271 M
+(    # set SN cutoff bound) s
+377 263 M
+(    SNbound = 5) s
+377 255 M
+(    ) s
+377 247 M
+(    # choose axes bounds for plots) s
+377 239 M
+(    ramin = signal_ra_min) s
+377 231 M
+(    ramax = signal_ra_max) s
+377 223 M
+(    deltara = ramax - ramin) s
+377 215 M
+(    decmin = signal_dec_min) s
+377 207 M
+(    decmax = signal_dec_max) s
+377 199 M
+(    deltadec = decmax - decmin) s
+377 191 M
+(    ) s
+377 183 M
+(    for j in range\(ramin, ramax\):) s
+377 175 M
+(        for k in range\(decmin, decmax\):) s
+377 167 M
+(        ) s
+377 159 M
+(            # curve_fit) s
+377 151 M
+(            popt, pcov = curve_fit\(gauss, wave_list, filtereddata[j][k], p0=guess, sig) s
+377 143 M
+(ma=err, bounds=\(0, bounds\)\)) s
+377 135 M
+(            ) s
+377 127 M
+(            #uncertainties in fit values) s
+377 119 M
+(            unc = np.sqrt\(np.diag\(pcov\)\)) s
+377 111 M
+(            ) s
+377 103 M
+(            # define parameters from popt) s
+377 95 M
+(            wavelength = popt[0]) s
+377 87 M
+(            amp = popt[1]) s
+377 79 M
+(            sig = popt[2]) s
+377 71 M
+(            ) s
+377 63 M
+(            vdisp = c * \(sig/wavelength\)) s
+377 55 M
+(            ) s
+377 47 M
+(            signal_to_noise = amp / unc[1]) s
+377 39 M
+(            ) s
+377 31 M
+(            # store parameters + uncertainties) s
+377 23 M
+(            params.append\(popt\)) s
+377 15 M
+(            uncerts.append\(unc\)) s
+377 7 M
+(            velocity_dispersion.append\(vdisp\)) s
+_R
+S
+%%Page: (2) 2
+%%BeginPageSetup
+_S
+90 rotate
+24 -574 translate
+/pagenum 2 def
+/fname (uncorrected_maps.py) def
+/fdir (.) def
+/ftail (uncorrected_maps.py) def
+% User defined strings:
+/fmodstr (Wed Aug 29 11:50:50 2018) def
+/pagenumstr (2) def
+/user_header_p false def
+/user_footer_p false def
+%%EndPageSetup
+do_header
+5 511 M
+(            wave.append\(wavelength\)) s
+5 503 M
+(            SN.append\(signal_to_noise\)) s
+5 495 M
+(            #flux_data.append\(amp\)) s
+5 487 M
+(            ) s
+5 479 M
+(    SN = np.asarray\(SN\)) s
+5 471 M
+(    velocity_dispersion = np.asarray\(velocity_dispersion\)) s
+5 463 M
+(    wave = np.asarray\(wave\)) s
+5 455 M
+(    ) s
+5 447 M
+(    SN_mask = ma.masked_where\(SN < 5, SN\)) s
+5 439 M
+(    ) s
+5 431 M
+(    wave_med = ma.median\(ma.masked_array\(wave, mask=SN_mask.mask\)\)) s
+5 423 M
+(    redshift = \(wave_med/656.3\) - 1) s
+5 415 M
+(    z = \(wave - wave_med\)/wave_med) s
+5 407 M
+(    vel = c * \(\(\(z + 1\)**2 - 1\)/\(\(z+1\)**2 + 1\)\)) s
+5 399 M
+(    ) s
+5 391 M
+(    vel_mask = ma.masked_outside\(vel, -150, 150\)) s
+5 375 M
+(    disp_mask = ma.masked_where\(velocity_dispersion > 150, velocity_dispersion\)) s
+5 367 M
+(    ) s
+5 359 M
+(    dispersion_SN_mask = ma.mask_or\(SN_mask.mask, disp_mask.mask\)) s
+5 351 M
+(    velocity_SN_mask = ma.mask_or\(SN_mask.mask, vel_mask.mask\)) s
+5 343 M
+(    ) s
+5 335 M
+(    combined_mask = ma.mask_or\(dispersion_SN_mask, velocity_SN_mask\)) s
+5 327 M
+(    ) s
+5 319 M
+(    dispersion = np.asarray\([velocity_dispersion[deltadec*j:deltadec*\(j+1\)] for j in r) s
+5 311 M
+(ange\(0, deltara\)]\)) s
+5 303 M
+(    dispersion = ma.masked_array\(dispersion, mask=combined_mask\)) s
+5 295 M
+(    ) s
+5 287 M
+(    velocity = np.asarray\([vel[deltadec*j:deltadec*\(j+1\)] for j in range\(0, deltara\)]\)) s
+5 279 M
+(    velocity = ma.masked_array\(velocity, mask=combined_mask\)) s
+5 271 M
+(    ) s
+5 263 M
+(    #flux_data = np.asarray\([flux_data[deltadec*j:deltadec*\(j+1\)] for j in range\(0, de) s
+5 255 M
+(ltara\)]\)) s
+5 247 M
+(    ) s
+5 239 M
+(    if edges == True:) s
+5 231 M
+(        dispersion.mask[0]=True) s
+5 223 M
+(        dispersion.mask[-1]=True) s
+5 215 M
+(        np.transpose\(dispersion.mask\)[0]=True) s
+5 207 M
+(        np.transpose\(dispersion.mask\)[-1] = True) s
+5 191 M
+(        velocity.mask[0]=True) s
+5 183 M
+(        velocity.mask[-1]=True) s
+5 175 M
+(        np.transpose\(velocity.mask\)[0]=True) s
+5 167 M
+(        np.transpose\(velocity.mask\)[-1] = True) s
+5 151 M
+(    #params = np.asarray\([params[deltadec*j:deltadec*\(j+1\)] for j in range\(0, deltara\)) s
+5 143 M
+(]\)) s
+5 119 M
+(    return dispersion, velocity, scale, params, wave_list, combined_mask, redshift, to) s
+5 111 M
+(t_flux) s
+5 95 M
+(def plot_maps\(dispersion, velocity, deltara, deltadec, scale, tot_flux\):) s
+5 79 M
+(    velocityscale = max\(np.max\(velocity\), abs\(np.min\(velocity\)\)\)) s
+5 71 M
+(    cmap_disp = matplotlib.cm.viridis) s
+5 63 M
+(    cmap_disp.set_bad\(color='white'\)) s
+5 47 M
+(    cmap_vel = matplotlib.cm.rainbow) s
+5 39 M
+(    cmap_vel.set_bad\(color='white'\)) s
+5 31 M
+(    ) s
+5 23 M
+(    cmap_data = matplotlib.cm.cool) s
+5 15 M
+(    cmap_vel.set_bad\(color='white'\)) s
+377 511 M
+(    plt.figure\(figsize=\(10,6\)\)) s
+377 503 M
+(    plt.subplot\(1,3,1\)) s
+377 495 M
+(    plt.imshow\(dispersion, cmap = cmap_disp, origin = 'lower') s
+377 487 M
+(               ,extent = \(0, deltadec * scale, 0, deltara * scale\)) s
+377 479 M
+(              \)) s
+377 471 M
+(    plt.colorbar\(\)) s
+377 463 M
+(    plt.title\('velocity dispersion'\)) s
+377 455 M
+(    plt.xlabel\('arcsec'\) #dec) s
+377 447 M
+(    plt.ylabel\('arcsec'\) #RA) s
+377 431 M
+(    plt.subplot\(1,3,2\)    ) s
+377 423 M
+(    plt.imshow\(velocity, cmap = cmap_vel, origin = 'lower', vmin = -velocityscale, vma) s
+377 415 M
+(x = velocityscale) s
+377 407 M
+(               ,extent = \(0, deltadec * scale, 0, deltara * scale\)) s
+377 399 M
+(              \)) s
+377 391 M
+(    plt.colorbar\(\)) s
+377 383 M
+(    plt.title\('velocity'\)) s
+377 375 M
+(    plt.xlabel\('arcsec'\) #dec) s
+377 367 M
+(    plt.ylabel\('arcsec'\) #RA) s
+377 359 M
+(    ) s
+377 351 M
+(    plt.subplot\(1,3,3\)    ) s
+377 343 M
+(    plt.imshow\(tot_flux, cmap = cmap_data, origin = 'lower') s
+377 335 M
+(               ,extent = \(0, deltadec * scale, 0, deltara * scale\)) s
+377 327 M
+(              \)) s
+377 319 M
+(    plt.colorbar\(\)) s
+377 311 M
+(    plt.title\('flux'\)) s
+377 303 M
+(    plt.xlabel\('arcsec'\) #dec) s
+377 295 M
+(    plt.ylabel\('arcsec'\) #RA) s
+377 279 M
+(    plt.tight_layout\(\)) s
+377 271 M
+(    plt.show\(\)) s
+_R
+S
+%%Trailer
+%%Pages: 2
+%%DocumentNeededResources: font Courier-Bold Courier 
+%%EOF
