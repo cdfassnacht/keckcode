@@ -1,6 +1,6 @@
 """
 
-osiris_funcs.py
+oscube.py
 
 """
 
