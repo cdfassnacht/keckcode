@@ -7,8 +7,8 @@ oscube.py
 import numpy as np
 from matplotlib import pyplot as plt
 from astropy.io import fits as pf
-from SpecIm import imfuncs as imf
-from SpecIm import spec_simple as ss
+from specim import imfuncs as imf
+from specim import specfuncs as ss
 
 # ===========================================================================
 

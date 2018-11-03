@@ -69,6 +69,6 @@ setup(
     long_description = open('README.txt').read(),
     requires = ['numpy', 'scipy', 'astropy', 'matplotlib'],
     packages = ['KeckCode', 'KeckCode.osiris'],
-    package_dir = {'':'src'},
+#    package_dir = {'':'src'},
 #    package_data = {'esi_redux' : ['data/*']}
 )
