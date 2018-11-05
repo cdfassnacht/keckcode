@@ -95,6 +95,7 @@ class osCube(imf.Image):
             raise IndexError
 
         self.data = np.transpose(self.hdu[hext].data[:, :, imslice].copy())
+        self.prevdext = hext
 
         """ Display the image slice if requested """
         self.found_rms = False
@@ -142,6 +143,7 @@ class osCube(imf.Image):
             self.data = np.transpose(np.median(cube, axis=2))
         else:
             self.data = np.transpose(cube.sum(axis=2))
+        self.prevdext = hext
 
         """ Display the result if requested """
         if display:

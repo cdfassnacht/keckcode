@@ -32,14 +32,14 @@ except ImportError:
 try:
     find_module('CDFutils')
 except ImportError:
-    sys.exit('### Error: python module CDFutils not found. '
-             'Download and install from github cdfassnacht/CDFutils')
+    sys.exit('\n*** Error: python module CDFutils not found. ***\n '
+             'Download and install: https://github.com/cdfassnacht/CDFutils\n')
 
 try:
-    find_module('SpecIm')
+    find_module('specim')
 except ImportError:
-    sys.exit('### Error: python module SpecIm not found. '
-             'Download and install from github cdfassnacht/CDFutils')
+    sys.exit('\n*** Error: python module specim not found. ***\n'
+             'Download and install: https://github.com/cdfassnacht/specim\n')
 
 verstr = "unknown"
 try:
