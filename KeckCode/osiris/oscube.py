@@ -173,20 +173,45 @@ class osCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def set_1dspec(self, x, y, hext=0, display=True, **kwargs):
+    def make_1dspec(self, x='default', y='default', hext=0, display=True,
+                    skyxrange=None, skyyrange=None, debug=False, **kwargs):
         """
-        Takes a spaxel designated by its (x, y) coordinates and extracts the
+        Takes a spaxel or a rectangular region, designated by the (x, y)
+        coordinates and extracts the
         spectral information into a Spec1d container.
-        Also plot the 1d spectrum if requested.
+        Also plots the 1d spectrum if requested.
         """
 
-        flux = self.hdu[hext].data[x, y, :]
-        print(self.wav.size, flux.size)
-        spec = ss.Spec1d(wav=self.wav, flux=flux)
+        if isinstance(x, float) and isinstance(y, float):
+            flux = self.hdu[hext].data[x, y, :]
+            npix = 1
+        elif (isinstance(x, list) or isinstance(x, tuple)) and \
+                (isinstance(y, list) or isinstance(y, tuple)):
+            """ Need to check lengths """
+            xmin = int(x[0])
+            xmax = int(x[1])
+            ymin = int(y[0])
+            ymax = int(y[1])
+            flux = self.hdu[hext].data[xmin:xmax, ymin:ymax, :].sum(axis=0)
+            flux = flux.sum(axis=0)
+            npix = (xmax - xmin) * (ymax - ymin)
+        if debug:
+            print(self.wav.size, flux.size)
+
+        """
+        Make the final spectrum.
+         Include the variance spectrum if it has been requested by 
+         setting skyxrange and skyyrange
+        """
+        if skyxrange is not None and skyyrange is not None:
+            skycube = self.hdu[hext].data[skyxrange[0]:skyxrange[1], 
+                                          skyyrange[0]:skyyrange[1], :]
+            var = npix * skycube.var(axis=(0, 1))
+            spec = ss.Spec1d(wav=self.wav, flux=flux, var=var)
+        else:
+            spec = ss.Spec1d(wav=self.wav, flux=flux)
 
         if display:
-            fnum = max(plt.get_fignums()) + 1
-            plt.figure(fnum)
             spec.plot(**kwargs)
 
         self.spec = spec
