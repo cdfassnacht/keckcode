@@ -204,8 +204,10 @@ class osCube(imf.Image):
          setting skyxrange and skyyrange
         """
         if skyxrange is not None and skyyrange is not None:
-            skycube = self.hdu[hext].data[skyxrange[0]:skyxrange[1], 
-                                          skyyrange[0]:skyyrange[1], :]
+            # skycube = self.hdu[hext].data[skyxrange[0]:skyxrange[1], 
+            #                               skyyrange[0]:skyyrange[1], :]
+            skycube, hdr = self.select_cube(xlim=skyxrange, ylim=skyyrange,
+                                            hext=hext)
             var = npix * skycube.var(axis=(0, 1))
             spec = ss.Spec1d(wav=self.wav, flux=flux, var=var)
         else:
@@ -229,25 +231,30 @@ class osCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def select_cube(self, wmin=None, wmax=None, xmin=None, xmax=None,
-                    ymin=None, ymax=None, wmode='slice', hext=0,
-                    verbose=False):
+    def select_cube(self, wlim=None, xlim=None, ylim=None, wmode='slice',
+                    hext=0, verbose=False):
         """
         Creates a cube to analyze, defined by ranges in x, y, and wavelength.
         """
 
         """ Use default values if none are requested """
-        if xmin == None:
+        if xlim is not None:
+            xmin = xlim[0]
+            xmax = xlim[1]
+        else:
             xmin = 0
-        if xmax == None:
             xmax = self.xsize
-        if ymin == None:
+        if ylim is not None:
+            ymin = ylim[0]
+            ymax = ylim[1]
+        else:
             ymin = 0
-        if ymax == None:
             ymax = self.ysize
-        if wmin == None:
+        if wlim is not None:
+            wmin = wlim[0]
+            wmax = wlim[1]
+        else:
             wmin = 0
-        if wmax == None:
             wmax = self.wsize
 
         if verbose:
@@ -258,11 +265,14 @@ class osCube(imf.Image):
             print('  lambda: %d - %d (slice number)' % (wmin,wmax))
 
         """ Select the cube """
-        self.cube = self.hdu[0].data[xmin:xmax, ymin:ymax, wmin:wmax]
-        self.cubehdr = self.hdu[0].header.copy()
-        self.cubehdr['crpix1'] -= wmin
-        self.cubehdr['crpix2'] -= ymin
-        self.cubehdr['crpix3'] -= xmin
+        cube = self.hdu[0].data[xmin:xmax, ymin:ymax, wmin:wmax]
+        cubehdr = self.hdu[0].header.copy()
+        cubehdr['crpix1'] -= wmin
+        cubehdr['crpix2'] -= ymin
+        cubehdr['crpix3'] -= xmin
+
+        """ Return the results """
+        return cube, cubehdr
 
     # -----------------------------------------------------------------------
 
@@ -292,14 +302,13 @@ class osCube(imf.Image):
         Create a copy of the data cube and swap the axes
         """
 
-        self.select_cube(verbose=True, **kwargs)
-        tmp = self.cube.copy()
+        cube, hdr0 = self.select_cube(verbose=True, **kwargs)
+        tmp = cube.copy()
         tmp2 = np.swapaxes(tmp, 0, 2)
 
         """
         Create a new header and write the output file
         """
-        hdr0 = self.cubehdr
         tmphdu = pf.PrimaryHDU(tmp2)
         hdr = tmphdu.header
         """ Non-coordinate keywords """
