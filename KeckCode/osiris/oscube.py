@@ -5,6 +5,7 @@ oscube.py
 """
 
 import numpy as np
+from scipy.ndimage import filters
 from matplotlib import pyplot as plt
 from astropy.io import fits as pf
 from specim import imfuncs as imf
@@ -48,6 +49,7 @@ class osCube(imf.Image):
 
         """ Set default values """
         self.cube = None
+        self.smocube = None
 
     # -----------------------------------------------------------------------
 
@@ -100,8 +102,8 @@ class osCube(imf.Image):
         """ Display the image slice if requested """
         self.found_rms = False
         if display:
-            self.display(title='Image Plane %d (zero-indexed)' % imslice,
-                         mode=mode, **kwargs)
+            self.display(title='Image Slice %d (zero-indexed)' % imslice,
+                         mode=mode, hext=hext, **kwargs)
 
     # -----------------------------------------------------------------------
 
@@ -174,16 +176,26 @@ class osCube(imf.Image):
     # -----------------------------------------------------------------------
 
     def make_1dspec(self, x='default', y='default', hext=0, display=True,
-                    skyxrange=None, skyyrange=None, debug=False, **kwargs):
+                    skyx=None, skyy=None, usesmooth=False, debug=False,
+                    **kwargs):
         """
         Takes a spaxel or a rectangular region, designated by the (x, y)
-        coordinates and extracts the
-        spectral information into a Spec1d container.
+         coordinates and extracts the spectral information into a Spec1d
+         container.
         Also plots the 1d spectrum if requested.
+
+        Returns: the Spec1d container (instance).
+
         """
 
+        """ Set the data set to use """
+        if usesmooth:
+            cube = self.smocube
+        else:
+            cube = self.hdu[hext].data
+
         if isinstance(x, float) and isinstance(y, float):
-            flux = self.hdu[hext].data[x, y, :]
+            flux = cube[x, y, :]
             npix = 1
         elif (isinstance(x, list) or isinstance(x, tuple)) and \
                 (isinstance(y, list) or isinstance(y, tuple)):
@@ -192,31 +204,36 @@ class osCube(imf.Image):
             xmax = int(x[1])
             ymin = int(y[0])
             ymax = int(y[1])
-            flux = self.hdu[hext].data[xmin:xmax, ymin:ymax, :].sum(axis=0)
+            flux = cube[xmin:xmax, ymin:ymax, :].sum(axis=0)
             flux = flux.sum(axis=0)
             npix = (xmax - xmin) * (ymax - ymin)
         if debug:
             print(self.wav.size, flux.size)
 
         """
-        Make the final spectrum.
-         Include the variance spectrum if it has been requested by 
-         setting skyxrange and skyyrange
+        Make the variance spectrum if it has been requested by 
+        setting skyx and skyy
         """
-        if skyxrange is not None and skyyrange is not None:
-            # skycube = self.hdu[hext].data[skyxrange[0]:skyxrange[1], 
-            #                               skyyrange[0]:skyyrange[1], :]
-            skycube, hdr = self.select_cube(xlim=skyxrange, ylim=skyyrange,
+        if skyx is not None and skyy is not None:
+            skycube, hdr = self.select_cube(xlim=skyx, ylim=skyy,
                                             hext=hext)
             var = npix * skycube.var(axis=(0, 1))
-            spec = ss.Spec1d(wav=self.wav, flux=flux, var=var)
         else:
-            spec = ss.Spec1d(wav=self.wav, flux=flux)
+            var = None
+
+        """
+        Make, and display if requested, the final spectrum.
+        """
+        spec = ss.Spec1d(wav=self.wav, flux=flux, var=var)
 
         if display:
             spec.plot(**kwargs)
 
-        self.spec = spec
+        """ Clean up and return """
+        del flux
+        if var is not None:
+            del var
+        return spec
 
     # -----------------------------------------------------------------------
 
@@ -273,6 +290,19 @@ class osCube(imf.Image):
 
         """ Return the results """
         return cube, cubehdr
+
+    # -----------------------------------------------------------------------
+
+    def smooth_xy(self, kwidth, hext=0):
+        """
+        Smooths the cube over the two spatial dimensions.
+        The smoothing is a circular gaussian with sigma=kwidth, and where
+         kwidth is given in pixels
+        """
+
+        self.smocube = \
+            filters.gaussian_filter(self.hdu[hext].data,
+                                    sigma=[kwidth, kwidth, 0])
 
     # -----------------------------------------------------------------------
 
