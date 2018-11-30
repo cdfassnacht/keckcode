@@ -58,7 +58,7 @@ else:
 
 
 setup(
-    name = 'KeckCode',
+    name = 'keck_code',
     version = verstr,
     author = 'Chris Fassnacht',
     author_email = 'cdfassnacht@ucdavis.edu',
@@ -68,7 +68,7 @@ setup(
     description = 'Code for analyzing data from various Keck instruments',
     long_description = open('README.txt').read(),
     requires = ['numpy', 'scipy', 'astropy', 'matplotlib'],
-    packages = ['KeckCode', 'KeckCode.osiris'],
+    packages = ['keck_code', 'keck_code.osiris'],
 #    package_dir = {'':'src'},
 #    package_data = {'esi_redux' : ['data/*']}
 )
