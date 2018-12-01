@@ -1,7 +1,6 @@
 """
 This version of the extraction code has started with Lindsay's example
-but has been modified to work with the ESI code in esi_spec.py
-(in the KeckCDF github repo).
+but has been modified to work with the code in esi2d.py
 """
 
 import sys
@@ -16,14 +15,14 @@ import special_functions as sf
 import indexTricks as iT
 from specim import specfuncs as ss
 from keckcode.spectra import spectools as st
-import esi_spec as esi
+from .esi2d import Esi2d
 
 
 apsize = []
 
 def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
             indir='.', wid=1., wht=False, method='oldham', plot_extracted=False,
-            apmin=-4., apmax=4.):
+            apmin=-4., apmax=4., startord=None):
     ''' 
     frames = input frame numbers - give a list
     wht    = True gives a Gaussian aperture 
@@ -42,16 +41,16 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
             idir = indir
         specname = '%s/%s_%04d_bgsub.fits' % (idir, pref, num)
         varname  = specname.replace('bgsub', 'var')
-        d = esi.Esi2d(specname, varfile=varname)
+        d = Esi2d(specname, varfile=varname, startord=startord)
 
         plt.figure()
 
         """
-        The esi_spec code has now been re-written to loop over the orders
+        The esi2d code has now been re-written to loop over the orders
         to do the extraction
         """
         d.extract_all(method, apnum, apcent, wid, apmin=apmin, apmax=apmax,
-                      plot_extracted=plot_extracted)
+                      plot_extracted=plot_extracted, startord=startord)
         plt.show()
 
         """

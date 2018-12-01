@@ -20,9 +20,9 @@ from math import log10
 from scipy import ndimage,interpolate
 from matplotlib import pyplot as plt
 from astropy.io import fits as pf
-from ccdredux import sigma_clip
 import special_functions as sf
-from SpecIm import spec_simple as ss
+from ccdredux import sigma_clip
+from specim import specfuncs as ss
 
 """
 ============================== Esi2d class ==============================
@@ -35,7 +35,7 @@ class Esi2d(ss.Spec2d):
     one for each of the 10 orders produced by the spectrograph
     """
 
-    def __init__(self, infile, varfile=None):
+    def __init__(self, infile, varfile=None, startord=None):
         """
 
         Create an instance of this class by loading the data from the input
@@ -80,17 +80,22 @@ class Esi2d(ss.Spec2d):
 
         """ Load each order into its own Spec2d container """
         self.order = []
+        if startord is not None:
+            ostart = startord
+        else:
+            ostart = 0
         print ''
         print 'Order  Shape    Dispaxis'
         print '----- --------- --------'
-        for i in range(10):
+        for i in range(ostart, 10):
+            hext = i + 1 - ostart
             if self.extvar is not None:
-                tmpspec = ss.Spec2d(self.hdu,hext=i+1,
+                tmpspec = ss.Spec2d(self.hdu, hext=hext,
                                     extvar=self.extvar,verbose=False,
-                                    logwav=True,fixnans=False)
+                                    logwav=True, fixnans=False)
             else:
-                tmpspec = ss.Spec2d(self.hdu,hext=i+1,verbose=False,
-                                    logwav=True,fixnans=False)
+                tmpspec = ss.Spec2d(self.hdu, hext=hext, verbose=False,
+                                    logwav=True, fixnans=False)
             #if self.extvar is not None:
             #    tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,
             #                        extvar=self.extvar,verbose=False,
@@ -237,7 +242,7 @@ class Esi2d(ss.Spec2d):
         """ Make the apertures """
         B = self.orderinfo.blue[order]
         R = self.orderinfo.red[order]
-        ap,fit = self.get_ap_oldham(slit,B,R,apcent,apnum,wid,order)
+        ap, fit = self.get_ap_oldham(slit, B, R, apcent, apnum, wid, order)
 
         """ Set up to do the extraction, including by normalizing ap """
         ap[vslit>=1e8] = 0.
@@ -352,7 +357,8 @@ class Esi2d(ss.Spec2d):
     def extract_all(self, method='oldham', apnum=0, apcent=[0.,], wid=1.0, 
                     apmin=-1., apmax=1.,
                     plot_profiles=True, plot_traces=False, plot_extracted=True, 
-                    xmin=3840., xmax=10910., ymin=-0.2, ymax=5.):
+                    xmin=3840., xmax=10910., ymin=-0.2, ymax=5.,
+                    startord=None):
         """
         Goes through each of the 10 orders on the ESI spectrograph and
         extracts the spectrum via one of two procedures:
@@ -379,7 +385,11 @@ class Esi2d(ss.Spec2d):
         """ 
         Extract the spectra 
         """
-        for i in range(10):
+        if startord is not None:
+            ostart = startord
+        else:
+            ostart = 0
+        for i in range(ostart, 10):
             if method == 'cdf':
                 if plot_traces:
                     plt.figure(i+3)
