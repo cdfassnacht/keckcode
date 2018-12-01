@@ -68,7 +68,8 @@ setup(
     description = 'Code for analyzing data from various Keck instruments',
     long_description = open('README.txt').read(),
     requires = ['numpy', 'scipy', 'astropy', 'matplotlib'],
-    packages = ['keckcode', 'keckcode.osiris', 'keckcode.esiredux'],
+    packages = ['keckcode', 'keckcode.osiris', 'keckcode.esiredux',
+                'keckcode.spectra'],
 #    package_dir = {'':'src'},
-#    package_data = {'esi_redux' : ['data/*']}
+    package_data = {'keckcode.esiredux' : ['data/*']}
 )

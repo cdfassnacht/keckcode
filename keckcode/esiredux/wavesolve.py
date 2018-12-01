@@ -1,8 +1,8 @@
-import esi
+import os
 import special_functions as sf
 
 import scipy,pickle,numpy
-from scipy import stats,io,ndimage
+from scipy import io,ndimage
 try:
     import pyfits
 except:
@@ -34,7 +34,7 @@ def getContinuum(spec,bw=100.):
 
 
 def solve(d,orders):
-    path = esi.__path__[0]
+    path = os.path.split(__file__)[0]
 
     lines = {}
     lines['cuar'] = numpy.loadtxt(path+"/data/cuar.lines")
@@ -55,9 +55,21 @@ def solve(d,orders):
         cuslice = slice(1930,1970)
         fw1 = 37.
         fw2 = 5
-    for i in range(10):
+
+    """
+    Do a temporary kludge.  In some cases, the finding of the orders
+    fails, and only 9 orders are found.  In this case, we need to skip
+    the first of the orders
+    """
+    if len(orders) == 9:
+        ordstart = 1
+        dord = 1
+    else:
+        ordstart = 0
+        dord = 0
+    for i in range(ordstart, 10):
       solution = startsoln[i]
-      start,end = orders[i]
+      start,end = orders[(i-dord)]
 
       peaks = {}
       trace = {}
@@ -65,12 +77,12 @@ def solve(d,orders):
       WIDTH = 4
       import pylab
       for arc in arclist:
-          data = stats.stats.nanmedian(d[arc][start:end],axis=0)
+          data = numpy.nanmedian(d[arc][start:end],axis=0)
           data[scipy.isnan(data)] = 0.
           if i==0 and arc=='cuar':
               data[cuslice] = numpy.median(data)
           trace[arc] = data.copy()
-          bak = ndimage.percentile_filter(data,50.,fw1)
+          bak = ndimage.percentile_filter(data,50.,int(fw1))
           bak = getContinuum(bak,40.)
           data -= bak
           fitD[arc] = data/d[arc][start:end].std(0)
@@ -168,7 +180,7 @@ def solve(d,orders):
 
 def jointSolve(d,orders):
     import pylab
-    path = esi.__path__[0]
+    path = __path__[0]
 
     lines = {}
     lines['cuar'] = numpy.loadtxt(path+"/data/cuar.lines")
@@ -204,11 +216,11 @@ def jointSolve(d,orders):
         w = sf.genfunc(tmp,0.,solution)
         solution = sf.lsqfit(numpy.array([xvals,w]).T,'chebyshev',3)
 
-      data = stats.stats.nanmedian(alldata[start:end],axis=0)
+      data = numpy.nanmedian(alldata[start:end],axis=0)
       data[numpy.isnan(data)] = 0.
       if i==0:
         data[cuslice] = numpy.median(data)
-      bak = ndimage.percentile_filter(data,50.,fw1)
+      bak = ndimage.percentile_filter(data,50.,int(fw1))
       data -= bak
 
       peaks = []

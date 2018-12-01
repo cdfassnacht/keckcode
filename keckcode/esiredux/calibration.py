@@ -1,12 +1,11 @@
-import esi
-from esi.biastrim import make_bias,biastrim
+from .biastrim import make_bias,biastrim
 
-from esi.flat import *
-from esi.straighten import startrace,straighten,fullSolution,getOrders
-from esi import wavesolve
+from .flat import *
+from .straighten import startrace,straighten,fullSolution,getOrders
+from . import wavesolve
 
-from spectra import spectools,offset,measure_width
-from spectra.extract import extract
+from keckcode.spectra import spectools,offset,measure_width
+from keckcode.spectra.extract import extract
 import special_functions as sf
 
 from pickle import dump,load
@@ -78,7 +77,7 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,onearc=False,redo
         star = pyfits.open(out_prefix+"_trace.fits")[0].data.astype(scipy.float32)
         message("opened.\n")
     except:
-        from esi.straighten import starstack
+        from .straighten import starstack
         star = starstack(starnums,out_prefix)
         pyfits.PrimaryHDU(star).writeto(out_prefix+"_trace.fits")
         message("created.\n")

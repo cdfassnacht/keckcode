@@ -4,18 +4,19 @@ but has been modified to work with the ESI code in esi_spec.py
 (in the KeckCDF github repo).
 """
 
+import sys
+import numpy as np
+from scipy import ndimage,interpolate
+from matplotlib import pyplot as plt
 try:
     from astropy.io import fits as pf
 except:
     import pyfits as pf
-import numpy as np,pylab as plt
-from scipy import ndimage,interpolate
 import special_functions as sf
-from spectra import spectools as st
 import indexTricks as iT
-import spec_simple as ss
+from specim import specfuncs as ss
+from keckcode.spectra import spectools as st
 import esi_spec as esi
-import sys
 
 
 apsize = []

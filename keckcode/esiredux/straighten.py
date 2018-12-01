@@ -1,5 +1,5 @@
-from spectra import ycorrect,id_slits,spectools
-from esi.biastrim import biastrim
+from keckcode.spectra import ycorrect,id_slits,spectools
+from .biastrim import biastrim
 
 from special_functions import lsqfit,genfunc
 
@@ -87,7 +87,7 @@ def startrace(stars,orders):
                 line = (stars[s1,col]*yvals[s1]).sum()/stars[s1,col].sum()
                 matches.append([col,line,peak])
                 col -= 1
-            col = ncols/2+1
+            col = int(ncols/2)+1
             line = peak
             # Go towards the red side of the image
             while col<ncols:
@@ -107,7 +107,7 @@ def startrace(stars,orders):
                         s1 = slice(linePos[col]-WIDTH,linePos[col]+WIDTH+1)
                     if col>=ncols-WIDTH:
                         break
-                line = (stars[s1,col]*yvals[s1]).sum()/stars[s1,col].sum()
+                line = int((stars[s1,col]*yvals[s1]).sum()/stars[s1,col].sum())
                 if stars[line-1:line+2,col].max()<amp/20.:
                     break
                 matches.append([col,line,peak])

@@ -1,12 +1,11 @@
-import esi
-from esi.biastrim import make_bias,biastrim
+from .biastrim import make_bias,biastrim
 
-from esi.flat import *
-from esi.straighten import startrace,straighten,fullSolution,getOrders
-from esi.wavesolve import solve
+from .flat import *
+from .straighten import startrace,straighten,fullSolution,getOrders
+from .wavesolve import solve
 
-from spectra import spectools,offset,measure_width
-from spectra.extract import extract
+from keckcode.spectra import spectools,offset,measure_width
+from keckcode.spectra.extract import extract
 import special_functions as sf
 
 from pickle import dump,load
@@ -14,7 +13,7 @@ from math import floor,ceil,fabs
 import os,sys
 
 import numpy,scipy,cPickle
-from scipy import stats,interpolate,ndimage
+from scipy import interpolate,ndimage
 from scipy import io as sio
 
 try:
@@ -42,7 +41,7 @@ def clip(arr,nsig=3.5):
 def clip2(arr,nsig=3.,edge=0.01):
     a = arr.flatten()
     a.sort()
-    a = a[a.size*edge:a.size*(1.-edge)]
+    a = a[int(a.size*edge):int(a.size*(1.-edge))]
     m,s,l = a.mean(),a.std(),a.size
     while 1:
         a = a[abs(a-m)<nsig*s]
@@ -106,7 +105,7 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
         back = scipy.zeros(strt.shape)
         for indx in range(len(orders)):
             i,j = orders[indx]
-            bg = stats.stats.nanmedian(strt[i:j],axis=0)
+            bg = numpy.nanmedian(strt[i:j],axis=0)
             back[i:j] += bg
         back = curve(back,y_soln,orders,wideorders)
         pyfits.PrimaryHDU(back).writeto(out_prefix+"_bg.fits")
@@ -122,7 +121,7 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
         back = scipy.zeros(strt.shape)
         for indx in range(len(orders)):
             i,j = orders[indx]
-            bg = stats.stats.nanmedian(strt[i:j],axis=0)
+            bg = numpy.nanmedian(strt[i:j],axis=0)
             back[i:j] += bg
         back = curve(back,y_soln,orders,wideorders)
 
@@ -173,7 +172,7 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
 
         cut[scipy.isinf(cut)] = numpy.nan
         cut[mask==0] = numpy.nan
-        bg = stats.stats.nanmedian(cut,axis=0)
+        bg = numpy.nanmedian(cut,axis=0)
 
         tmp = (cut-bg)*mask
 
@@ -181,7 +180,7 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
         T = T[numpy.isfinite(T)]
         avg,std = clip2(T)
 
-        slice = stats.stats.nanmedian(tmp[:,blue[indx]:red[indx]],axis=1)
+        slice = numpy.nanmedian(tmp[:,blue[indx]:red[indx]],axis=1)
         slice[:3] = 0.
         slice[-3:] = 0.
         avg,std = clip2(slice[3:-3],3.5,0.05)

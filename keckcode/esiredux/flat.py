@@ -1,11 +1,10 @@
-from spectra import ycorrect,id_slits,spectools
-from esi.biastrim import biastrim
-from esi.straighten import straighten,curve
+from keckcode.spectra import ycorrect,id_slits,spectools
+from .biastrim import biastrim
+from .straighten import straighten,curve
 
 from special_functions import lsqfit,genfunc
 
 import numpy,scipy,pickle
-from scipy import stats
 try:
     import pyfits
 except:
@@ -45,7 +44,7 @@ def response(flat,orders,solutions,wideorders):
     xvals = numpy.arange(norm.shape[1])*1.
     for k in range(len(orders)):
         i,j = orders[k]
-        response = stats.stats.nanmedian(norm[i:j],axis=0)
+        response = numpy.nanmedian(norm[i:j],axis=0)
         response[response==0] = 1.
         response[numpy.isnan(response)] = 1.
         smooth = ndimage.gaussian_filter(response,kwidth)
