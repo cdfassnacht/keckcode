@@ -27,6 +27,7 @@ class osCube(imf.Image):
 
         """ Read the data into an Image structure """
         imf.Image.__init__(self, infile, verbose=verbose)
+        # super().__init__(self, infile, verbose=verbose) # Python 3 syntax
 
         """ Set a default image plane to plot """
         self.set_imslice(0, display=False)
@@ -50,6 +51,10 @@ class osCube(imf.Image):
         """ Set default values """
         self.cube = None
         self.smocube = None
+
+    # -----------------------------------------------------------------------
+
+    # imslice = property(fget=get_imslice, fset=set_imslice)
 
     # -----------------------------------------------------------------------
 
@@ -189,6 +194,7 @@ class osCube(imf.Image):
         """
 
         """ Set the data set to use """
+        """ Consider using a dictionary """
         if usesmooth:
             cube = self.smocube
         else:
