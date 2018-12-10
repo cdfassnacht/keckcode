@@ -91,7 +91,7 @@ class Esi2d(ss.Spec2d):
             hext = i + 1 - ostart
             if self.extvar is not None:
                 tmpspec = ss.Spec2d(self.hdu, hext=hext,
-                                    extvar=self.extvar,verbose=False,
+                                    extvar=self.extvar, verbose=False,
                                     logwav=True, fixnans=False)
             else:
                 tmpspec = ss.Spec2d(self.hdu, hext=hext, verbose=False,
@@ -107,6 +107,25 @@ class Esi2d(ss.Spec2d):
                 ((i+1),tmpspec.data.shape[1],tmpspec.data.shape[0],
                  tmpspec.dispaxis)
             self.order.append(tmpspec)
+
+    #-----------------------------------------------------------------------
+
+    def plot_2d(self):
+        """
+
+        Plots in one figure the 2-d spectra from the 10 orders.
+        These are stored in separate HDUs in the input file
+
+        """
+
+        # plt.figure(figsize=(10,10))
+        plt.subplots_adjust(hspace=0.001)
+        fig = plt.gcf()
+        for i in range(10):
+            axi = fig.add_subplot(10, 1, (i+1))
+            self.order[i].display(hext=(i+1), mode='xy', axlabel=False)
+            plt.setp(axi.get_xticklabels(),visible=False) 
+            axi.set_xlabel('',visible=False)
 
     #-----------------------------------------------------------------------
 
