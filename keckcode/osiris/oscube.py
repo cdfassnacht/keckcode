@@ -18,16 +18,19 @@ class osCube(imf.Image):
     A class used to visualize and analyze OSIRIS data
     """
 
-    def __init__(self, infile, verbose=True):
+    def __init__(self, indat, verbose=True):
         """
         Loads in an OSIRIS data cube that was processed through the
         standard data reduction pipeline and, possibly, has had some
         additional processing done.
+
+        Inputs:
+          indat - either the name of an input fits file or a HDU
         """
 
         """ Read the data into an Image structure """
-        imf.Image.__init__(self, infile, verbose=verbose)
-        # super().__init__(self, infile, verbose=verbose) # Python 3 syntax
+        imf.Image.__init__(self, indat, verbose=verbose)
+        # super().__init__(self, indat, verbose=verbose) # Python 3 syntax
 
         """ Set a default image plane to plot """
         self.set_imslice(0, display=False)
@@ -181,8 +184,7 @@ class osCube(imf.Image):
     # -----------------------------------------------------------------------
 
     def make_1dspec(self, x='default', y='default', hext=0, display=True,
-                    skyx=None, skyy=None, usesmooth=False, debug=False,
-                    **kwargs):
+                    skyx=None, skyy=None, debug=False, **kwargs):
         """
         Takes a spaxel or a rectangular region, designated by the (x, y)
          coordinates and extracts the spectral information into a Spec1d
@@ -194,11 +196,7 @@ class osCube(imf.Image):
         """
 
         """ Set the data set to use """
-        """ Consider using a dictionary """
-        if usesmooth:
-            cube = self.smocube
-        else:
-            cube = self.hdu[hext].data
+        cube = self.hdu[hext].data
 
         if isinstance(x, float) and isinstance(y, float):
             flux = cube[x, y, :]
@@ -299,16 +297,33 @@ class osCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def smooth_xy(self, kwidth, hext=0):
+    def smooth_xy(self, kwidth, hext=0, outfile=None):
         """
         Smooths the cube over the two spatial dimensions.
         The smoothing is a circular gaussian with sigma=kwidth, and where
          kwidth is given in pixels
         """
 
-        self.smocube = \
-            filters.gaussian_filter(self.hdu[hext].data,
-                                    sigma=[kwidth, kwidth, 0])
+        """ Smooth the data """
+        data = self.hdu[hext].data
+        cube = filters.gaussian_filter(data, sigma=[kwidth, kwidth, 0])
+
+        """ Put the smoothed data into a new HDU """
+        hdr = self.hdu[hext].header.copy()
+        hdr['comment'] = 'Data have been spatially smoothed (gaussian)'
+        hdr['smoothw'] = ('%5.1f' % kwidth,
+                            'Gaussian smoothing kernel width')
+        phdu = pf.PrimaryHDU(cube, hdr)
+
+        """ Save the smoothed cube in an output file if desired """
+        if outfile:
+            print('')
+            print('Wrote smoothed data cube to %s' % outfile)
+            phdu.writeto(outfile, overwrite=True)
+            print('')
+
+        """ Return the smoothed cube """
+        return cube
 
     # -----------------------------------------------------------------------
 
@@ -337,7 +352,6 @@ class osCube(imf.Image):
         """
         Create a copy of the data cube and swap the axes
         """
-
         cube, hdr0 = self.select_cube(verbose=True, **kwargs)
         tmp = cube.copy()
         tmp2 = np.swapaxes(tmp, 0, 2)
