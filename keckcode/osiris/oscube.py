@@ -115,12 +115,59 @@ class osCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def compress_spec(self, wmin, wmax, wmode='slice', combmode='sum',
-                      hext=0, display=True, **kwargs):
+    def select_cube(self, wlim=None, xlim=None, ylim=None, wmode='slice',
+                    hext=0, verbose=False):
         """
+        Creates a cube to analyze, defined by ranges in x, y, and wavelength.
+        """
+
+        """ Use default values if none are requested """
+        if xlim is not None:
+            xmin = xlim[0]
+            xmax = xlim[1]
+        else:
+            xmin = 0
+            xmax = self.xsize
+        if ylim is not None:
+            ymin = ylim[0]
+            ymax = ylim[1]
+        else:
+            ymin = 0
+            ymax = self.ysize
+        if wlim is not None:
+            wmin = wlim[0]
+            wmax = wlim[1]
+        else:
+            wmin = 0
+            wmax = self.wsize
+
+        if verbose:
+            print('')
+            print('Creating a cube from original data with ranges:')
+            print('  x:      %d - %d' % (xmin,xmax))
+            print('  y:      %d - %d' % (ymin,ymax))
+            print('  lambda: %d - %d (slice number)' % (wmin,wmax))
+
+        """ Select the cube """
+        cube = self.hdu[0].data[xmin:xmax, ymin:ymax, wmin:wmax]
+        cubehdr = self.hdu[0].header.copy()
+        cubehdr['crpix1'] -= wmin
+        cubehdr['crpix2'] -= ymin
+        cubehdr['crpix3'] -= xmin
+
+        """ Return the results """
+        return cube, cubehdr
+
+    # -----------------------------------------------------------------------
+
+    def compress_spec(self, wlim, xlim=None, ylim=None, wmode='slice', 
+                      combmode='sum', hext=0, display=True, verbose=True,
+                      **kwargs):
+        """
+
         Compresses the data cube along the spectral dimension, but only
         for image slices between some minimum and maximum wavelengths.
-        These wavelength limits (wmin, wmax) can be set either by the slice
+        These wavelength limits (wlim) can be set either by the slice
         number or the actual wavelength in Angstrom [wavelength mode is NOT
         yet implemented].
 
@@ -135,18 +182,21 @@ class osCube(imf.Image):
             print('NOTE: wavelength mode has not yet been implemented')
             return
         else:
-            minslice = wmin
-            maxslice = wmax
+            minslice = wlim[0]
+            maxslice = wlim[1]
             wavmin = self.wav[minslice]
             wavmax = self.wav[maxslice]
-        print('')
-        print('Data cube will be compressed along the spectral direction')
-        print('  Image slice range: %d - %d' % (minslice, maxslice))
-        print('  Corresponding wavelength range: %8.2f - %8.2f'
-              % (wavmin, wavmax))
+
+        if verbose:
+            print('')
+            print('Data cube will be compressed along the spectral direction')
+            print('  Image slice range: %d - %d' % (minslice, maxslice))
+            print('  Corresponding wavelength range: %8.2f - %8.2f'
+                  % (wavmin, wavmax))
 
         """ Create a temporary cube container """
-        cube = self.hdu[hext].data[:, :, minslice:(maxslice+1)].copy()
+        cube, cubehdr = self.select_cube(wlim, xlim, ylim, hext=hext,
+                                         verbose=verbose)
 
         """ Compress the temporary cube along the spectral axis """
         if combmode == 'median':
@@ -252,51 +302,6 @@ class osCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def select_cube(self, wlim=None, xlim=None, ylim=None, wmode='slice',
-                    hext=0, verbose=False):
-        """
-        Creates a cube to analyze, defined by ranges in x, y, and wavelength.
-        """
-
-        """ Use default values if none are requested """
-        if xlim is not None:
-            xmin = xlim[0]
-            xmax = xlim[1]
-        else:
-            xmin = 0
-            xmax = self.xsize
-        if ylim is not None:
-            ymin = ylim[0]
-            ymax = ylim[1]
-        else:
-            ymin = 0
-            ymax = self.ysize
-        if wlim is not None:
-            wmin = wlim[0]
-            wmax = wlim[1]
-        else:
-            wmin = 0
-            wmax = self.wsize
-
-        if verbose:
-            print('')
-            print('Creating a cube from original data with ranges:')
-            print('  x:      %d - %d' % (xmin,xmax))
-            print('  y:      %d - %d' % (ymin,ymax))
-            print('  lambda: %d - %d (slice number)' % (wmin,wmax))
-
-        """ Select the cube """
-        cube = self.hdu[0].data[xmin:xmax, ymin:ymax, wmin:wmax]
-        cubehdr = self.hdu[0].header.copy()
-        cubehdr['crpix1'] -= wmin
-        cubehdr['crpix2'] -= ymin
-        cubehdr['crpix3'] -= xmin
-
-        """ Return the results """
-        return cube, cubehdr
-
-    # -----------------------------------------------------------------------
-
     def smooth_xy(self, kwidth, hext=0, outfile=None):
         """
         Smooths the cube over the two spatial dimensions.
@@ -323,7 +328,9 @@ class osCube(imf.Image):
             print('')
 
         """ Return the smoothed cube """
-        return cube
+        hdu = pf.HDUList()
+        hdu.append(phdu)
+        return hdu
 
     # -----------------------------------------------------------------------
 
