@@ -1,0 +1,34 @@
+1. open two terminals; type run_odrp in terminal 1 and odrfgui in terminal 2
+
+2. combine all dark frames to a master dark frame.
+-choose "add files": add all dark frames
+-choose your output path
+-choose your output log
+-change Reduction templates to "combine_skies_darks"
+-push drop DRP in Queue (lower right corner)
+
+3. remove the dark frame
+- "clear list" to remove all the files and add all the raw data
+-choose your output path
+-change the reduction templates to "basic ARP_drfTemplate.xml"
+-put the master dark frame in "subtract frame"
+-choose the rectification matrices in the "extract Spectra"
+-unclick "clean cosmic Rays"
+-push drop DRP in Queue (lower right corner)
+
+4. sky subtraction
+For example, if there are three frames: frame2, 3, and 4, frame 2 and 4 are at the location A, frame 3 is at the location B (see log)
+-choose your output path
+-add "scaled sky subtraction" in the left column
+-skip (click the skip column) every module except "Scaled Sky Subtraction" and "Save DataSet information"
+-choose "add files": add one frame in location A at the top and choose a frame in location B in "Scaled Sky Subtraction"
+-push drop DRP in Queue (lower right corner)
+-repeat the same procedure until you get all different subtractions (ex: 3-2, 3-4, 2-3, 2-4)
+***remember to rename the four subtracted files*
+
+5. mosaic all files
+-choose your output path
+-choose "add files": add all output files from 4. at the top
+-change the reduction templates to "cubes_mosaic_drfTemplate.xml"
+-push drop DRP in Queue (lower right corner)
+
