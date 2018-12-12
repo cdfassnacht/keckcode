@@ -13,7 +13,7 @@ from specim import specfuncs as ss
 
 # ===========================================================================
 
-class osCube(imf.Image):
+class OsCube(imf.Image):
     """
     A class used to visualize and analyze OSIRIS data
     """
