@@ -53,7 +53,7 @@ class osCube(imf.Image):
 
         """ Set default values """
         self.cube = None
-        self.smocube = None
+        self.moment0 = None
 
     # -----------------------------------------------------------------------
 
@@ -160,7 +160,7 @@ class osCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def compress_spec(self, wlim, xlim=None, ylim=None, wmode='slice', 
+    def compress_spec(self, wlim=None, xlim=None, ylim=None, wmode='slice', 
                       combmode='sum', hext=0, display=True, verbose=True,
                       **kwargs):
         """
@@ -170,6 +170,7 @@ class osCube(imf.Image):
         These wavelength limits (wlim) can be set either by the slice
         number or the actual wavelength in Angstrom [wavelength mode is NOT
         yet implemented].
+        Setting wlim=None (the default) will use the full wavelength range
 
         The compression can be done either as a sum or as a median.
 
@@ -227,13 +228,12 @@ class osCube(imf.Image):
             print('Creating white light image')
 
         """ Set up for running compress_spec on the full data cube """
-        wmax = self.hdu[hext].data.shape[2] - 1
-        self.compress_spec(wmin=0, wmax=wmax, wmode='slice', combmode=combmode,
+        self.compress_spec(wmode='slice', combmode=combmode,
                            hext=hext, display=display, **kwargs)
 
     # -----------------------------------------------------------------------
 
-    def make_1dspec(self, x='default', y='default', hext=0, display=True,
+    def make_1dspec(self, x, y, hext=0, display=True,
                     skyx=None, skyy=None, debug=False, **kwargs):
         """
         Takes a spaxel or a rectangular region, designated by the (x, y)
@@ -248,7 +248,7 @@ class osCube(imf.Image):
         """ Set the data set to use """
         cube = self.hdu[hext].data
 
-        if isinstance(x, float) and isinstance(y, float):
+        if isinstance(x, int) and isinstance(y, int):
             flux = cube[x, y, :]
             npix = 1
         elif (isinstance(x, list) or isinstance(x, tuple)) and \
@@ -262,6 +262,7 @@ class osCube(imf.Image):
             flux = flux.sum(axis=0)
             npix = (xmax - xmin) * (ymax - ymin)
         if debug:
+            print('npix: %d' % npix)
             print(self.wav.size, flux.size)
 
         """
@@ -315,7 +316,7 @@ class osCube(imf.Image):
 
         """ Put the smoothed data into a new HDU """
         hdr = self.hdu[hext].header.copy()
-        hdr['comment'] = 'Data have been spatially smoothed (gaussian)'
+        hdr['history'] = 'Data have been spatially smoothed (gaussian)'
         hdr['smoothw'] = ('%5.1f' % kwidth,
                             'Gaussian smoothing kernel width')
         phdu = pf.PrimaryHDU(cube, hdr)
@@ -332,6 +333,29 @@ class osCube(imf.Image):
         hdu.append(phdu)
         return hdu
 
+    # -----------------------------------------------------------------------
+
+    def make_moment0(self, wlim, xlim, ylim, wmode='slice', combmode='sum', 
+                     hext=0, display=True, verbose=True, **kwargs):
+        """
+
+        Makes the moment 0 (i.e., total flux) map of the science region
+        of the data cube.  The science region is defined by a wavelength
+        range (wlim), x-pixel range (xlim), and y-pixel range (ylim).
+
+        Essentially this method is just a front-end for the (barely) more
+        generic compress_spec method, with a perhaps easier to remember
+        name
+        """
+
+        """ Call compress_spec to create the 2-d moment0 image """
+        self.compress_spec(wlim, xlim, ylim, wmode=wmode, hext=hext,
+                           combmode=combmode, display=display,
+                           verbose=verbose, **kwargs)
+
+        """ Save the data in a moment0 attribute """
+        self.moment0 = self.data.copy()
+        
     # -----------------------------------------------------------------------
 
     def save_xyl(self, outfits, outtext=None, **kwargs):
