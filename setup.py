@@ -30,10 +30,10 @@ except ImportError:
     sys.exit('### Error: python module matplotlib not found')
 
 try:
-    find_module('CDFutils')
+    find_module('cdfutils')
 except ImportError:
-    sys.exit('\n*** Error: python module CDFutils not found. ***\n '
-             'Download and install: https://github.com/cdfassnacht/CDFutils\n')
+    sys.exit('\n*** Error: python module cdfutils not found. ***\n '
+             'Download and install: https://github.com/cdfassnacht/cdfutils\n')
 
 try:
     find_module('specim')
@@ -67,7 +67,7 @@ setup(
     license = 'LICENSE.txt',
     description = 'Code for analyzing data from various Keck instruments',
     long_description = open('README.txt').read(),
-    requires = ['numpy', 'scipy', 'astropy', 'matplotlib'],
+    requires = ['numpy', 'scipy', 'astropy', 'matplotlib', 'cdfutils'],
     packages = ['keckcode', 'keckcode.osiris', 'keckcode.esiredux',
                 'keckcode.spectra'],
 #    package_dir = {'':'src'},
