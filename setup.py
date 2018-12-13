@@ -58,7 +58,7 @@ else:
 
 
 setup(
-    name = 'keck_code',
+    name = 'keckcode',
     version = verstr,
     author = 'Chris Fassnacht',
     author_email = 'cdfassnacht@ucdavis.edu',
