@@ -20,13 +20,13 @@ from .esi2d import Esi2d
 
 apsize = []
 
-def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
-            indir='.', wid=1., wht=False, method='oldham', plot_extracted=False,
-            apmin=-4., apmax=4., startord=None):
+def extract(pref, frames, apnum, apcent, indir='.', nsig=1., wht=False,
+            method='oldham', plot_extracted=False, apmin=-4., apmax=4.,
+            normap=True):
     ''' 
     frames = input frame numbers - give a list
     wht    = True gives a Gaussian aperture 
-    wid    = how many sigmas wide your aperture is 
+    nsig    = how many sigmas wide your aperture is 
     '''
 
     """ Create list to hold the Spec2d instance for each frame """
@@ -41,7 +41,7 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
             idir = indir
         specname = '%s/%s_%04d_bgsub.fits' % (idir, pref, num)
         varname  = specname.replace('bgsub', 'var')
-        d = Esi2d(specname, varfile=varname, startord=startord)
+        d = Esi2d(specname, varfile=varname)
 
         plt.figure()
 
@@ -49,16 +49,16 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
         The esi2d code has now been re-written to loop over the orders
         to do the extraction
         """
-        d.extract_all(method, apnum, apcent, wid, apmin=apmin, apmax=apmax,
-                      plot_extracted=plot_extracted, startord=startord)
+        d.extract_all(method, apnum, apcent, nsig, apmin=apmin, apmax=apmax,
+                      normap=normap, plot_extracted=plot_extracted)
         plt.show()
 
         """ Add to the lists of Spec2d containers """
         speclist.append(d)
 
     """ Coadd the spectra """
-    print 'Finished the loop'
-    coadd(speclist, stdOrderCorr, name, aplab, apnum, pref)
+    print('Finished the loop.  To coadd call the coadd method')
+    return speclist
 
 #---------------------------------------------------------------------------
 

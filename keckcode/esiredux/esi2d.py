@@ -35,7 +35,7 @@ class Esi2d(ss.Spec2d):
     one for each of the 10 orders produced by the spectrograph
     """
 
-    def __init__(self, infile, varfile=None, startord=None):
+    def __init__(self, infile, varfile=None):
         """
 
         Create an instance of this class by loading the data from the input
@@ -80,15 +80,11 @@ class Esi2d(ss.Spec2d):
 
         """ Load each order into its own Spec2d container """
         self.order = []
-        if startord is not None:
-            ostart = startord
-        else:
-            ostart = 0
         print ''
         print 'Order  Shape    Dispaxis'
         print '----- --------- --------'
-        for i in range(ostart, 10):
-            hext = i + 1 - ostart
+        for i in range(10):
+            hext = i + 1
             if self.extvar is not None:
                 tmpspec = ss.Spec2d(self.hdu, hext=hext,
                                     extvar=self.extvar, verbose=False,
@@ -187,7 +183,7 @@ class Esi2d(ss.Spec2d):
 
     #---------------------------------------------------------------------------
 
-    def get_ap_oldham(self, slit, B, R, apcent, apnum, wid, order, 
+    def get_ap_oldham(self, slit, B, R, apcent, apnum, nsig, order, 
                       doplot=True):
         """
         Defines a uniform aperture as in the example ESI extraction scripts
@@ -212,7 +208,7 @@ class Esi2d(ss.Spec2d):
         cent = fit[2] + apcent[apnum]/self.orderinfo.pixscale[order]
         print cent
         apmax = 0.1 * xproj.max()
-        ap = np.where(abs(x-cent)<wid/self.orderinfo.pixscale[order], 1., 0.)
+        ap = np.where(abs(x-cent)<nsig/self.orderinfo.pixscale[order], 1., 0.)
 
         if doplot & order<60:
             plt.subplot(2,5,(order+1))
@@ -226,7 +222,7 @@ class Esi2d(ss.Spec2d):
 
     #-----------------------------------------------------------------------
 
-    def extract_oldham(self, order, apcent, apnum, wid, normap=False):
+    def extract_oldham(self, order, apcent, apnum, nsig, normap=False):
         """
         Implements Lindsay Oldham's (or perhaps Matt Auger's) method
          for extracting the spectrum from an individual spectral order
@@ -253,23 +249,28 @@ class Esi2d(ss.Spec2d):
         """ Make the apertures """
         B = self.orderinfo.blue[order]
         R = self.orderinfo.red[order]
-        ap, fit = self.get_ap_oldham(slit, B, R, apcent, apnum, wid, order)
+        ap, fit = self.get_ap_oldham(slit, B, R, apcent, apnum, nsig, order)
 
-        """ Set up to do the extraction """
+        """
+        Set up to do the extraction, including normalizing the aperture
+        if requested
+        """
         ap[vslit>=1e8] = 0.
+        if normap:
+            ap = ap / ap.sum(0)
         ap[np.isnan(ap)] = 0.
         slit[np.isnan(slit)] = 0.
 
         """
         Extract the spectrum
         If the aperture is requested to be normalized (normap is True) then
-         first normalize ap and then use the weighting (which I don't 
+         first normalize ap (above) and then use the weighting (which I don't 
          understand) that Lindsay used in her extraction code.
         Otherwise, use the weighting (which makes more sense to me) that
          was used in the old makeOrderCorr.py files.
         """
+        print normap
         if normap:
-            ap = ap/ap.sum(0)
             spec = (slit*ap**2).sum(0) 
             vspec = (vslit*ap**4).sum(0)
         else:
@@ -376,11 +377,10 @@ class Esi2d(ss.Spec2d):
 
     #-----------------------------------------------------------------------
 
-    def extract_all(self, method='oldham', apnum=0, apcent=[0.,], wid=1.0, 
-                    apmin=-1., apmax=1.,
+    def extract_all(self, method='oldham', apnum=0, apcent=[0.,], nsig=1.0, 
+                    apmin=-1., apmax=1., normap=False,
                     plot_profiles=True, plot_traces=False, plot_extracted=True, 
-                    xmin=3840., xmax=10910., ymin=-0.2, ymax=5.,
-                    startord=None):
+                    xmin=3840., xmax=10910., ymin=-0.2, ymax=5.):
         """
         Goes through each of the 10 orders on the ESI spectrograph and
         extracts the spectrum via one of two procedures:
@@ -407,11 +407,7 @@ class Esi2d(ss.Spec2d):
         """ 
         Extract the spectra 
         """
-        if startord is not None:
-            ostart = startord
-        else:
-            ostart = 0
-        for i in range(ostart, 10):
+        for i in range(10):
             if method == 'cdf':
                 if plot_traces:
                     plt.figure(i+3)
@@ -447,7 +443,7 @@ class Esi2d(ss.Spec2d):
 
 
             elif method == 'oldham':
-                self.extract_oldham(i,apcent,apnum,wid)
+                self.extract_oldham(i, apcent, apnum, nsig, normap=normap)
 
         """ Plot all the spatial profiles, along with the profile fits """
         if plot_profiles and method == 'cdf':
