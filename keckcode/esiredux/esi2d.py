@@ -189,7 +189,6 @@ class Esi2d(ss.Spec2d):
 
         ax.set_title('Spatial Profiles')
         ax.set_xlabel('Spatial Direction')
-        ax.set_ylabel('Relative Flux')
         ax.xaxis.set_label_coords(0.5, -0.05)
         ax.yaxis.set_label_coords(-0.03,0.5)
 
