@@ -96,13 +96,6 @@ class Esi2d(ss.Spec2d):
             else:
                 tmpspec = ss.Spec2d(self.hdu, hext=hext, verbose=False,
                                     logwav=True, fixnans=False)
-            #if self.extvar is not None:
-            #    tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,
-            #                        extvar=self.extvar,verbose=False,
-            #                        logwav=True,fixnans=False)
-            #else:
-            #    tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,verbose=False,
-            #                        logwav=True,fixnans=False)
             print ' %2d   %dx%d     %s' % \
                 ((i+1),tmpspec.data.shape[1],tmpspec.data.shape[0],
                  tmpspec.dispaxis)
@@ -202,24 +195,24 @@ class Esi2d(ss.Spec2d):
         """
 
         xproj = np.median(slit[:,B:R],1) 
-        m,s = sigma_clip(xproj)
+        m, s = sigma_clip(xproj)
            
-        smooth = ndimage.gaussian_filter(xproj,1)
+        smooth = ndimage.gaussian_filter(xproj, 1)
         if order == 2: # NB: This was 3 in the original file, see note below
             smooth = ndimage.gaussian_filter(xproj[:-30],1)
-        x = np.arange(xproj.size)*1. 
+        x = np.arange(xproj.size) * 1. 
 
         """ 
         The four parameters immediately below are the initial guesses
         bkgd, amplitude, mean location, and sigma for a Gaussian fit
         """
-        fit = np.array([0.,smooth.max(),smooth.argmax(),1.])
-        fit = sf.ngaussfit(xproj,fit)[0] 
+        fit = np.array([0., smooth.max(), smooth.argmax(), 1.])
+        fit = sf.ngaussfit(xproj, fit)[0] 
 
         cent = fit[2] + apcent[apnum]/self.orderinfo.pixscale[order]
         print cent
         apmax = 0.1 * xproj.max()
-        ap = np.where(abs(x-cent)<wid/self.orderinfo.pixscale[order],1.,0.)
+        ap = np.where(abs(x-cent)<wid/self.orderinfo.pixscale[order], 1., 0.)
 
         if doplot & order<60:
             plt.subplot(2,5,(order+1))
@@ -233,7 +226,7 @@ class Esi2d(ss.Spec2d):
 
     #-----------------------------------------------------------------------
 
-    def extract_oldham(self, order, apcent, apnum, wid):
+    def extract_oldham(self, order, apcent, apnum, wid, normap=False):
         """
         Implements Lindsay Oldham's (or perhaps Matt Auger's) method
          for extracting the spectrum from an individual spectral order
@@ -255,22 +248,33 @@ class Esi2d(ss.Spec2d):
         vslit[np.isnan(slit)] = 1e9
         h = spec.hdr
         x = np.arange(slit.shape[1])*1.
-        w = 10**(h['CRVAL1']+x*h['CD1_1']) 
+        w = 10**(h['CRVAL1'] +x * h['CD1_1']) 
 
         """ Make the apertures """
         B = self.orderinfo.blue[order]
         R = self.orderinfo.red[order]
         ap, fit = self.get_ap_oldham(slit, B, R, apcent, apnum, wid, order)
 
-        """ Set up to do the extraction, including by normalizing ap """
+        """ Set up to do the extraction """
         ap[vslit>=1e8] = 0.
-        ap = ap/ap.sum(0)
         ap[np.isnan(ap)] = 0.
         slit[np.isnan(slit)] = 0.
 
-        """ Extract the spectrum (I do not understand the weighting here) """
-        spec = (slit*ap**2).sum(0) 
-        vspec = (vslit*ap**4).sum(0)
+        """
+        Extract the spectrum
+        If the aperture is requested to be normalized (normap is True) then
+         first normalize ap and then use the weighting (which I don't 
+         understand) that Lindsay used in her extraction code.
+        Otherwise, use the weighting (which makes more sense to me) that
+         was used in the old makeOrderCorr.py files.
+        """
+        if normap:
+            ap = ap/ap.sum(0)
+            spec = (slit*ap**2).sum(0) 
+            vspec = (vslit*ap**4).sum(0)
+        else:
+            spec = (slit*ap).sum(0) 
+            vspec = (vslit*ap**2).sum(0)
 
         """ 
         Normalize the spectrum and its associated variance 
@@ -282,7 +286,7 @@ class Esi2d(ss.Spec2d):
 
         """ Save the output in a Spec1d container """
         #newspec = ss.Spec1d(wav=w,flux=spec,var=vspec)
-        self.order[order].spec1d = ss.Spec1d(wav=w,flux=spec,var=vspec)
+        self.order[order].spec1d = ss.Spec1d(wav=w, flux=spec, var=vspec)
 
     #-----------------------------------------------------------------------
 
@@ -339,12 +343,12 @@ class Esi2d(ss.Spec2d):
                 """
                 rb = self.order[i+1].spec1d['wav'][0]
                 rr = w[-1]
-                right = np.median(spec[(w>rb)&(w<rr)]) 
+                right = np.median(spec[(w > rb) & (w < rr)]) 
             except:
                 pass
             
             lw = np.log10(w)
-            c = (outwav>=lw[0])&(outwav<=lw[-1])
+            c = (outwav >= lw[0]) & (outwav <= lw[-1])
             mod = interpolate.splrep(lw,spec,k=1)
             outflux[c,i-1] = interpolate.splev(outwav[c],mod)
             mod = interpolate.splrep(lw,var,k=1)
@@ -381,14 +385,14 @@ class Esi2d(ss.Spec2d):
         Goes through each of the 10 orders on the ESI spectrograph and
         extracts the spectrum via one of two procedures:
         1. Using the Spec2d class methods from spec_simple.py (method='cdf')
-          This approach does the two-step extraction procedure using the
-          relevant methods in the Spec2d class in spec_simple.py, namely
-          (1) find_and_trace and (2) extract_spectrum.
+           This approach does the two-step extraction procedure using the
+           relevant methods in the Spec2d class in spec_simple.py, namely
+           (1) find_and_trace and (2) extract_spectrum.
           xxxxx
-        2. Using the code from Lindsay Oldham (or perhaps Matt Auger) implemented
-          above (method='oldham')
-          In this approach, the two step procedure is (1) get_ap_oldham, and
-          (2) extract_oldham
+        2. Using the code from Lindsay Oldham (or perhaps Matt Auger)
+           implemented above (method='oldham')
+           In this approach, the two step procedure is (1) get_ap_oldham, and
+           (2) extract_oldham
           xxxxx
         """
 

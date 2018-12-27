@@ -9,7 +9,7 @@ from scipy import ndimage,interpolate
 from matplotlib import pyplot as plt
 try:
     from astropy.io import fits as pf
-except:
+except ImportError:
     import pyfits as pf
 import special_functions as sf
 import indexTricks as iT
@@ -52,15 +52,6 @@ def extract(pref, name, frames, apnum, apcent, aplab, stdOrderCorr,
         d.extract_all(method, apnum, apcent, wid, apmin=apmin, apmax=apmax,
                       plot_extracted=plot_extracted, startord=startord)
         plt.show()
-
-        """
-        This scales variable does not seem to get used anywhere below,
-        but keep it for now for legacy purposes
-        """
-        scales = []
-        for order in range(10):
-            h = d.order[order].hdr
-            scales.append(h['CD1_1'])
 
         """ Add to the lists of Spec2d containers """
         speclist.append(d)
