@@ -20,9 +20,9 @@ from .esi2d import Esi2d
 
 apsize = []
 
-def extract(pref, frames, apnum, apcent, indir='.', nsig=1., wht=False,
-            method='oldham', plot_extracted=False, apmin=-4., apmax=4.,
-            normap=True):
+def extract(pref, frames, apnum=0, apcent=[0.,], indir='.', nsig=1.,
+            wht=False, method='oldham', plot_extracted=False, apmin=-4.,
+            apmax=4., normap=True):
     ''' 
     frames = input frame numbers - give a list
     wht    = True gives a Gaussian aperture 
@@ -34,7 +34,7 @@ def extract(pref, frames, apnum, apcent, indir='.', nsig=1., wht=False,
 
     for numIndx in range(len(frames)):
         num = frames[numIndx]
-        print pref,num
+        print(pref, num)
         if type(indir)==list:
             idir = indir[numIndx]
         else:
