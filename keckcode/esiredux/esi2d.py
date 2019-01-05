@@ -71,20 +71,20 @@ class Esi2d(ss.Spec2d):
         """ Open the multiextension fits file that contains the 10 orders """
         self.infile = infile
         self.hdu = pf.open(infile)
-        print ''
-        print 'Science file:  %s' % self.infile
+        print('')
+        print('Science file:  %s' % self.infile)
 
         """ If there is an external variance file, open that """
         self.extvar = None
         if varfile is not None:
             self.extvar = pf.open(varfile)
-            print 'Variance file: %s' % varfile
+            print('Variance file: %s' % varfile)
 
         """ Load each order into its own Spec2d container """
-        self.order = []
-        print ''
-        print 'Order  Shape    Dispaxis'
-        print '----- --------- --------'
+        self.ordlist = []
+        print('')
+        print('Order  Shape    Dispaxis')
+        print('----- --------- --------')
         for i in range(10):
             hext = i + 1
             if self.extvar is not None:
@@ -94,10 +94,11 @@ class Esi2d(ss.Spec2d):
             else:
                 tmpspec = ss.Spec2d(self.hdu, hext=hext, verbose=False,
                                     logwav=True, fixnans=False)
-            print ' %2d   %dx%d     %s' % \
-                ((i+1), tmpspec.data.shape[1], tmpspec.data.shape[0],
-                 tmpspec.dispaxis)
-            self.order.append(tmpspec)
+            print(' %2d   %dx%d     %s' % 
+                  ((i+1), tmpspec.data.shape[1], tmpspec.data.shape[0],
+                   tmpspec.dispaxis))
+            tmpspec.spec1d = None
+            self.ordlist.append(tmpspec)
 
     # --------------------------------------------------------------------
 
@@ -114,7 +115,7 @@ class Esi2d(ss.Spec2d):
         fig = plt.gcf()
         for i in range(10):
             axi = fig.add_subplot(10, 1, (i+1))
-            self.order[i].display(hext=(i+1), mode='xy', axlabel=False)
+            self.ordlist[i].display(hext=(i+1), mode='xy', axlabel=False)
             plt.setp(axi.get_xticklabels(), visible=False)
             axi.set_xlabel('', visible=False)
 
@@ -159,12 +160,12 @@ class Esi2d(ss.Spec2d):
             B = self.orderinfo.blue[i]
             R = self.orderinfo.red[i]
             if showfit:
-                self.order[i].spatial_profile(normalize=normspec, title=None,
-                                              fit=self.order[i].p0,
-                                              pixrange=[B, R])
+                self.ordlist[i].spatial_profile(normalize=normspec, title=None,
+                                                fit=self.ordlist[i].p0,
+                                                pixrange=[B, R])
             else:
-                self.order[i].spatial_profile(normalize=normspec, title=None,
-                                              pixrange=[B, R])
+                self.ordlist[i].spatial_profile(normalize=normspec, title=None,
+                                                pixrange=[B, R])
             plt.xlim(-1, maxx)
             if normspec:
                 plt.ylim(-0.1, 1.1)
@@ -178,7 +179,10 @@ class Esi2d(ss.Spec2d):
             axi.set_xlabel('', visible=False)
             axi.annotate('%d' % (i+1), (10., 0.95))
 
-        ax.set_title('Spatial Profiles')
+        if self.infile is not None:
+            ax.set_title('Spatial Profiles for %s' % self.infile)
+        else:
+            ax.set_title('Spatial Profiles')
         ax.set_xlabel('Spatial Direction')
         ax.xaxis.set_label_coords(0.5, -0.05)
         ax.yaxis.set_label_coords(-0.03, 0.5)
@@ -197,7 +201,7 @@ class Esi2d(ss.Spec2d):
         m, s = df.sigclip(xproj)
 
         smooth = ndimage.gaussian_filter(xproj, 1)
-        if ordinfo.name == 'Order 2':
+        if ordinfo.name == 'Order 3':
             smooth = ndimage.gaussian_filter(xproj[:-30], 1)
         x = np.arange(xproj.size) * 1.
 
@@ -209,7 +213,7 @@ class Esi2d(ss.Spec2d):
         fit = sf.ngaussfit(xproj, fit)[0]
 
         cent = fit[2] + apcent / ordinfo.pixscale
-        print cent
+        print(cent)
         apmax = 0.1 * xproj.max()
         ap = np.where(abs(x-cent) < nsig / ordinfo.pixscale, 1., 0.)
 
@@ -291,15 +295,26 @@ class Esi2d(ss.Spec2d):
 
     # --------------------------------------------------------------------
 
-    def plot_spec1d(self, xmin=3840., xmax=10910., ymin=-0.2, ymax=5.,
-                    color='b'):
+    def plot_extracted(self, method='oneplot', xmin=3840., xmax=10910.,
+                       ymin=-0.2, ymax=5., color='b'):
         """
-        Plots the 10 extracted 1d spectra on a single plot
+
+        Plots the 10 extracted 1d spectra in one plot.  There are two
+        ways to do this, which are set by the method parameter:
+          method='oneplot' - (default) Have one plot window showing the
+                              full wavelength range and the overlapping orders
+          method='tenplot' - The plot has 10 separate windows, one for each
+                              order
+
         """
-        for i in range(10):
-            self.order[i].spec1d.plot(color=color)
-        plt.xlim(xmin, xmax)
-        plt.ylim(ymin, ymax)
+        if method == 'tenplot':
+            print('NOTE: tenplot is not yet implemented')
+            return
+        else:
+            for i in range(10):
+                self.ordlist[i].spec1d.plot(color=color)
+            plt.xlim(xmin, xmax)
+            plt.ylim(ymin, ymax)
 
     # --------------------------------------------------------------------
 
@@ -328,14 +343,13 @@ class Esi2d(ss.Spec2d):
         'oldham' and 'cdf' techniques do the plotting at different points
         """
         if plot_profiles:
-            plt.figure(1)
-            plt.clf()
+            plt.figure()
 
         """
         Extract the spectra
         """
         # for i in range(10):
-        for spec, info in zip(self.order, self.orderinfo):
+        for spec, info in zip(self.ordlist, self.orderinfo):
             if method == 'cdf':
                 if plot_traces:
                     plt.figure(info.ordnum + 3)
@@ -359,7 +373,7 @@ class Esi2d(ss.Spec2d):
                                     sigorder=sigorder, fitrange=[B, R],
                                     verbose=False)
                 spec.extract()
-                print spec.p0
+                print(spec.p0)
 
                 """
                 Also normalize the flux and variance of the extracted
@@ -380,9 +394,8 @@ class Esi2d(ss.Spec2d):
         Plot the extracted spectra
         """
         if plot_extracted:
-            plt.figure(2)
-            plt.clf()
-            self.plot_spec1d()
+            plt.figure()
+            self.plot_extracted()
 
     # --------------------------------------------------------------------
 
@@ -398,8 +411,8 @@ class Esi2d(ss.Spec2d):
 
         """ Set up the wavelength vector for the corrected 1-d spectrum """
         scale = 1.7e-5
-        w0 = log10(self.order[0].spec1d['wav'][0])
-        w1 = log10(self.order[9].spec1d['wav'][-1])
+        w0 = log10(self.ordlist[0].spec1d['wav'][0])
+        w1 = log10(self.ordlist[9].spec1d['wav'][-1])
         outwav = np.arange(w0, w1, scale)
         outflux = np.ones((outwav.size, 10)) * np.nan
         outvar = outflux.copy()
@@ -409,11 +422,11 @@ class Esi2d(ss.Spec2d):
             Create the response correction for this order and then correct
             the flux and the variance
             """
-            w = self.order[i].spec1d['wav']
+            w = self.ordlist[i].spec1d['wav']
             w0, w1, mod = corr[i+1]
             mod = sf.genfunc(w, 0., mod)
-            spec = self.order[i].spec1d['flux'] / mod
-            var = self.order[i].spec1d['var'] / mod**2
+            spec = self.ordlist[i].spec1d['flux'] / mod
+            var = self.ordlist[i].spec1d['var'] / mod**2
 
             """ Mask out NaNs """
             mask = np.isnan(spec)
@@ -437,7 +450,7 @@ class Esi2d(ss.Spec2d):
                  - blue end (rb) is the start of the next order
                  - red end (rr) is the end of this current spectrum
                 """
-                rb = self.order[i+1].spec1d['wav'][0]
+                rb = self.ordlist[i+1].spec1d['wav'][0]
                 rr = w[-1]
                 right = np.median(spec[(w > rb) & (w < rr)])
             except:
@@ -449,8 +462,8 @@ class Esi2d(ss.Spec2d):
             outflux[c, i-1] = interpolate.splev(outwav[c], mod)
             mod = interpolate.splrep(lw, var, k=1)
             outvar[c, i-1] = interpolate.splev(outwav[c], mod)
-            # self.order[i].spec1d['flux'] = spec
-            # self.order[i].spec1d['var'] = var
+            # self.ordlist[i].spec1d['flux'] = spec
+            # self.ordlist[i].spec1d['var'] = var
 
         outvar[outvar == 0.] = 1.e9
         flux = np.nansum(outflux/outvar, 1) / np.nansum(1./outvar, 1)
@@ -520,19 +533,19 @@ class Esi1d(ss.Spec1d):
         """ Open the multiextension fits file that contains the 10 orders """
         self.infile = infile
         self.hdu = pf.open(infile)
-        print ''
-        print 'Science file:  %s' % self.infile
+        print('')
+        print('Science file:  %s' % self.infile)
 
         # """ If there is an external variance file, open that """
         # self.extvar = None
         # if varfile is not None:
         #     self.extvar = pf.open(varfile)
-        #     print 'Variance file: %s' % varfile
+        #     print('Variance file: %s' % varfile)
         #
         # """ Load each order into its own Spec2d container """
-        # self.order = []
-        # print ''
-        # print 'Order  Shape    Dispaxis'
+        # self.ordlist = []
+        # print('')
+        # print('Order  Shape    Dispaxis')
         # print '----- --------- --------'
         # for i in range(10):
         #     if self.extvar is not None:
@@ -546,4 +559,4 @@ class Esi1d(ss.Spec1d):
         #     print ' %2d   %dx%d     %s' % \
         #         ((i+1),tmpspec.data.shape[1],tmpspec.data.shape[0],
         #          tmpspec.dispaxis)
-        #     self.order.append(tmpspec)
+        #     self.ordlist.append(tmpspec)

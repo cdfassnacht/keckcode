@@ -6,6 +6,7 @@ esiset.py - Code to perform actions on multiple 2d ESI data sets
 
 from os import path
 from matplotlib import pyplot as plt
+from specim.specfuncs.specset1d import SpecSet1d
 from .esi2d import Esi2d
 
 
@@ -51,7 +52,10 @@ class EsiSet(list):
                 datadir = indir[i]
             else:
                 datadir = indir
-            indat = path.join(datadir, filename)
+            if datadir == '.':
+                indat = filename
+            else:
+                indat = path.join(datadir, filename)
 
             if usevar:
                 varname = indat.replace(suffix, 'var')
@@ -73,9 +77,6 @@ class EsiSet(list):
 
         for i in self:
 
-            if doplot:
-                plt.figure()
-
             """ Extract the 1d spectrum """
             print('')
             print(i.infile)
@@ -83,3 +84,36 @@ class EsiSet(list):
 
             if doplot:
                 plt.show()
+
+    # ------------------------------------------------------------------------
+
+    def coadd1d(self, doplot=True, outfile=None):
+        """
+
+        Coadds the extracted 1d spectra from each order separately
+
+        """
+
+        """ Loop through the orders """
+        coaddlist = []
+        for i in range(10):
+
+            """ Create a list of Spec1d objects """
+            speclist = []
+            for i in self:
+                if i.order.spec1d is not None:
+                    speclist.append(i.order.spec1d)
+            if len(speclist) == 0:
+                print('')
+                print('ERROR: Called coadd1d but inputs do not have '
+                      'extracted spectra yet')
+                print('')
+                raise ValueError
+
+            """ Coadd the spectra in the list """
+            specall = SpecSet1d(speclist)
+            coaddlist.append(specall.coadd(doplot=False))
+
+            del(speclist)
+
+        return coaddlist
