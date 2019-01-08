@@ -102,7 +102,7 @@ class Esi2d(ss.Spec2d):
 
     # --------------------------------------------------------------------
 
-    def plot_2d(self):
+    def plot_2d(self, **kwargs):
         """
 
         Plots in one figure the 2-d spectra from the 10 orders.
@@ -113,9 +113,15 @@ class Esi2d(ss.Spec2d):
         # plt.figure(figsize=(10,10))
         plt.subplots_adjust(hspace=0.001)
         fig = plt.gcf()
-        for i in range(10):
+        for spec, info in zip(self.ordlist, self.orderinfo):
+            i = info.ordnum
+            tmp = np.arange(spec.npix)
+            B = tmp[info.blue]
+            R = tmp[info.red]
             axi = fig.add_subplot(10, 1, (i+1))
-            self.ordlist[i].display(hext=(i+1), mode='xy', axlabel=False)
+            spec.display(hext=(i+1), mode='xy', axlabel=False, **kwargs)
+            plt.axvline(B, color='g')
+            plt.axvline(R, color='g')
             plt.setp(axi.get_xticklabels(), visible=False)
             axi.set_xlabel('', visible=False)
 
@@ -155,17 +161,17 @@ class Esi2d(ss.Spec2d):
         plt.setp(ax.get_xticklabels(), visible=False)
         plt.setp(ax.get_yticklabels(), visible=False)
 
-        for i in range(10):
+        for spec, info in zip(self.ordlist, self.orderinfo):
+            i = info.ordnum
+            B = info.blue
+            R = info.red
             axi = fig.add_subplot(2, 5, (i+1))
-            B = self.orderinfo.blue[i]
-            R = self.orderinfo.red[i]
             if showfit:
-                self.ordlist[i].spatial_profile(normalize=normspec, title=None,
-                                                fit=self.ordlist[i].p0,
-                                                pixrange=[B, R])
+                mod = spec.p0
             else:
-                self.ordlist[i].spatial_profile(normalize=normspec, title=None,
-                                                pixrange=[B, R])
+                mod = None
+            spec.spatial_profile(normalize=normspec, title=None, model=mod,
+                                 pixrange=[B, R])
             plt.xlim(-1, maxx)
             if normspec:
                 plt.ylim(-0.1, 1.1)
@@ -372,8 +378,7 @@ class Esi2d(ss.Spec2d):
                 spec.find_and_trace(doplot=plot_traces, muorder=muorder,
                                     sigorder=sigorder, fitrange=[B, R],
                                     verbose=False)
-                spec.extract()
-                print(spec.p0)
+                spec.extract(doplot=False, verbose=False)
 
                 """
                 Also normalize the flux and variance of the extracted
@@ -388,7 +393,8 @@ class Esi2d(ss.Spec2d):
 
         """ Plot all the spatial profiles, along with the profile fits """
         if plot_profiles and method == 'cdf':
-            self.plot_profiles(showfit=True)
+            # self.plot_profiles(showfit=True)
+            self.plot_profiles(showfit=False)
 
         """
         Plot the extracted spectra

@@ -20,7 +20,7 @@ from .esi2d import Esi2d
 
 apsize = []
 
-def extract(pref, frames, apnum=0, apcent=[0.,], indir='.', nsig=1.,
+def extract(pref, frames, apcent=[0.,], indir='.', nsig=1.,
             wht=False, method='oldham', plot_extracted=False, apmin=-4.,
             apmax=4., normap=True):
     ''' 
@@ -43,13 +43,11 @@ def extract(pref, frames, apnum=0, apcent=[0.,], indir='.', nsig=1.,
         varname  = specname.replace('bgsub', 'var')
         d = Esi2d(specname, varfile=varname)
 
-        plt.figure()
-
         """
         The esi2d code has now been re-written to loop over the orders
         to do the extraction
         """
-        d.extract_all(method, apnum, apcent, nsig, apmin=apmin, apmax=apmax,
+        d.extract_all(method, apcent, nsig, apmin=apmin, apmax=apmax,
                       normap=normap, plot_extracted=plot_extracted)
         plt.show()
 
@@ -68,7 +66,7 @@ Start of coadd
 -----------------------------------------------------------------------
 """
 
-def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
+def coadd(speclist, stdOrderCorr, name, aplab, pref):
 
     """ Transfer the information into the expected structures """
     ospex = {} # spectrum
@@ -80,10 +78,10 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
         ovars[order] = []
     for i in range(len(speclist)):
         for j in range(1,11):
-            ospex[j].append(speclist[i].order[j-1].spec1d['flux'])
-            ovars[j].append(speclist[i].order[j-1].spec1d['var'])
+            ospex[j].append(speclist[i].ordlist[j-1].spec1d['flux'])
+            ovars[j].append(speclist[i].ordlist[j-1].spec1d['var'])
             if i==0:
-                owave[j] = speclist[i].order[j-1].spec1d['wav']
+                owave[j] = speclist[i].ordlist[j-1].spec1d['wav']
 
     """
     Now we have a spectrum for each order of the echelle, covering different 
@@ -194,10 +192,10 @@ def coadd(speclist, stdOrderCorr, name, aplab, apnum, pref):
     plt.ylim(-0.05,0.6)
     plt.xlabel('Observed wavelength')
     plt.suptitle(name)
-    #outplt = '%s_%s.png' % (name,aplab[apnum])
+    #outplt = '%s_%s.png' % (name,aplab)
     #plt.savefig(outplt)
     plt.show()
-    outname = '%s_spec_%s.fits' % (name,aplab[apnum])
+    outname = '%s_spec_%s.fits' % (name,aplab)
     hdu  = pf.HDUList()
     phdu = pf.PrimaryHDU()
     hdr = phdu.header
