@@ -29,11 +29,12 @@ from specim import specfuncs as ss
 """
 
 
-class Esi2d(ss.Spec2d):
+class Esi2d(list):
     """
     A class for ESI 2D spectra, for which Matt's / Lindsay's calibration
     code produces a multi-extension fits files containing 10 2D spectra,
-    one for each of the 10 orders produced by the spectrograph
+    one for each of the 10 orders produced by the spectrograph.
+    Essentially this class is just a list of Spec2d objects
     """
 
     def __init__(self, infile, varfile=None):
@@ -81,7 +82,6 @@ class Esi2d(ss.Spec2d):
             print('Variance file: %s' % varfile)
 
         """ Load each order into its own Spec2d container """
-        self.ordlist = []
         print('')
         print('Order  Shape    Dispaxis')
         print('----- --------- --------')
@@ -98,7 +98,7 @@ class Esi2d(ss.Spec2d):
                   ((i+1), tmpspec.data.shape[1], tmpspec.data.shape[0],
                    tmpspec.dispaxis))
             tmpspec.spec1d = None
-            self.ordlist.append(tmpspec)
+            self.append(tmpspec)
 
     # --------------------------------------------------------------------
 
@@ -113,7 +113,7 @@ class Esi2d(ss.Spec2d):
         # plt.figure(figsize=(10,10))
         plt.subplots_adjust(hspace=0.001)
         fig = plt.gcf()
-        for spec, info in zip(self.ordlist, self.orderinfo):
+        for spec, info in zip(self, self.orderinfo):
             i = info.ordnum
             tmp = np.arange(spec.npix)
             B = tmp[info.blue]
@@ -161,7 +161,7 @@ class Esi2d(ss.Spec2d):
         plt.setp(ax.get_xticklabels(), visible=False)
         plt.setp(ax.get_yticklabels(), visible=False)
 
-        for spec, info in zip(self.ordlist, self.orderinfo):
+        for spec, info in zip(self, self.orderinfo):
             i = info.ordnum
             B = info.blue
             R = info.red
@@ -301,7 +301,7 @@ class Esi2d(ss.Spec2d):
 
     # --------------------------------------------------------------------
 
-    def plot_extracted(self, method='oneplot', xmin=3840., xmax=10910.,
+    def plot_extracted(self, method='1x1', xmin=3840., xmax=10910.,
                        ymin=-0.2, ymax=5., color='b'):
         """
 
@@ -317,8 +317,8 @@ class Esi2d(ss.Spec2d):
             print('NOTE: tenplot is not yet implemented')
             return
         else:
-            for i in range(10):
-                self.ordlist[i].spec1d.plot(color=color)
+            for i self:
+                i.spec1d.plot(color=color)
             plt.xlim(xmin, xmax)
             plt.ylim(ymin, ymax)
 
@@ -355,7 +355,7 @@ class Esi2d(ss.Spec2d):
         Extract the spectra
         """
         # for i in range(10):
-        for spec, info in zip(self.ordlist, self.orderinfo):
+        for spec, info in zip(self, self.orderinfo):
             if method == 'cdf':
                 if plot_traces:
                     plt.figure(info.ordnum + 3)
@@ -417,8 +417,8 @@ class Esi2d(ss.Spec2d):
 
         """ Set up the wavelength vector for the corrected 1-d spectrum """
         scale = 1.7e-5
-        w0 = log10(self.ordlist[0].spec1d['wav'][0])
-        w1 = log10(self.ordlist[9].spec1d['wav'][-1])
+        w0 = log10(self[0].spec1d['wav'][0])
+        w1 = log10(self[9].spec1d['wav'][-1])
         outwav = np.arange(w0, w1, scale)
         outflux = np.ones((outwav.size, 10)) * np.nan
         outvar = outflux.copy()
@@ -428,11 +428,11 @@ class Esi2d(ss.Spec2d):
             Create the response correction for this order and then correct
             the flux and the variance
             """
-            w = self.ordlist[i].spec1d['wav']
+            w = self[i].spec1d['wav']
             w0, w1, mod = corr[i+1]
             mod = sf.genfunc(w, 0., mod)
-            spec = self.ordlist[i].spec1d['flux'] / mod
-            var = self.ordlist[i].spec1d['var'] / mod**2
+            spec = self[i].spec1d['flux'] / mod
+            var = self[i].spec1d['var'] / mod**2
 
             """ Mask out NaNs """
             mask = np.isnan(spec)
@@ -456,7 +456,7 @@ class Esi2d(ss.Spec2d):
                  - blue end (rb) is the start of the next order
                  - red end (rr) is the end of this current spectrum
                 """
-                rb = self.ordlist[i+1].spec1d['wav'][0]
+                rb = self[i+1].spec1d['wav'][0]
                 rr = w[-1]
                 right = np.median(spec[(w > rb) & (w < rr)])
             except:
@@ -468,8 +468,8 @@ class Esi2d(ss.Spec2d):
             outflux[c, i-1] = interpolate.splev(outwav[c], mod)
             mod = interpolate.splrep(lw, var, k=1)
             outvar[c, i-1] = interpolate.splev(outwav[c], mod)
-            # self.ordlist[i].spec1d['flux'] = spec
-            # self.ordlist[i].spec1d['var'] = var
+            # self[i].spec1d['flux'] = spec
+            # self[i].spec1d['var'] = var
 
         outvar[outvar == 0.] = 1.e9
         flux = np.nansum(outflux/outvar, 1) / np.nansum(1./outvar, 1)
@@ -508,61 +508,3 @@ class Esi2d(ss.Spec2d):
         """
 
 
-"""
-============================== Esi1d class ==============================
-"""
-
-
-class Esi1d(ss.Spec1d):
-    """
-    A class for ESI 1D spectra, which have been extracted by the Esi2d
-    methods, but have not yet been combined into one final output spectrum.
-    Therefore, there are 10 extracted 1d spectra, one for each order.
-    These 10 extracted spectra will be stored in an array of Spec1d instances.
-
-    The main purpose of this class is to combine the 10 orders into one
-    output spectrum.  This functionality is split out from the Spec2d
-    class because in some cases, e.g., co-adding several spectra of the same
-    object, it may be easier to deal with the orders separately rather than
-    after they have been combined into one Spec1d spectrum (however, this
-    assertione may not be correc)
-    """
-
-    def __init__(self, infile):
-        """
-
-        Create an instance of this class by loading the data from the input
-        file into 10 Spec1d instances.
-
-        """
-
-        """ Open the multiextension fits file that contains the 10 orders """
-        self.infile = infile
-        self.hdu = pf.open(infile)
-        print('')
-        print('Science file:  %s' % self.infile)
-
-        # """ If there is an external variance file, open that """
-        # self.extvar = None
-        # if varfile is not None:
-        #     self.extvar = pf.open(varfile)
-        #     print('Variance file: %s' % varfile)
-        #
-        # """ Load each order into its own Spec2d container """
-        # self.ordlist = []
-        # print('')
-        # print('Order  Shape    Dispaxis')
-        # print '----- --------- --------'
-        # for i in range(10):
-        #     if self.extvar is not None:
-        #         tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,
-        #                             extvar=self.extvar,verbose=False,
-        #                             logwav=True,fixnans=False)
-        #     else:
-        #         tmpspec = ss.Spec2d(None,hdulist=self.hdu,hext=i+1,
-        #                             verbose=False,
-        #                             logwav=True,fixnans=False)
-        #     print ' %2d   %dx%d     %s' % \
-        #         ((i+1),tmpspec.data.shape[1],tmpspec.data.shape[0],
-        #          tmpspec.dispaxis)
-        #     self.ordlist.append(tmpspec)

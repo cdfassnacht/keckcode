@@ -100,9 +100,9 @@ class EsiSet(list):
 
             """ Create a list of Spec1d objects """
             speclist = []
-            for i in self:
-                if i.order.spec1d is not None:
-                    speclist.append(i.order.spec1d)
+            for espec in self:
+                if espec.spec1d is not None:
+                    speclist.append(espec.spec1d)
             if len(speclist) == 0:
                 print('')
                 print('ERROR: Called coadd1d but inputs do not have '
@@ -111,9 +111,9 @@ class EsiSet(list):
                 raise ValueError
 
             """ Coadd the spectra in the list """
-            specall = SpecSet1d(speclist)
-            coaddlist.append(specall.coadd(doplot=False))
-
+            specall = SpecSet1d(spec1dlist=speclist)
+            coaddlist.append(specall.coadd(doplot=doplot))
+            plt.show()
             del(speclist)
 
         return coaddlist
