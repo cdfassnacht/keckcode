@@ -321,7 +321,7 @@ class Esi2d(list):
             print('NOTE: tenplot is not yet implemented')
             return
         else:
-            for i self:
+            for i in self:
                 i.spec1d.plot(color=color)
             plt.xlim(xmin, xmax)
             plt.ylim(ymin, ymax)
