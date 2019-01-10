@@ -77,12 +77,17 @@ def coadd(speclist, stdOrderCorr, name, aplab, pref):
         ospex[order] = []
         ovars[order] = []
     count = 0
+    print(type(ospex))
+    print(type(ospex[2]))
     for espec in speclist:
-        for inspec, owav, ospec, ovar in zip(espec, owave, ospex, ovars):
-            ospec.append(inspec.spec1d['flux'])
-            ovar.append(inspec.spec1d['var'])
+        j = 1
+        for inspec in espec:
+            ospex[j].append(inspec.spec1d['flux'])
+            ovars[j].append(inspec.spec1d['var'])
             if count == 0:
-                owav = inspec.spec1d['wav']
+                owave[j] = inspec.spec1d['wav']
+            j += 1
+        count += 1
 
     """
     Now we have a spectrum for each order of the echelle, covering different 
