@@ -128,7 +128,7 @@ class Esi2d(list):
     # --------------------------------------------------------------------
 
     def plot_profiles(self, bgsub=True, showfit=False, fitrange=None,
-                      maxx=140.):
+                      showap=True, maxx=140.):
         """
 
         Plots, in one figure, the spatial profiles for all the 10 orders
@@ -220,14 +220,16 @@ class Esi2d(list):
 
         cent = fit[2] + apcent / ordinfo.pixscale
         print(cent)
-        apmax = 0.1 * xproj.max()
+        apymax = 0.1 * xproj.max()
         ap = np.where(abs(x-cent) < nsig / ordinfo.pixscale, 1., 0.)
+        slit.apmin = cent - nsig
+        slit.apmax = cent + nsig
 
         if doplot:
             plt.subplot(2, 5, (ordinfo.ordnum+1))
-            plt.plot(x, apmax*ap)  # Scale the aperture to easily see it
+            plt.plot(x, apymax*ap)  # Scale the aperture to easily see it
             plt.plot(x, xproj)
-            plt.ylim(-apmax, 1.1*xproj.max())
+            plt.ylim(-apymax, 1.1*xproj.max())
             plt.axvline(cent, color='k', ls='dotted')
 
         ap = ap.repeat(slit.shape[1]).reshape(slit.shape)
@@ -261,6 +263,8 @@ class Esi2d(list):
 
         """ Make the apertures """
         ap, fit = self.get_ap_oldham(slit, apcent, nsig, ordinfo)
+        spec2d.apmin = slit.apmin
+        spec2d.apmax = slit.apmax
 
         """
         Set up to do the extraction, including normalizing the aperture
