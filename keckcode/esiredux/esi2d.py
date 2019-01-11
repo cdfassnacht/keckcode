@@ -120,8 +120,8 @@ class Esi2d(list):
             R = tmp[info.red]
             axi = fig.add_subplot(10, 1, (i+1))
             spec.display(hext=(i+1), mode='xy', axlabel=False, **kwargs)
-            plt.axvline(B, color='g')
-            plt.axvline(R, color='g')
+            plt.axvline(B, color='g', lw=3)
+            plt.axvline(R, color='g', lw=3)
             plt.setp(axi.get_xticklabels(), visible=False)
             axi.set_xlabel('', visible=False)
 
