@@ -69,7 +69,7 @@ setup(
     long_description = open('README.txt').read(),
     requires = ['numpy', 'scipy', 'astropy', 'matplotlib', 'cdfutils'],
     packages = ['keckcode', 'keckcode.osiris', 'keckcode.esiredux',
-                'keckcode.spectra'],
+                'keckcode.nires', 'keckcode.spectra'],
 #    package_dir = {'':'src'},
     package_data = {'keckcode.esiredux' : ['data/*']}
 )

@@ -1,1 +1,1 @@
-from oscube import osCube
+from oscube import OsCube
