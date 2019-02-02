@@ -59,7 +59,6 @@ class NsxSpec(echelle1d.Ech1d):
         for order in self.orders:
             infile = '%s-sp%d.tbl' % (self.inroot, order)
             nsxspec = ascii.read(infile)
-            wav = nsxspec['wave']
             wav = nsxspec['angstrom']
             flux = nsxspec['object']
             var = nsxspec['error']**2
