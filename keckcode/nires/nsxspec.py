@@ -10,6 +10,7 @@ files produced by Tom Barlow's nsx (NIRES Spectral Extraction) code.
 import numpy as np
 from matplotlib import pyplot as plt
 from astropy.io import ascii
+from astropy.table import Table
 from specim import specfuncs as ss
 from specim.specfuncs import echelle1d
 
@@ -22,7 +23,7 @@ class NsxSpec(echelle1d.Ech1d):
     by Tom Barlow's nsx code
     """
 
-    def __init__(self, root, frame, frame2=None, profileonly=False):
+    def __init__(self, root, frame, frame2=None, hasspec=True):
         """
         Loads, at minimum, the spatial profiles associated with either
         a single frame (if frame2 is None) or the result of a AB or BA
@@ -31,52 +32,53 @@ class NsxSpec(echelle1d.Ech1d):
 
         """ Set up some standard information """
         self.hasspec = False
-        self.orders = [3, 4, 5, 6, 7]
+        dtype = [('order', int), ('pixmin', int), ('pixmax', int)]
+        oinfo = np.array([
+                (3, 13, 2044),
+                (4, 13, 2044),
+                (5, 13, 2044),
+                (6, 13, 2044),
+                (7, 13, 1023),
+                ], dtype=dtype)
+        self.ordinfo = Table(oinfo)
+
+        """ Set the input file name """
         if frame2 is not None:
             self.inroot = '%s_%04d-%04d' % (root, frame, frame2)
         else:
             self.inroot = '%s_%04d' % (root, frame)
 
-        """ Load the profiles """
+        """ Load the total profile """
         intot = '%s-pro.tbl' % self.inroot
         self.totprof = ascii.read(intot)
 
         """
+        If nsx was run in single-spectrum mode, load the other profiles
+        """
+        if frame2 is None:
+            self.prof = []
+            for info in self.ordinfo:
+                pname = '%s-pro%d.tbl' % (self.inroot, info['order'])
+                self.prof.append(ascii.read(pname))
+
+        """
         Load the spectra unless the user has requested only the profiles
         """
-        if not profileonly:
-            self.read_spec()
+        if hasspec:
+            for info in self.ordinfo:
+                sname = '%s-sp%d.tbl' % (self.inroot, info['order'])
+                ospec = ss.Spec1d(sname, informat='nsx')
 
-    # -----------------------------------------------------------------------
+                """ Trim to the good region """
+                w = ospec['wav'][info['pixmin']:info['pixmax']]
+                f = ospec['flux'][info['pixmin']:info['pixmax']]
+                v = ospec['var'][info['pixmin']:info['pixmax']]
 
-    def read_spec(self):
-        """
-        Reads in the extracted spectra for each order that have been produced
-        by running nsx, and convert them into Spec1d format
-        """
+                spec = ss.Spec1d(wav=w, flux=f, var=v)
+                self.append(spec)
 
-        """ Read in the spectra and convert them """
-        for order in self.orders:
-            infile = '%s-sp%d.tbl' % (self.inroot, order)
-            nsxspec = ascii.read(infile)
-            wav = nsxspec['angstrom']
-            flux = nsxspec['object']
-            var = nsxspec['error']**2
-
-            """
-            Often the starting and ending pixels have no signal, so
-            mask them out
-            """
-            mask = var > 0.
-            wav = wav[mask]
-            flux = flux[mask]
-            var = var[mask]
-
-            """ Convert to a Spec1d instance and save """
-            spec = ss.Spec1d(wav=wav, flux=flux, var=var)
-            self.append(spec)
-
-        self.hasspec = True
+            self.hasspec = True
+            # self.read_spec()
 
     # -----------------------------------------------------------------------
 
@@ -99,59 +101,6 @@ class NsxSpec(echelle1d.Ech1d):
             y = profile['median']
         plt.plot(profile['arcsec'], y)
 
-    # -----------------------------------------------------------------------
-
-    def plot_spec(self, smo=None, z=None, title=None, **kwargs):
-        """
-        Plots all of the extracted spectra in one plot
-        """
-
-        """ Load the spectra if they have not already been loaded """
-        if self.hasspec is False:
-            self.read_spec()
-
-        """ Set starting values """
-        i = 0
-        wmin = 30000.
-        wmax = 0.
-
-        """ Plot the spectra """
-        for order in self.orders:
-            """ Set the spectrum """
-            spec = self[i]
-
-            """ Set plot labeling """
-            if order == 7:
-                if title is None:
-                    title = 'Extracted Spectrum'
-                showz = True
-            else:
-                title = False
-                showz = False
-
-            """ Plot the spectrum """
-            if smo is not None:
-                spec.smooth(smo)
-            else:
-                spec.plot(**kwargs)
-
-            """ Mark spectral lines if desired """
-            if z is not None:
-                if smo is not None:
-                    spec.mark_lines('strongem', z, showz=showz, usesmooth=True)
-                else:
-                    spec.mark_lines('strongem', z, showz=showz)
-
-            """ Adjust the plot limits """
-            if spec['wav'].min() < wmin:
-                wmin = spec['wav'].min()
-            if spec['wav'].max() > wmax:
-                wmax = spec['wav'].max()
-            i += 1
-
-        """ Set final plot limits """
-        plt.xlim(wmin, wmax)
-        
     # -----------------------------------------------------------------------
 
     def _make_resp345(self, smo=51, outfile=None, doplot=False):

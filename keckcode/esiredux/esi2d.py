@@ -20,6 +20,7 @@ from math import log10
 from scipy import ndimage, interpolate
 from matplotlib import pyplot as plt
 from astropy.io import fits as pf
+from astropy.table import Table
 import special_functions as sf
 from cdfutils import datafuncs as df
 from specim import specfuncs as ss
@@ -54,8 +55,8 @@ class Esi2d(list):
                         extraction uses to define its aperture
         """
         dtype = [('ordnum', int), ('name', 'S8'), ('pixscale', float),
-                 ('blue', int), ('red', int)]
-        self.orderinfo = np.array([
+                 ('pixmin', int), ('pixmax', int)]
+        orderinfo = np.array([
                 (0, 'Order 1', 0.120, 1500, 3000),
                 (1, 'Order 2', 0.127, 1400, 3400),
                 (2, 'Order 3', 0.134, 1300, 3700),
@@ -67,7 +68,7 @@ class Esi2d(list):
                 (8, 'Order 9', 0.163,    0,   -1),
                 (9, 'Order 10', 0.168,   0,   -1),
                 ], dtype=dtype)
-        self.orderinfo = self.orderinfo.view(np.recarray)
+        self.ordinfo = Table(orderinfo)
 
         """ Open the multiextension fits file that contains the 10 orders """
         self.infile = infile
@@ -113,11 +114,11 @@ class Esi2d(list):
         # plt.figure(figsize=(10,10))
         plt.subplots_adjust(hspace=0.001)
         fig = plt.gcf()
-        for spec, info in zip(self, self.orderinfo):
-            i = info.ordnum
+        for spec, info in zip(self, self.ordinfo):
+            i = ['ordnum']
             tmp = np.arange(spec.npix)
-            B = tmp[info.blue]
-            R = tmp[info.red]
+            B = tmp[info['pixmin']]
+            R = tmp[info['pixmax']]
             axi = fig.add_subplot(10, 1, (i+1))
             spec.display(hext=(i+1), mode='xy', axlabel=False, **kwargs)
             plt.axvline(B, color='g', lw=3)
@@ -161,10 +162,10 @@ class Esi2d(list):
         plt.setp(ax.get_xticklabels(), visible=False)
         plt.setp(ax.get_yticklabels(), visible=False)
 
-        for spec, info in zip(self, self.orderinfo):
-            i = info.ordnum
-            B = info.blue
-            R = info.red
+        for spec, info in zip(self, self.ordinfo):
+            i = info['ordnum']
+            B = info['pixmin']
+            R = info['pixmax']
             axi = fig.add_subplot(2, 5, (i+1))
             if showfit:
                 mod = spec.p0
@@ -201,13 +202,13 @@ class Esi2d(list):
         from Lindsay
         """
 
-        B = ordinfo.blue
-        R = ordinfo.red
+        B = ordinfo['pixmin']
+        R = ordinfo['pixmax']
         xproj = np.median(slit[:, B:R], 1)
         m, s = df.sigclip(xproj)
 
         smooth = ndimage.gaussian_filter(xproj, 1)
-        if ordinfo.name == 'Order 3':
+        if ordinfo['name'] == 'Order 3':
             smooth = ndimage.gaussian_filter(xproj[:-30], 1)
         x = np.arange(xproj.size) * 1.
 
@@ -218,15 +219,15 @@ class Esi2d(list):
         fit = np.array([0., smooth.max(), smooth.argmax(), 1.])
         fit = sf.ngaussfit(xproj, fit)[0]
 
-        cent = fit[2] + apcent / ordinfo.pixscale
+        cent = fit[2] + apcent / ordinfo['pixscale']
         print(cent)
         apymax = 0.1 * xproj.max()
-        ap = np.where(abs(x-cent) < nsig / ordinfo.pixscale, 1., 0.)
+        ap = np.where(abs(x-cent) < nsig / ordinfo['pixscale'], 1., 0.)
         slit.apmin = cent - nsig
         slit.apmax = cent + nsig
 
         if doplot:
-            plt.subplot(2, 5, (ordinfo.ordnum+1))
+            plt.subplot(2, 5, (ordinfo['ordnum']+1))
             plt.plot(x, apymax*ap)  # Scale the aperture to easily see it
             plt.plot(x, xproj)
             plt.ylim(-apymax, 1.1*xproj.max())
@@ -359,10 +360,10 @@ class Esi2d(list):
         Extract the spectra
         """
         # for i in range(10):
-        for spec, info in zip(self, self.orderinfo):
+        for spec, info in zip(self, self.ordinfo):
             if method == 'cdf':
                 if plot_traces:
-                    plt.figure(info.ordnum + 3)
+                    plt.figure(info['ordnum'] + 3)
                     plt.clf()
                 """
                 For now assume that the data reduction has properly rectified
@@ -373,12 +374,12 @@ class Esi2d(list):
                 sigorder = -1
                 print('')
                 print('==================================================')
-                print('%s' % info.name)
+                print('%s' % info['name'])
                 print('')
-                spec.apmin = apmin / info.pixscale
-                spec.apmax = apmax / info.pixscale
-                B = info.blue
-                R = info.red
+                spec.apmin = apmin / info['pixscale']
+                spec.apmax = apmax / info['pixscale']
+                B = info['pixmin']
+                R = info['pixmax']
                 spec.find_and_trace(doplot=plot_traces, muorder=muorder,
                                     sigorder=sigorder, fitrange=[B, R],
                                     verbose=False)
