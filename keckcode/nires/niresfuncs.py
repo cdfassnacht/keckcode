@@ -7,6 +7,7 @@ niresfuncs.py
 import os
 from matplotlib import pyplot as plt
 from specim import specfuncs as ss
+from specim.specfuncs import echelle1d as ech1d
 from keckcode.nires import nsxspec as nsx
 from keckcode.nires import nsxset
 
@@ -70,14 +71,17 @@ def redux(inroot, inframes, copyraw, donsx, nsxmode, docoadd,
             sframes2.append(f1)
         specset = nsxset.NsxSet(inroot, sframes1, sframes2)
         coadd = specset.coadd()
+        coadd.save_multi('tmpcoadd')
     else:
-        exit()
+        coadd = ech1d.Ech1d(echfile='tmpcoadd.fits')
 
     """ Do the response corrections (so far only 3 reddest orders) """
     resp345 = ss.Spec1d(resp345file, informat='text')
     for i in range(3):
+        print(len(coadd[i]), len(resp345))
         coadd[i]['flux'] /= resp345['flux']
         coadd[i]['var'] /= resp345['flux']**2
+    coadd.save_multi('respcorr')
 
     """ Do an atmospheric absorption correction """
     for spec in coadd:

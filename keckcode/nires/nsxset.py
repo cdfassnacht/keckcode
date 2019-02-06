@@ -56,11 +56,10 @@ class NsxSet(list):
         for f, f2 in zip(frames, frames2):
             print f, f2
             d = NsxSpec(root, f, f2)
-            d.read_spec()
             self.append(d)
 
         """ Get the order list from the first input spectrum """
-        self.orders = self[0].orders
+        self.ordinfo = self[0].ordinfo
 
     # ------------------------------------------------------------------------
 
@@ -73,7 +72,7 @@ class NsxSet(list):
 
         """ Loop through the orders """
         coaddlist = []
-        for order in range(len(self.orders)):
+        for order in range(len(self.ordinfo)):
 
             """ Create a list of Spec1d objects """
             speclist = []
