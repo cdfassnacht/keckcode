@@ -34,11 +34,11 @@ class NsxSpec(echelle1d.Ech1d):
         self.hasspec = False
         dtype = [('order', int), ('pixmin', int), ('pixmax', int)]
         oinfo = np.array([
-                (3, 13, 2044),
-                (4, 13, 2044),
-                (5, 13, 2044),
-                (6, 13, 2044),
-                (7, 13, 1023),
+                (3, 13, 2034),
+                (4, 13, 2034),
+                (5, 13, 2034),
+                (6, 13, 2034),
+                (7, 13, 1005),
                 ], dtype=dtype)
         self.ordinfo = Table(oinfo)
 

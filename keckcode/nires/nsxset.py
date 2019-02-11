@@ -38,8 +38,8 @@ class NsxSet(list):
           frames2 - list of second frame numbers (as integers) if NSX was
                      run in A-B/B-A mode.  The default value (None) means that
                      NSX was NOT run in this mode
-                    If set, then the bas'e names will have the form
-                     root_frame_frame2
+                    If set, then the base names will have the form
+                     root_frame-frame2
                     If not set (default) then this list is not used and the
                      base names will have the form root_frame
 
@@ -63,7 +63,7 @@ class NsxSet(list):
 
     # ------------------------------------------------------------------------
 
-    def coadd(self, doplot=True, outfile=None):
+    def coadd(self, doplot=True, outfile=None, smo=None, z=None):
         """
 
         Coadds the extracted 1d spectra from each order separately
@@ -88,10 +88,10 @@ class NsxSet(list):
 
             """ Coadd the spectra in the list """
             specall = SpecSet1d(spec1dlist=speclist)
-            coaddlist.append(specall.coadd())
+            coaddlist.append(specall.coadd(doplot=False))
             del(speclist)
 
         outspec = echelle1d.Ech1d(coaddlist)
         if doplot:
-            outspec.plot_all()
+            outspec.plot_all(smo=smo, z=z)
         return outspec
