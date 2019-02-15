@@ -200,7 +200,7 @@ def telluric_corr(inspec, atmcorr, tellfile=None, doplot=True, **kwargs):
         print('')
         print('ERROR: Either atmcorr was set to an invalid value or')
         print('  atmcorr was set to "telluric" but no valid file was given')
-        print('  via that tellfile parameter')
+        print('  via the tellfile parameter')
         return
     if doplot:
         inspec.plot_all(mode='atmcorr', **kwargs)
@@ -214,7 +214,7 @@ def redux(inroot, inframes, copyraw, donsx, nsxmode, docoadd, outroot,
           z=None, **kwargs):
     """
 
-    Code to reduce NIRES data files associated with a given targed.
+    Code to reduce NIRES data files associated with a given target.
     This code:
       1. Copies over the data files from the raw data directory
       2. Runs the nsx code to reduce the spectra
