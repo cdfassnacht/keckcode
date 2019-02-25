@@ -24,13 +24,14 @@ from astropy.table import Table
 import special_functions as sf
 from cdfutils import datafuncs as df
 from specim import specfuncs as ss
+from specim.specfuncs import echelle2d as ech2d
 
 """
 ============================== Esi2d class ==============================
 """
 
 
-class Esi2d(list):
+class Esi2d(ech2d.Ech2d):
     """
     A class for ESI 2D spectra, for which Matt's / Lindsay's calibration
     code produces a multi-extension fits files containing 10 2D spectra,
@@ -54,52 +55,28 @@ class Esi2d(list):
          blue and red - define the range of good pixels that the Oldham
                         extraction uses to define its aperture
         """
-        dtype = [('ordnum', int), ('name', 'S8'), ('pixscale', float),
+        dtype = [('order', int), ('name', 'S8'), ('pixscale', float),
                  ('pixmin', int), ('pixmax', int)]
         orderinfo = np.array([
-                (0, 'Order 1', 0.120, 1500, 3000),
-                (1, 'Order 2', 0.127, 1400, 3400),
-                (2, 'Order 3', 0.134, 1300, 3700),
-                (3, 'Order 4', 0.137, 1200,   -1),
-                (4, 'Order 5', 0.144, 1100,   -1),
-                (5, 'Order 6', 0.149,  900,   -1),
-                (6, 'Order 7', 0.153,  600,   -1),
-                (7, 'Order 8', 0.158,  200,   -1),
-                (8, 'Order 9', 0.163,    0,   -1),
-                (9, 'Order 10', 0.168,   0,   -1),
+                (1, 'Order_01', 0.120, 1500, 3000),
+                (2, 'Order_02', 0.127, 1400, 3400),
+                (3, 'Order_03', 0.134, 1300, 3700),
+                (4, 'Order_04', 0.137, 1200,   -1),
+                (5, 'Order_05', 0.144, 1100,   -1),
+                (6, 'Order_06', 0.149,  900,   -1),
+                (7, 'Order_07', 0.153,  600,   -1),
+                (8, 'Order_08', 0.158,  200,   -1),
+                (9, 'Order_09', 0.163,    0,   -1),
+                (10, 'Order_10', 0.168,   0,   -1),
                 ], dtype=dtype)
         self.ordinfo = Table(orderinfo)
 
-        """ Open the multiextension fits file that contains the 10 orders """
-        self.infile = infile
-        self.hdu = pf.open(infile)
-        print('')
-        print('Science file:  %s' % self.infile)
+        """ Read in the spectra by a call to the superclass """
+        super(Esi2d, self).__init__(infile, varspec=varfile, logwav=True,
+                                    ordinfo=self.ordinfo, fixnans=False)
 
-        """ If there is an external variance file, open that """
-        self.extvar = None
-        if varfile is not None:
-            self.extvar = pf.open(varfile)
-            print('Variance file: %s' % varfile)
-
-        """ Load each order into its own Spec2d container """
-        print('')
-        print('Order  Shape    Dispaxis')
-        print('----- --------- --------')
-        for i in range(10):
-            hext = i + 1
-            if self.extvar is not None:
-                tmpspec = ss.Spec2d(self.hdu, hext=hext,
-                                    extvar=self.extvar, verbose=False,
-                                    logwav=True, fixnans=False)
-            else:
-                tmpspec = ss.Spec2d(self.hdu, hext=hext, verbose=False,
-                                    logwav=True, fixnans=False)
-            print(' %2d   %dx%d     %s' % 
-                  ((i+1), tmpspec.data.shape[1], tmpspec.data.shape[0],
-                   tmpspec.dispaxis))
-            tmpspec.spec1d = None
-            self.append(tmpspec)
+        """ Set the default gridding for multi-order plots """
+        self.plotgrid = (2, 5)
 
     # --------------------------------------------------------------------
 
@@ -115,84 +92,15 @@ class Esi2d(list):
         plt.subplots_adjust(hspace=0.001)
         fig = plt.gcf()
         for spec, info in zip(self, self.ordinfo):
-            i = ['ordnum']
             tmp = np.arange(spec.npix)
             B = tmp[info['pixmin']]
             R = tmp[info['pixmax']]
-            axi = fig.add_subplot(10, 1, (i+1))
+            axi = fig.add_subplot(10, 1, info['order'])
             spec.display(hext=(i+1), mode='xy', axlabel=False, **kwargs)
             plt.axvline(B, color='g', lw=3)
             plt.axvline(R, color='g', lw=3)
             plt.setp(axi.get_xticklabels(), visible=False)
             axi.set_xlabel('', visible=False)
-
-    # --------------------------------------------------------------------
-
-    def plot_profiles(self, bgsub=True, showfit=False, fitrange=None,
-                      showap=True, maxx=140.):
-        """
-
-        Plots, in one figure, the spatial profiles for all the 10 orders
-
-        Optional inputs
-          bgsub   - Set to true (the default) if the data have had the sky
-                     subtracted already at this point.  If this is the case,
-                     then the "sky" level in each profile should be close to
-                     zero and, therefore, the subplots can be displayed in a
-                     way that does not require y-axis labels for each profile
-          showfit - Show the fit to the profiles? Default=False
-        """
-
-        if bgsub:
-            normspec = True
-            plt.subplots_adjust(wspace=0.001)
-        else:
-            normspec = False
-        plt.subplots_adjust(hspace=0.001)
-
-        """ Set the common widths of the plots """
-        # xmax = 0
-        # for i in range(1,11):
-        #     if self.hdu[i].data.shape[0] > xmax:
-        #         xmax = self.hdu[i].data.shape[0]
-
-        """ Set up the figure and the full-sized frame for the final labels """
-        fig = plt.gcf()
-        ax = fig.add_subplot(111)
-        plt.setp(ax.get_xticklabels(), visible=False)
-        plt.setp(ax.get_yticklabels(), visible=False)
-
-        for spec, info in zip(self, self.ordinfo):
-            i = info['ordnum']
-            B = info['pixmin']
-            R = info['pixmax']
-            axi = fig.add_subplot(2, 5, (i+1))
-            if showfit:
-                mod = spec.p0
-            else:
-                mod = None
-            spec.spatial_profile(normalize=normspec, title=None, model=mod,
-                                 pixrange=[B, R])
-            plt.xlim(-1, maxx)
-            if normspec:
-                plt.ylim(-0.1, 1.1)
-            if i == 0 or i == 5:
-                pass
-            else:
-                plt.setp(axi.get_yticklabels(), visible=False)
-                axi.set_ylabel('', visible=False)
-            if i < 5:
-                plt.setp(axi.get_xticklabels(), visible=False)
-            axi.set_xlabel('', visible=False)
-            axi.annotate('%d' % (i+1), (10., 0.95))
-
-        if self.infile is not None:
-            ax.set_title('Spatial Profiles for %s' % self.infile)
-        else:
-            ax.set_title('Spatial Profiles')
-        ax.set_xlabel('Spatial Direction')
-        ax.xaxis.set_label_coords(0.5, -0.05)
-        ax.yaxis.set_label_coords(-0.03, 0.5)
 
     # ------------------------------------------------------------------------
 
@@ -227,7 +135,7 @@ class Esi2d(list):
         slit.apmax = cent + nsig
 
         if doplot:
-            plt.subplot(2, 5, (ordinfo['ordnum']+1))
+            plt.subplot(2, 5, (ordinfo['order']))
             plt.plot(x, apymax*ap)  # Scale the aperture to easily see it
             plt.plot(x, xproj)
             plt.ylim(-apymax, 1.1*xproj.max())
@@ -363,7 +271,7 @@ class Esi2d(list):
         for spec, info in zip(self, self.ordinfo):
             if method == 'cdf':
                 if plot_traces:
-                    plt.figure(info['ordnum'] + 3)
+                    plt.figure(info['order'] + 2)
                     plt.clf()
                 """
                 For now assume that the data reduction has properly rectified

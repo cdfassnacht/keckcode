@@ -54,7 +54,7 @@ class NsxSet(list):
 
         """ Read in the data """
         for f, f2 in zip(frames, frames2):
-            print f, f2
+            print('')
             d = NsxSpec(root, f, f2)
             self.append(d)
 
@@ -63,7 +63,7 @@ class NsxSet(list):
 
     # ------------------------------------------------------------------------
 
-    def coadd(self, doplot=True, outfile=None, smo=None, z=None):
+    def coadd(self, doplot=True, outfile=None, smo=None, z=None, **kwargs):
         """
 
         Coadds the extracted 1d spectra from each order separately
@@ -88,10 +88,11 @@ class NsxSet(list):
 
             """ Coadd the spectra in the list """
             specall = SpecSet1d(spec1dlist=speclist)
-            coaddlist.append(specall.coadd(doplot=False))
+            coaddlist.append(specall.coadd(doplot=False, **kwargs))
             del(speclist)
 
+        print('Reading coadded file')
         outspec = echelle1d.Ech1d(coaddlist)
         if doplot:
-            outspec.plot_all(smo=smo, z=z)
+            outspec.plot_all(smo=smo, z=z, **kwargs)
         return outspec

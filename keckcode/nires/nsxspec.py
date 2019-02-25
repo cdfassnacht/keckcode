@@ -23,7 +23,8 @@ class NsxSpec(echelle1d.Ech1d):
     by Tom Barlow's nsx code
     """
 
-    def __init__(self, root, frame, frame2=None, hasspec=True):
+    def __init__(self, root, frame, frame2=None, hasspec=True,
+                 verbose=True):
         """
         Loads, at minimum, the spatial profiles associated with either
         a single frame (if frame2 is None) or the result of a AB or BA
@@ -34,11 +35,11 @@ class NsxSpec(echelle1d.Ech1d):
         self.hasspec = False
         dtype = [('order', int), ('pixmin', int), ('pixmax', int)]
         oinfo = np.array([
-                (3, 13, 2034),
-                (4, 13, 2034),
-                (5, 13, 2034),
-                (6, 13, 2034),
                 (7, 13, 1005),
+                (6, 113, 2034),
+                (5, 85, 2034),
+                (4, 13, 2034),
+                (3, 13, 2034),
                 ], dtype=dtype)
         self.ordinfo = Table(oinfo)
 
@@ -65,20 +66,18 @@ class NsxSpec(echelle1d.Ech1d):
         Load the spectra unless the user has requested only the profiles
         """
         if hasspec:
+            """ Set up the input filenames for the spectra """
+            infiles = []
             for info in self.ordinfo:
                 sname = '%s-sp%d.tbl' % (self.inroot, info['order'])
-                ospec = ss.Spec1d(sname, informat='nsx')
+                infiles.append(sname)
 
-                """ Trim to the good region """
-                w = ospec['wav'][info['pixmin']:info['pixmax']]
-                f = ospec['flux'][info['pixmin']:info['pixmax']]
-                v = ospec['var'][info['pixmin']:info['pixmax']]
-
-                spec = ss.Spec1d(wav=w, flux=f, var=v)
-                self.append(spec)
-
+            """ Load the spectrum via the superclass """
+            if verbose:
+                print('Reading spectra from %s*' % self.inroot)
+            super(NsxSpec, self).__init__(infiles, informat='nsx',
+                                          ordinfo=self.ordinfo)
             self.hasspec = True
-            # self.read_spec()
 
     # -----------------------------------------------------------------------
 
