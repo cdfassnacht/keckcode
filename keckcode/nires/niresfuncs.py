@@ -8,9 +8,8 @@ import os
 from matplotlib import pyplot as plt
 from astropy.modeling.blackbody import blackbody_lambda
 from specim import specfuncs as ss
-from specim.specfuncs import echelle1d as ech1d
 from keckcode.nires import nsxspec as nsx
-from keckcode.nires import nsxset
+from keckcode.nires import nsxset, nires1d
 
 # -----------------------------------------------------------------------
 
@@ -202,19 +201,19 @@ def mask_lines_std(stdspec, mode='atmcorr'):
 
     for i, spec in enumerate(stdspec):
         if i == 0:
-            linelist = ['Br-delta', 'Br-gamma']
+            linelist = ['Pa-delta',]
             _mask_line_linfo(spec, lines, linelist, mode)
         if i == 1:
-            linelist = ['Br6', 'Br7', 'Br8', 'Br9', 'Br10', 'Br11', 'Br12']
+            linelist = ['Pa-gamma', 'Pa-delta']
             _mask_line_linfo(spec, lines, linelist, mode)
         if i == 2:
             linelist = ['Pa-beta',]
             _mask_line_linfo(spec, lines, linelist, mode)
         if i == 3:
-            linelist = ['Pa-gamma', 'Pa-delta']
+            linelist = ['Br6', 'Br7', 'Br8', 'Br9', 'Br10', 'Br11', 'Br12']
             _mask_line_linfo(spec, lines, linelist, mode)
         if i == 4:
-            linelist = ['Pa-delta',]
+            linelist = ['Br-delta', 'Br-gamma']
             _mask_line_linfo(spec, lines, linelist, mode)
 
 # -----------------------------------------------------------------------
@@ -229,7 +228,7 @@ def telluric_corr(inspec, atmcorr, tellfile=None, airmass=1.0,
         for spec in inspec:
             spec.atm_corr()
     elif atmcorr == 'telluric' and tellfile is not None:
-        telluric = ech1d.Ech1d(tellfile)
+        telluric = nires1d.Nires1d(tellfile)
         for spec, tellspec in zip(inspec, telluric):
             spec.atm_corr(atm='telluric', model=tellspec)
     else:
@@ -312,7 +311,7 @@ def redux(inroot, inframes, copyraw, donsx, nsxmode, docoadd, outroot,
                           **kwargs)
         mode = 'input'
     elif echfile is not None:
-        coadd = ech1d.Ech1d(echfile)
+        coadd = nires1d.Nires1d(echfile)
         mode = 'input'
     else:
         print('')
@@ -330,7 +329,7 @@ def redux(inroot, inframes, copyraw, donsx, nsxmode, docoadd, outroot,
         print('')
         fignum += 1
         plt.figure(fignum)
-        telluric_corr(coadd, atmcorr, tellfile=tellfile,
+        telluric_corr(coadd, atmcorr, tellfile=tellfile, smo=smo,
                       title='Corrected for atmosphere')
         mode = 'atmcorr'
         coadd.save_multi('%s_atmcorr' % outroot, mode='atmcorr')

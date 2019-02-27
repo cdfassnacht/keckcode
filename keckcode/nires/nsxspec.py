@@ -38,7 +38,7 @@ class NsxSpec(echelle1d.Ech1d):
                 (7, 13, 1005),
                 (6, 113, 2034),
                 (5, 85, 2034),
-                (4, 13, 2034),
+                (4, 13, 1863),
                 (3, 13, 2034),
                 ], dtype=dtype)
         self.ordinfo = Table(oinfo)

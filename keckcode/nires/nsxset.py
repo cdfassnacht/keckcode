@@ -7,8 +7,8 @@ nsxset.py - Code to perform actions on multiple nsxspec files
 from os import path
 from matplotlib import pyplot as plt
 from specim.specfuncs.specset1d import SpecSet1d
-from specim.specfuncs import echelle1d
 from .nsxspec import NsxSpec
+from .nires1d import Nires1d
 
 
 class NsxSet(list):
@@ -88,11 +88,12 @@ class NsxSet(list):
 
             """ Coadd the spectra in the list """
             specall = SpecSet1d(spec1dlist=speclist)
-            coaddlist.append(specall.coadd(doplot=False, **kwargs))
+            coaddlist.append(specall.coadd(doplot=False, verbose=False,
+                                           **kwargs))
             del(speclist)
 
         print('Reading coadded file')
-        outspec = echelle1d.Ech1d(coaddlist)
+        outspec = Nires1d(coaddlist)
         if doplot:
             outspec.plot_all(smo=smo, z=z, **kwargs)
         return outspec
