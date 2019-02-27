@@ -267,7 +267,7 @@ def do_respcorr(inspec, respcorr, respfile=None, Tstar=1.e4, doplot=True,
 # -----------------------------------------------------------------------
 
 def redux(inroot, inframes, copyraw, donsx, nsxmode, docoadd, outroot,
-          rawdir='../../Raw', obj=None, bkgd=None, echfile=None,
+          rawdir='../../Raw', aplist=None, bkgd=None, echfile=None,
           atmcorr='model', tellfile=None, airmass=1.0,
           respcorr='model', respfile=None,
           smo=None, z=None, **kwargs):
@@ -298,9 +298,18 @@ def redux(inroot, inframes, copyraw, donsx, nsxmode, docoadd, outroot,
 
     """ Run the nsx code on the raw data files """
     if donsx:
-        for file1, file2 in zip(infiles, infiles2):
-            extract_nsx([file1, file2], nsxmode, obj, bkgd)
-            extract_nsx([file2, file1], nsxmode, obj, bkgd)
+        if nsxmode == 'auto' or nsxmode == 'profonly':
+            for file1, file2 in zip(infiles, infiles2):
+                extract_nsx([file1, file2], nsxmode)
+                extract_nsx([file2, file1], nsxmode)
+        elif nsxmode == 'manual':
+            if aplist is not None:
+                for file1, file2, obj in zip(infiles, infiles2, aplist):
+                    extract_nsx([file1, file2], nsxmode, obj, bkgd)
+                    extract_nsx([file2, file1], nsxmode, obj, bkgd)
+        else:
+            raise NameError('Invalid choice for nsxmode')
+
     if nsxmode == 'profonly':
         return
 
