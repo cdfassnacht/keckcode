@@ -80,27 +80,27 @@ class Esi2d(ech2d.Ech2d):
 
     # --------------------------------------------------------------------
 
-    def plot_2d(self, **kwargs):
-        """
-
-        Plots in one figure the 2-d spectra from the 10 orders.
-        These are stored in separate HDUs in the input file
-
-        """
-
-        # plt.figure(figsize=(10,10))
-        plt.subplots_adjust(hspace=0.001)
-        fig = plt.gcf()
-        for spec, info in zip(self, self.ordinfo):
-            tmp = np.arange(spec.npix)
-            B = tmp[info['pixmin']]
-            R = tmp[info['pixmax']]
-            axi = fig.add_subplot(10, 1, info['order'])
-            spec.display(hext=(i+1), mode='xy', axlabel=False, **kwargs)
-            plt.axvline(B, color='g', lw=3)
-            plt.axvline(R, color='g', lw=3)
-            plt.setp(axi.get_xticklabels(), visible=False)
-            axi.set_xlabel('', visible=False)
+    # def plot_2d(self, **kwargs):
+    #     """
+    # 
+    #     Plots in one figure the 2-d spectra from the 10 orders.
+    #     These are stored in separate HDUs in the input file
+    # 
+    #     """
+    # 
+    #     # plt.figure(figsize=(10,10))
+    #     plt.subplots_adjust(hspace=0.001)
+    #     fig = plt.gcf()
+    #     for spec, info in zip(self, self.ordinfo):
+    #         tmp = np.arange(spec.npix)
+    #         B = tmp[info['pixmin']]
+    #         R = tmp[info['pixmax']]
+    #         axi = fig.add_subplot(10, 1, info['order'])
+    #         spec.display(hext=(i+1), mode='xy', axlabel=False, **kwargs)
+    #         plt.axvline(B, color='g', lw=3)
+    #         plt.axvline(R, color='g', lw=3)
+    #         plt.setp(axi.get_xticklabels(), visible=False)
+    #         axi.set_xlabel('', visible=False)
 
     # ------------------------------------------------------------------------
 

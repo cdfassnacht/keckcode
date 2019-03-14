@@ -1,37 +1,45 @@
-from astropy.io import fits as pf
-from specim import specfuncs as ss
+from specim.specfuncs import echelle1d
 
 """
 ============================== Esi1d class ==============================
 """
 
 
-class Esi1d(ss.Spec1d):
+class Esi1d(echelle1d.Ech1d):
     """
     A class for ESI 1D spectra, which have been extracted by the Esi2d
     methods, but have not yet been combined into one final output spectrum.
     Therefore, there are 10 extracted 1d spectra, one for each order.
     These 10 extracted spectra will be stored in an array of Spec1d instances.
 
-    The main purpose of this class is to combine the 10 orders into one
-    output spectrum.  This functionality is split out from the Spec2d
-    class because in some cases, e.g., co-adding several spectra of the same
-    object, it may be easier to deal with the orders separately rather than
-    after they have been combined into one Spec1d spectrum (however, this
-    assertione may not be correc)
     """
 
-    def __init__(self, infile):
+    def __init__(self, inspec, informat='text', summary=True, verbose=True):
         """
 
-        Create an instance of this class by loading the data from the input
-        file into 10 Spec1d instances.
+        Initializes an Esi1d instance, essentially by initializing an
+        Ech1d instance with the NIRES order information
 
         """
 
-        """ Open the multiextension fits file that contains the 10 orders """
-        self.infile = infile
-        self.hdu = pf.open(infile)
-        print('')
-        print('Science file:  %s' % self.infile)
+        """
+        Define the information pertaining to the ESI echelle orders
 
+        Note that the pixmin and pixmax are not used at this point since
+        any trimming of the orders should have been done in previous
+        steps.
+        """
+        dtype = [('order', int), ('pixmin', int), ('pixmax', int)]
+        # oinfo = np.array([
+        #         (7, 0, -1),
+        #         (6, 0, -1),
+        #         (5, 0, -1),
+        #         (4, 0, -1),
+        #         (3, 0, -1),
+        #         ], dtype=dtype)
+        # ordinfo = Table(oinfo)
+        ordinfo = None
+
+        """ Initialize by calling the parent class """
+        super(Esi1d, self).__init__(inspec, informat=informat, ordinfo=ordinfo,
+                                    summary=summary, verbose=verbose)
