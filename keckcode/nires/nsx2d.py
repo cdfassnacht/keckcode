@@ -59,16 +59,15 @@ class Nsx2d(ech2d.Ech2d):
             varhdu = None
 
         """ Read the input science file into an Image class """
-        print(infile)
-        sci = imf.Image(infile)
+        sci = imf.Image(infile, wcsverb=False)
 
         """ Make the cutouts """
         scihdu = pf.HDUList(pf.PrimaryHDU())
         vardata = []
         for info in oinfo:
-            sci.set_subim_xy(info['xmin'], info['ymin'], info['xmax'],
-                             info['ymax'], verbose=False)
-            scihdu.append(pf.ImageHDU(sci.data, sci.subimhdr))
+            imhdu = sci.imcopy(info['xmin'], info['ymin'], info['xmax'],
+                               info['ymax'], verbose=False)
+            scihdu.append(pf.ImageHDU(imhdu.data, imhdu.header))
 
         """ Now put the data into the superclass """
         super(Nsx2d, self).__init__(scihdu, varhdu)
