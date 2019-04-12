@@ -14,7 +14,7 @@ from .nires1d import Nires1d
 class NsxSet(list):
     """
 
-    The NsxSet class is effectively just a list of Esi2d instances that
+    The NsxSet class is effectively just a list of NsxSpec instances that
     includes operations that act on the whole list (e.g., coadds)
 
     """

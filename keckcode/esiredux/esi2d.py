@@ -78,30 +78,6 @@ class Esi2d(ech2d.Ech2d):
         """ Set the default gridding for multi-order plots """
         self.plotgrid = (2, 5)
 
-    # --------------------------------------------------------------------
-
-    # def plot_2d(self, **kwargs):
-    #     """
-    # 
-    #     Plots in one figure the 2-d spectra from the 10 orders.
-    #     These are stored in separate HDUs in the input file
-    # 
-    #     """
-    # 
-    #     # plt.figure(figsize=(10,10))
-    #     plt.subplots_adjust(hspace=0.001)
-    #     fig = plt.gcf()
-    #     for spec, info in zip(self, self.ordinfo):
-    #         tmp = np.arange(spec.npix)
-    #         B = tmp[info['pixmin']]
-    #         R = tmp[info['pixmax']]
-    #         axi = fig.add_subplot(10, 1, info['order'])
-    #         spec.display(hext=(i+1), mode='xy', axlabel=False, **kwargs)
-    #         plt.axvline(B, color='g', lw=3)
-    #         plt.axvline(R, color='g', lw=3)
-    #         plt.setp(axi.get_xticklabels(), visible=False)
-    #         axi.set_xlabel('', visible=False)
-
     # ------------------------------------------------------------------------
 
     def get_ap_oldham(self, slit, apcent, nsig, ordinfo, doplot=True):
@@ -128,11 +104,10 @@ class Esi2d(ech2d.Ech2d):
         fit = sf.ngaussfit(xproj, fit)[0]
 
         cent = fit[2] + apcent / ordinfo['pixscale']
-        print(cent)
         apymax = 0.1 * xproj.max()
         ap = np.where(abs(x-cent) < nsig / ordinfo['pixscale'], 1., 0.)
-        slit.apmin = cent - nsig
-        slit.apmax = cent + nsig
+        # slit.apmin = cent - nsig
+        # slit.apmax = cent + nsig
 
         if doplot:
             plt.subplot(2, 5, (ordinfo['order']))
@@ -166,14 +141,16 @@ class Esi2d(ech2d.Ech2d):
         vslit[vslit <= 0.] = 1e9
         vslit[np.isnan(vslit)] = 1e9
         vslit[np.isnan(slit)] = 1e9
-        h = spec.hdr
+        h = spec.header
         x = np.arange(slit.shape[1])*1.
         w = 10**(h['CRVAL1'] + x * h['CD1_1'])
 
         """ Make the apertures """
         ap, fit = self.get_ap_oldham(slit, apcent, nsig, ordinfo)
-        spec2d.apmin = slit.apmin
-        spec2d.apmax = slit.apmax
+        cent = fit[2] + apcent / ordinfo['pixscale']
+        print(cent)
+        spec2d.apmin = cent - nsig
+        spec2d.apmax = cent + nsig
 
         """
         Set up to do the extraction, including normalizing the aperture
