@@ -7,9 +7,11 @@ oscube.py
 import numpy as np
 from scipy.ndimage import filters
 from matplotlib import pyplot as plt
+from astropy import wcs
 from astropy.io import fits as pf
 from specim import imfuncs as imf
 from specim import specfuncs as ss
+from specim.imfuncs.wcshdu import WcsHDU
 
 # ===========================================================================
 
@@ -29,14 +31,12 @@ class OsCube(imf.Image):
         """
 
         """ Read the data into an Image structure """
-        imf.Image.__init__(self, indat, verbose=verbose)
+        super(OsCube, self).__init__(indat, verbose=verbose) # Python 2.7
         # super().__init__(self, indat, verbose=verbose) # Python 3 syntax
-
-        """ Set a default image plane to plot """
-        self.set_imslice(0, display=False)
+        print('Number of wavelength slices: %d' % self.header['naxis1'])
 
         """ Set up the wavelength vector based on the header information """
-        hdr = self.hdu[0].header
+        hdr = self.header
         nwav = hdr['naxis1']
         self.wav = np.arange(nwav)
         self.wav = hdr['crval1'] + self.wav * hdr['cdelt1']
@@ -47,21 +47,42 @@ class OsCube(imf.Image):
         hdr['cdelt1'] *= 10.
 
         """ Save the sizes of the array in easily accessible form """
-        self.xsize = self.hdu[0].data.shape[0]
-        self.ysize = self.hdu[0].data.shape[1]
-        self.wsize = self.hdu[0].data.shape[2]
+        self.xsize = self.data.shape[0]
+        self.ysize = self.data.shape[1]
+        self.wsize = self.data.shape[2]
 
         """ Set default values """
         self.cube = None
         self.moment0 = None
+        self.meanspec = None
+        self.varspec = None
 
     # -----------------------------------------------------------------------
 
+    # Actually, don't use this syntax below unless required.  See the
+    #  @property calls in dispparam.py
+    #
     # imslice = property(fget=get_imslice, fset=set_imslice)
 
     # -----------------------------------------------------------------------
 
-    def set_imslice(self, imslice=0, hext=0, display=True, mode='xy',
+    def make_wcs2dhdr(self):
+        """
+
+        Takes the input WCS information for the cube (3 dimesions, including
+        wavelength) and converts it into 2-dimensional spatial-only WCS
+        information for an image slice or the cube compressed along the
+        spatial direction.
+        """
+
+        outwcs = self.wcsinfo.celestial.swapaxes(0,1)
+        outhdr = outwcs.to_header()
+
+        return outhdr
+
+    # -----------------------------------------------------------------------
+
+    def set_imslice(self, imslice, hext=0, display=True, mode='xy',
                     **kwargs):
         """
         Sets the 2-dimension slice to use for the display functions.
@@ -71,11 +92,11 @@ class OsCube(imf.Image):
         """
 
         """ Get the number of dimensions in the input image """
-        hdr = self.hdu[hext].header
+        hdr = self.header
         if 'NAXIS' in hdr.keys():
             ndim = hdr['naxis']
         else:
-            raise KeyError
+            raise KeyError('No NAXIS keyword in fits header')
 
         """
         The OSIRIS data-reduction pipeline produces a 3-dimensional data cube.
@@ -95,23 +116,36 @@ class OsCube(imf.Image):
         structure is hard-wired to this assumption
         """
 
-        nwave = hdr['naxis1']
-        if imslice >= nwave:
+        if imslice >= self.wsize:
             print('')
             print('ERROR: Requested an image slice outside the available '
                   'range')
-            print('Maximum available slice value is %d' % (nwave-1))
+            print('Maximum available slice value is %d' % (self.wsize-1))
             print('')
             raise IndexError
 
-        self.data = np.transpose(self.hdu[hext].data[:, :, imslice].copy())
+        """
+        Make a wcs header for the slice, i.e., a set of 2d wcs information
+        without the spectral information.
+        """
+        # hdr = self.header
+        w2dhdr = self.make_wcs2dhdr()
+
+        """
+        Actually make the slice.
+        The transpose is to get RA and Dec into the order that the WcsHDU
+         container expects them to be
+        The header information.
+        """
+        self['slice'] = WcsHDU(np.transpose(self.data[:, :, imslice]), w2dhdr)
         self.prevdext = hext
 
         """ Display the image slice if requested """
         self.found_rms = False
         if display:
-            self.display(title='Image Slice %d (zero-indexed)' % imslice,
-                         mode=mode, hext=hext, **kwargs)
+            self.display(dmode='slice', mode=mode, 
+                         title='Image Slice %d (zero-indexed)' % imslice,
+                         **kwargs)
 
     # -----------------------------------------------------------------------
 
@@ -149,8 +183,8 @@ class OsCube(imf.Image):
             print('  lambda: %d - %d (slice number)' % (wmin,wmax))
 
         """ Select the cube """
-        cube = self.hdu[0].data[xmin:xmax, ymin:ymax, wmin:wmax]
-        cubehdr = self.hdu[0].header.copy()
+        cube = self.data[xmin:xmax, ymin:ymax, wmin:wmax]
+        cubehdr = self.header.copy()
         cubehdr['crpix1'] -= wmin
         cubehdr['crpix2'] -= ymin
         cubehdr['crpix3'] -= xmin
@@ -183,6 +217,8 @@ class OsCube(imf.Image):
             print('NOTE: wavelength mode has not yet been implemented')
             return
         else:
+            if wlim is None:
+                wlim = (0, self.wsize-1)
             minslice = wlim[0]
             maxslice = wlim[1]
             wavmin = self.wav[minslice]
@@ -201,14 +237,14 @@ class OsCube(imf.Image):
 
         """ Compress the temporary cube along the spectral axis """
         if combmode == 'median':
-            self.data = np.transpose(np.median(cube, axis=2))
+            self['slice'] = WcsHDU(np.transpose(np.median(cube, axis=2)))
         else:
-            self.data = np.transpose(cube.sum(axis=2))
+            self['slice'] = WcsHDU(np.transpose(cube.sum(axis=2)))
         self.prevdext = hext
 
         """ Display the result if requested """
         if display:
-            self.display(**kwargs)
+            self.display(dmode='slice', **kwargs)
 
         """ Clean up """
         del(cube)
@@ -220,7 +256,7 @@ class OsCube(imf.Image):
         """
         Creates, and displays if requested, the "white light" image.
         This is a specialized version of the compress_spec method, which
-        compresses the cube along the spectral direction, but for the full
+        compresses the cube along* the spectral direction, but for the full
         data cube.
         """
 
@@ -230,6 +266,34 @@ class OsCube(imf.Image):
         """ Set up for running compress_spec on the full data cube """
         self.compress_spec(wmode='slice', combmode=combmode,
                            hext=hext, display=display, **kwargs)
+
+    # -----------------------------------------------------------------------
+
+    def make_varspec(self, maskfile, verbose=True):
+        """
+        Steps through the spectral slices and computes the statistics of
+        the illuminated region and stores the clipped mean and variance
+        for each slice
+        """
+
+        """ Get the mask from the mask file """
+        mhdu = pf.open(maskfile)
+        mask = mhdu[0].data.astype(bool)
+
+        """ Set up the containers to store the info """
+        mean = np.zeros(self.wsize)
+        var = np.zeros(self.wsize)
+
+        count = 0
+        for m, v in zip(mean, var):
+            self.set_imslice(count, display=False)
+            self['slice'].sigma_clip(mask=mask, verbose=False)
+            m = self['slice'].mean_clip
+            r = self['slice'].rms_clip
+            v = r**2
+            if verbose:
+                print(count, m, r)
+            count += 1
 
     # -----------------------------------------------------------------------
 
@@ -246,7 +310,7 @@ class OsCube(imf.Image):
         """
 
         """ Set the data set to use """
-        cube = self.hdu[hext].data
+        cube = self.data
 
         if isinstance(x, int) and isinstance(y, int):
             flux = cube[x, y, :]
@@ -311,11 +375,11 @@ class OsCube(imf.Image):
         """
 
         """ Smooth the data """
-        data = self.hdu[hext].data
+        data = self.data
         cube = filters.gaussian_filter(data, sigma=[kwidth, kwidth, 0])
 
         """ Put the smoothed data into a new HDU """
-        hdr = self.hdu[hext].header.copy()
+        hdr = self.header.copy()
         hdr['history'] = 'Data have been spatially smoothed (gaussian)'
         hdr['smoothw'] = ('%5.1f' % kwidth,
                             'Gaussian smoothing kernel width')
