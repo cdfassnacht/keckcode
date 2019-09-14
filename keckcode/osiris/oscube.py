@@ -6,14 +6,13 @@ oscube.py
 
 import numpy as np
 from scipy.ndimage import filters
-from matplotlib import pyplot as plt
-from astropy import wcs
 from astropy.io import fits as pf
 from specim import imfuncs as imf
 from specim import specfuncs as ss
 from specim.imfuncs.wcshdu import WcsHDU
 
 # ===========================================================================
+
 
 class OsCube(imf.Image):
     """
@@ -31,7 +30,7 @@ class OsCube(imf.Image):
         """
 
         """ Read the data into an Image structure """
-        super(OsCube, self).__init__(indat, verbose=verbose) # Python 2.7
+        super(OsCube, self).__init__(indat, verbose=verbose)  # Python 2.7
         # super().__init__(self, indat, verbose=verbose) # Python 3 syntax
         print('Number of wavelength slices: %d' % self.header['naxis1'])
 
@@ -75,8 +74,18 @@ class OsCube(imf.Image):
         spatial direction.
         """
 
-        outwcs = self.wcsinfo.celestial.swapaxes(0,1)
+        """ Get the WCS information """
+        outwcs = self.wcsinfo.celestial.swapaxes(0, 1)
         outhdr = outwcs.to_header()
+
+        """ Add other important info """
+        hdr = self.header
+        kwlist = ['bunit', 'bscale', 'bzero', 'itime', 'coadds', 'object',
+                  'sfilter', 'sscale', 'telescop', 'instrume', 'elaptime',
+                  'filter']
+        for k in kwlist:
+            if k.upper() in hdr.keys():
+                outhdr[k] = hdr[k]
 
         return outhdr
 
@@ -128,7 +137,6 @@ class OsCube(imf.Image):
         Make a wcs header for the slice, i.e., a set of 2d wcs information
         without the spectral information.
         """
-        # hdr = self.header
         w2dhdr = self.make_wcs2dhdr()
 
         """
@@ -137,13 +145,14 @@ class OsCube(imf.Image):
          container expects them to be
         The header information.
         """
+        # self['slice'] = WcsHDU(np.transpose(self.data[:, :, imslice]))
         self['slice'] = WcsHDU(np.transpose(self.data[:, :, imslice]), w2dhdr)
         self.prevdext = hext
 
         """ Display the image slice if requested """
         self.found_rms = False
         if display:
-            self.display(dmode='slice', mode=mode, 
+            self.display(dmode='slice', mode=mode,
                          title='Image Slice %d (zero-indexed)' % imslice,
                          **kwargs)
 
@@ -178,9 +187,9 @@ class OsCube(imf.Image):
         if verbose:
             print('')
             print('Creating a cube from original data with ranges:')
-            print('  x:      %d - %d' % (xmin,xmax))
-            print('  y:      %d - %d' % (ymin,ymax))
-            print('  lambda: %d - %d (slice number)' % (wmin,wmax))
+            print('  x:      %d - %d' % (xmin, xmax))
+            print('  y:      %d - %d' % (ymin, ymax))
+            print('  lambda: %d - %d (slice number)' % (wmin, wmax))
 
         """ Select the cube """
         cube = self.data[xmin:xmax, ymin:ymax, wmin:wmax]
@@ -194,7 +203,7 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def compress_spec(self, wlim=None, xlim=None, ylim=None, wmode='slice', 
+    def compress_spec(self, wlim=None, xlim=None, ylim=None, wmode='slice',
                       combmode='sum', hext=0, display=True, verbose=True,
                       **kwargs):
         """
@@ -269,7 +278,7 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def make_varspec(self, maskfile, verbose=True):
+    def make_varspec(self, maskfile, verbose=False):
         """
         Steps through the spectral slices and computes the statistics of
         the illuminated region and stores the clipped mean and variance
@@ -285,15 +294,18 @@ class OsCube(imf.Image):
         var = np.zeros(self.wsize)
 
         count = 0
-        for m, v in zip(mean, var):
-            self.set_imslice(count, display=False)
+        for i in range(self.wsize):
+            self.set_imslice(i, display=False)
             self['slice'].sigma_clip(mask=mask, verbose=False)
-            m = self['slice'].mean_clip
+            mean[i] = self['slice'].mean_clip
             r = self['slice'].rms_clip
-            v = r**2
+            var[i] = r**2
             if verbose:
-                print(count, m, r)
+                print(count, mean[i], r)
             count += 1
+
+        self.meanspec = mean
+        self.varspec = var
 
     # -----------------------------------------------------------------------
 
@@ -330,7 +342,7 @@ class OsCube(imf.Image):
             print(self.wav.size, flux.size)
 
         """
-        Make the variance spectrum if it has been requested by 
+        Make the variance spectrum if it has been requested by
         setting skyx and skyy
         """
         if skyx is not None and skyy is not None:
@@ -382,7 +394,7 @@ class OsCube(imf.Image):
         hdr = self.header.copy()
         hdr['history'] = 'Data have been spatially smoothed (gaussian)'
         hdr['smoothw'] = ('%5.1f' % kwidth,
-                            'Gaussian smoothing kernel width')
+                          'Gaussian smoothing kernel width')
         phdu = pf.PrimaryHDU(cube, hdr)
 
         """ Save the smoothed cube in an output file if desired """
@@ -399,7 +411,7 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def make_moment0(self, wlim, xlim, ylim, wmode='slice', combmode='sum', 
+    def make_moment0(self, wlim, xlim, ylim, wmode='slice', combmode='sum',
                      hext=0, display=True, verbose=True, **kwargs):
         """
 
@@ -419,12 +431,12 @@ class OsCube(imf.Image):
 
         """ Save the data in a moment0 attribute """
         self.moment0 = self.data.copy()
-        
+
     # -----------------------------------------------------------------------
 
     def save_xyl(self, outfits, outtext=None, **kwargs):
         """
-        
+
         Saves the data cube as a fits file but with the spectral axis
          as axis 3 (in fits parlance) rather than axis 1.
          The OSIRIS data reduction pipeline produces a data cube with
@@ -503,4 +515,3 @@ class OsCube(imf.Image):
 
         """ Clean up before exiting """
         del(tmp, tmphdu)
-
