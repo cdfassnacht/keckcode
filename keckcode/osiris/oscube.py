@@ -34,6 +34,26 @@ class OsCube(imf.Image):
         # super().__init__(self, indat, verbose=verbose) # Python 3 syntax
         print('Number of wavelength slices: %d' % self.header['naxis1'])
 
+        """
+        If indat is a file that has come out of the OSIRIS DRP, it will
+        contain additional HDUs.  Read those in if they exist
+        """
+        if isinstance(indat, str):
+            try:
+                test = pf.open(indat)
+            except IOError:
+                self.drphdu1 = None
+                self['mask'] = None
+                test.close()
+            else:
+                if len(test) == 3:
+                    self.drphdu1 = test[1].copy()
+                    self['mask'] = test[2].copy()
+                else:
+                    self.drphdu1 = None
+                    self['mask'] = None
+                test.close()
+
         """ Set up the wavelength vector based on the header information """
         hdr = self.header
         nwav = hdr['naxis1']
@@ -49,6 +69,9 @@ class OsCube(imf.Image):
         self.xsize = self.data.shape[0]
         self.ysize = self.data.shape[1]
         self.wsize = self.data.shape[2]
+
+        """ Create arrays of (x,y) coordinate values """
+        self.xcoords, self.ycoords = np.indices((self.xsize, self.ysize))
 
         """ Set default values """
         self.cube = None
@@ -82,7 +105,8 @@ class OsCube(imf.Image):
         hdr = self.header
         kwlist = ['bunit', 'bscale', 'bzero', 'itime', 'coadds', 'object',
                   'sfilter', 'sscale', 'telescop', 'instrume', 'elaptime',
-                  'filter']
+                  'filter', 'rotposn', 'instangl', 'ra', 'dec',
+                  'obfmxim', 'obfmyim', 'aotsx', 'aotsy']
         for k in kwlist:
             if k.upper() in hdr.keys():
                 outhdr[k] = hdr[k]
@@ -91,7 +115,7 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def set_imslice(self, imslice, hext=0, display=True, mode='xy',
+    def set_imslice(self, imslice, dmode='input', display=True, mode='xy',
                     **kwargs):
         """
         Sets the 2-dimension slice to use for the display functions.
@@ -146,8 +170,8 @@ class OsCube(imf.Image):
         The header information.
         """
         # self['slice'] = WcsHDU(np.transpose(self.data[:, :, imslice]))
-        self['slice'] = WcsHDU(np.transpose(self.data[:, :, imslice]), w2dhdr)
-        self.prevdext = hext
+        self['slice'] = WcsHDU(np.transpose(self[dmode].data[:, :, imslice]),
+                               w2dhdr)
 
         """ Display the image slice if requested """
         self.found_rms = False
@@ -159,7 +183,7 @@ class OsCube(imf.Image):
     # -----------------------------------------------------------------------
 
     def select_cube(self, wlim=None, xlim=None, ylim=None, wmode='slice',
-                    hext=0, verbose=False):
+                    dmode='input', verbose=False):
         """
         Creates a cube to analyze, defined by ranges in x, y, and wavelength.
         """
@@ -192,7 +216,7 @@ class OsCube(imf.Image):
             print('  lambda: %d - %d (slice number)' % (wmin, wmax))
 
         """ Select the cube """
-        cube = self.data[xmin:xmax, ymin:ymax, wmin:wmax]
+        cube = self[dmode].data[xmin:xmax, ymin:ymax, wmin:wmax]
         cubehdr = self.header.copy()
         cubehdr['crpix1'] -= wmin
         cubehdr['crpix2'] -= ymin
@@ -204,7 +228,7 @@ class OsCube(imf.Image):
     # -----------------------------------------------------------------------
 
     def compress_spec(self, wlim=None, xlim=None, ylim=None, wmode='slice',
-                      combmode='sum', hext=0, display=True, verbose=True,
+                      combmode='sum', display=True, verbose=True,
                       **kwargs):
         """
 
@@ -241,15 +265,13 @@ class OsCube(imf.Image):
                   % (wavmin, wavmax))
 
         """ Create a temporary cube container """
-        cube, cubehdr = self.select_cube(wlim, xlim, ylim, hext=hext,
-                                         verbose=verbose)
+        cube, cubehdr = self.select_cube(wlim, xlim, ylim, verbose=verbose)
 
         """ Compress the temporary cube along the spectral axis """
         if combmode == 'median':
             self['slice'] = WcsHDU(np.transpose(np.median(cube, axis=2)))
         else:
             self['slice'] = WcsHDU(np.transpose(cube.sum(axis=2)))
-        self.prevdext = hext
 
         """ Display the result if requested """
         if display:
@@ -260,7 +282,7 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def whitelight(self, combmode='sum', hext=0, display=True, verbose=True,
+    def whitelight(self, combmode='sum', display=True, verbose=True,
                    **kwargs):
         """
         Creates, and displays if requested, the "white light" image.
@@ -274,27 +296,164 @@ class OsCube(imf.Image):
 
         """ Set up for running compress_spec on the full data cube """
         self.compress_spec(wmode='slice', combmode=combmode,
-                           hext=hext, display=display, **kwargs)
+                           display=display, **kwargs)
 
     # -----------------------------------------------------------------------
 
-    def make_varspec(self, maskfile, verbose=False):
+    def make_moment0(self, wlim, xlim, ylim, wmode='slice', combmode='sum',
+                     display=True, verbose=True, **kwargs):
+        """
+
+        Makes the moment 0 (i.e., total flux) map of the science region
+        of the data cube.  The science region is defined by a wavelength
+        range (wlim), x-pixel range (xlim), and y-pixel range (ylim).
+
+        Essentially this method is just a front-end for the (barely) more
+        generic compress_spec method, with a perhaps easier to remember
+        name
+        """
+
+        """ Call compress_spec to create the 2-d moment0 image """
+        self.compress_spec(wlim, xlim, ylim, wmode=wmode, 
+                           combmode=combmode, display=display,
+                           verbose=verbose, **kwargs)
+
+        """ Save the data in a moment0 attribute """
+        self.moment0 = self.data.copy()
+
+    # -----------------------------------------------------------------------
+
+    def smooth_xy(self, kwidth, smtype='median', outfile=None):
+        """
+        Smooths the cube over the two spatial dimensions.
+        The type of smoothing set by the smtype parameter.  This could be one
+         of the following:
+           'gauss':   a circular gaussian with sigma=kwidth
+           'median':  a median filter with side length=kwidth
+           (more to come)
+         kwidth is given in pixels
+        """
+
+        """ Smooth the data """
+        data = self.data
+        sm = smtype.lower()
+        if sm == 'gauss' or sm == 'guass' or sm == 'gaussian':
+            cube = filters.gaussian_filter(data, sigma=[kwidth, kwidth, 0])
+        elif sm == 'median' or sm == 'medfilt':
+            cube = filters.median_filter(data, size=[kwidth, kwidth, 1])
+        else:
+            print('')
+            print('Smoothing type %s has not been implemented' % smtype)
+            print('')
+            raise NameError
+
+        """ Put the smoothed data into a new WcsHDU """
+        hdr = self.header.copy()
+        hdr['history'] = 'Data have been spatially smoothed (gaussian)'
+        hdr['smoothw'] = ('%5.1f' % kwidth,
+                          'Gaussian smoothing kernel width')
+        self['smooth'] = WcsHDU(cube, hdr)
+
+        """ Save the smoothed cube in an output file if desired """
+        if outfile:
+            print('')
+            print('Wrote smoothed data cube to %s' % outfile)
+            self['smooth'].writeto(outfile, overwrite=True)
+            print('')
+
+    # -----------------------------------------------------------------------
+
+    def clean(self, nsig1=5., nsig2=5., smtype='median', smsize=3,
+              verbose=False):
+        """
+
+        Does a bad-pixel cleaning, slice by slice.  The basic algorithm
+        is the following:
+           1. Create a smoothed (on the slices but not in wavelength) version
+              of the data using the smooth_xy method
+           2. Use the pixel-to-pixel variance for each plane (obtained
+              previously by running the make_varspec method) to flag pixels
+              that satisfy both of the following conditions:
+              A. Deviate from the clipped mean by more than nsig1 sigma
+              B. Deviate from the smoothed version of the data by more than
+                 nsig2 sigma
+              This should flag bad pixels without incorrectly flagging
+              pixels that are high due to the presence of a real astronomical
+              object
+           3. Replace the flagged pixels with the corresponding value in
+              the smooth data
+
+        """
+
+        """ Make sure that the variance spectrum exists """
+        if self.varspec is None:
+            print('')
+            print('In order to run the clean algorithm, you first have to '
+                  'run make_varspec')
+            print('')
+            return
+
+        """
+        Create a smoothed version of the data and subtract it from the
+        input data
+        """
+        data = self.data.copy()
+        self.smooth_xy(smsize, smtype)
+        diff = np.fabs(data - self['smooth'].data)
+
+        """
+        Step through the slices, flagging the pixels that differ too much
+        from both the clipped mean value and the smoothed data
+        """
+        if verbose:
+            print('')
+            print('Slice N_flag')
+            print('----- ------')
+        rms = np.sqrt(self.varspec)
+        for i, r in enumerate(rms):
+            slmean = self.meanspec[i]
+            data[:, :, i] -= slmean
+            smdat = self['smooth'].data[:, :, i] - slmean
+            mdiff = np.fabs(data[:, :, i])
+            mask = (mdiff > nsig1 * r) & (diff[:, :, i] > nsig2 * r)
+            data[:, :, i][mask] = smdat[mask]
+            if verbose:
+                print(' %3d  %5d' % (i, mask.sum()))
+
+        """ Save the cleaned cube """
+        self['clean'] = WcsHDU(data, self.header)
+
+    # -----------------------------------------------------------------------
+
+    def make_varspec(self, maskfile=None, verbose=False):
         """
         Steps through the spectral slices and computes the statistics of
         the illuminated region and stores the clipped mean and variance
         for each slice
         """
 
-        """ Get the mask from the mask file """
-        mhdu = pf.open(maskfile)
-        mask = mhdu[0].data.astype(bool)
+        """ Get the mask info """
+        if maskfile is not None:
+            mhdu = (pf.open(maskfile))[0]
+        elif self['mask'] is not None:
+            mhdu = self['mask']
+        else:
+            raise ValueError('No mask info in the input file')
+        maskdat = mhdu.data > 0
 
         """ Set up the containers to store the info """
         mean = np.zeros(self.wsize)
         var = np.zeros(self.wsize)
 
+        """ Loop through the slices, calculating the statistics of each """
+        print('Calculating variance spectrum.  Be patient.')
         count = 0
         for i in range(self.wsize):
+            if maskdat.ndim == 3:
+                self.set_imslice(i, dmode='mask', display=False)
+                mask = self['slice'].data.copy()
+            else:
+                mask = maskdat
             self.set_imslice(i, display=False)
             self['slice'].sigma_clip(mask=mask, verbose=False)
             mean[i] = self['slice'].mean_clip
@@ -309,13 +468,19 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def make_1dspec(self, x, y, hext=0, display=True,
+    def make_1dspec(self, reg, maskfile=None, display=True,
                     skyx=None, skyy=None, debug=False, **kwargs):
         """
-        Takes a spaxel or a rectangular region, designated by the (x, y)
-         coordinates and extracts the spectral information into a Spec1d
-         container.
+        Takes a spatial region of the cube, designated by the reg parameter,
+        and extracts the spectral information into a Spec1d container.
         Also plots the 1d spectrum if requested.
+
+        The reg parameter can be one of the following:
+          1. A single spaxel, designated by an (x,y) tuple or [x,y] list
+          2. A rectangular region, designated by an ((x1,x2), (y1,y2)) tuple
+             or a [[x1, x2], [y1, y2]] list
+          3. A boolean mask array, with the spaxels that are set to True
+             designating the region to use
 
         Returns: the Spec1d container (instance).
 
@@ -324,19 +489,44 @@ class OsCube(imf.Image):
         """ Set the data set to use """
         cube = self.data
 
-        if isinstance(x, int) and isinstance(y, int):
-            flux = cube[x, y, :]
-            npix = 1
-        elif (isinstance(x, list) or isinstance(x, tuple)) and \
-                (isinstance(y, list) or isinstance(y, tuple)):
-            """ Need to check lengths """
-            xmin = int(x[0])
-            xmax = int(x[1])
-            ymin = int(y[0])
-            ymax = int(y[1])
-            flux = cube[xmin:xmax, ymin:ymax, :].sum(axis=0)
-            flux = flux.sum(axis=0)
-            npix = (xmax - xmin) * (ymax - ymin)
+        """ Make the variance spectrum if it doesn't exist """
+        if self.varspec is None:
+            if maskfile is None:
+                print('')
+                raise ValueError('No maskfile given for make_varspec call')
+            self.make_varspec(maskfile)
+
+        """ Parse the reg parameter """
+        mask = None
+        if isinstance(reg, tuple) or isinstance(reg, list):
+            x = reg[0]
+            y = reg[1]
+
+            if isinstance(x, int) and isinstance(y, int):
+                flux = cube[x, y, :]
+                npix = 1
+
+            elif (isinstance(x, list) or isinstance(x, tuple)) and \
+                    (isinstance(y, list) or isinstance(y, tuple)):
+                """ Need to check lengths """
+                xmin = int(x[0])
+                xmax = int(x[1])
+                ymin = int(y[0])
+                ymax = int(y[1])
+                # flux = cube[xmin:xmax, ymin:ymax, :].sum(axis=0)
+                # flux = flux.sum(axis=0)
+                # npix = (xmax - xmin) * (ymax - ymin)
+                mask = (self.xcoords >= xmin) & (self.xcoords < xmax) \
+                    & (self.ycoords >= ymin) & (self.ycoords < ymax)
+
+            if mask is not None:
+                xx = self.xcoords[mask].flatten()
+                yy = self.ycoords[mask].flatten()
+                flux = np.zeros(self.wsize)
+                for i,j in zip(xx,yy):
+                    flux += cube[i, j, :]
+                npix = len(xx)
+
         if debug:
             print('npix: %d' % npix)
             print(self.wav.size, flux.size)
@@ -345,17 +535,17 @@ class OsCube(imf.Image):
         Make the variance spectrum if it has been requested by
         setting skyx and skyy
         """
-        if skyx is not None and skyy is not None:
-            skycube, hdr = self.select_cube(xlim=skyx, ylim=skyy,
-                                            hext=hext)
-            var = npix * skycube.var(axis=(0, 1))
-        else:
-            var = None
+        # if skyx is not None and skyy is not None:
+        #     skycube, hdr = self.select_cube(xlim=skyx, ylim=skyy)
+        #     var = npix * skycube.var(axis=(0, 1))
+        # else:
+        #     var = None
 
         """
         Make, and display if requested, the final spectrum.
         """
-        spec = ss.Spec1d(wav=self.wav, flux=flux, var=var)
+        var = self.varspec * npix
+        spec = ss.Spec1d(wav=self.wav, flux=flux, var=self.varspec)
 
         if display:
             spec.plot(**kwargs)
@@ -368,7 +558,7 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def click_1dspec(self, hext=0, xysmooth=1, **kwargs):
+    def click_1dspec(self, xysmooth=1, **kwargs):
         """
         An interactive interface to set_1dspec.  Produces the 1D spectrum
         associated with the spaxel that is clicked.
@@ -379,58 +569,20 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def smooth_xy(self, kwidth, hext=0, outfile=None):
-        """
-        Smooths the cube over the two spatial dimensions.
-        The smoothing is a circular gaussian with sigma=kwidth, and where
-         kwidth is given in pixels
+    def save_drp(self, dmode, outfile):
         """
 
-        """ Smooth the data """
-        data = self.data
-        cube = filters.gaussian_filter(data, sigma=[kwidth, kwidth, 0])
+        Save the cube in a format that will be recognized by the OSIRIS DRP
 
-        """ Put the smoothed data into a new HDU """
-        hdr = self.header.copy()
-        hdr['history'] = 'Data have been spatially smoothed (gaussian)'
-        hdr['smoothw'] = ('%5.1f' % kwidth,
-                          'Gaussian smoothing kernel width')
-        phdu = pf.PrimaryHDU(cube, hdr)
-
-        """ Save the smoothed cube in an output file if desired """
-        if outfile:
-            print('')
-            print('Wrote smoothed data cube to %s' % outfile)
-            phdu.writeto(outfile, overwrite=True)
-            print('')
-
-        """ Return the smoothed cube """
-        hdu = pf.HDUList()
-        hdu.append(phdu)
-        return hdu
-
-    # -----------------------------------------------------------------------
-
-    def make_moment0(self, wlim, xlim, ylim, wmode='slice', combmode='sum',
-                     hext=0, display=True, verbose=True, **kwargs):
         """
 
-        Makes the moment 0 (i.e., total flux) map of the science region
-        of the data cube.  The science region is defined by a wavelength
-        range (wlim), x-pixel range (xlim), and y-pixel range (ylim).
-
-        Essentially this method is just a front-end for the (barely) more
-        generic compress_spec method, with a perhaps easier to remember
-        name
-        """
-
-        """ Call compress_spec to create the 2-d moment0 image """
-        self.compress_spec(wlim, xlim, ylim, wmode=wmode, hext=hext,
-                           combmode=combmode, display=display,
-                           verbose=verbose, **kwargs)
-
-        """ Save the data in a moment0 attribute """
-        self.moment0 = self.data.copy()
+        phdu = pf.PrimaryHDU(self[dmode].data, self[dmode].header)
+        hdulist = pf.HDUList(phdu)
+        if self.drphdu1 is not None:
+            hdulist.append(self.drphdu1)
+        if self['mask'] is not None:
+            hdulist.append(self['mask'])
+        hdulist.writeto(outfile)
 
     # -----------------------------------------------------------------------
 
