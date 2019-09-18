@@ -43,15 +43,15 @@ class OsCube(imf.Image):
                 test = pf.open(indat)
             except IOError:
                 self.drphdu1 = None
-                self['mask'] = None
+                self.drphdu2 = None
                 test.close()
             else:
                 if len(test) == 3:
                     self.drphdu1 = test[1].copy()
-                    self['mask'] = test[2].copy()
+                    self.drphdu2 = test[2].copy()
                 else:
                     self.drphdu1 = None
-                    self['mask'] = None
+                    self.drphdu2 = None
                 test.close()
 
         """ Set up the wavelength vector based on the header information """
@@ -60,10 +60,17 @@ class OsCube(imf.Image):
         self.wav = np.arange(nwav)
         self.wav = hdr['crval1'] + self.wav * hdr['cdelt1']
 
-        """ Convert from nm to angstroms, including in the header """
-        self.wav *= 10.
-        hdr['crval1'] *= 10.
-        hdr['cdelt1'] *= 10.
+        """ Convert to angstroms if necessary """
+        if hdr['cunit1'] == 'nm':
+            self.wav *= 10.
+            hdr['crval1'] *= 10.
+            hdr['cdelt1'] *= 10.
+        elif hdr['cunit1'] == 'm':
+            self.wav *= 1.e10
+            hdr['crval1'] *= 1.e10
+            hdr['cdelt1'] *= 1.e10
+        else:
+            pass
 
         """ Save the sizes of the array in easily accessible form """
         self.xsize = self.data.shape[0]
@@ -228,8 +235,8 @@ class OsCube(imf.Image):
     # -----------------------------------------------------------------------
 
     def compress_spec(self, wlim=None, xlim=None, ylim=None, wmode='slice',
-                      combmode='sum', display=True, verbose=True,
-                      **kwargs):
+                      dmode='input', combmode='sum', display=True,
+                      verbose=True, **kwargs):
         """
 
         Compresses the data cube along the spectral dimension, but only
@@ -265,7 +272,8 @@ class OsCube(imf.Image):
                   % (wavmin, wavmax))
 
         """ Create a temporary cube container """
-        cube, cubehdr = self.select_cube(wlim, xlim, ylim, verbose=verbose)
+        cube, cubehdr = self.select_cube(wlim, xlim, ylim, dmode=dmode,
+                                         verbose=verbose)
 
         """ Compress the temporary cube along the spectral axis """
         if combmode == 'median':
@@ -363,6 +371,50 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
+    def make_varspec(self, maskfile=None, verbose=False):
+        """
+        Steps through the spectral slices and computes the statistics of
+        the illuminated region and stores the clipped mean and variance
+        for each slice
+        """
+
+        """ Get the mask info """
+        if maskfile is not None:
+            mhdu = (pf.open(maskfile))[0]
+            self['mask'] = WcsHDU(mhdu.data, mhdu.header)
+        elif self['mask'] is not None:
+            mhdu = self['mask']
+        else:
+            raise ValueError('No mask info in the input file')
+        maskdat = mhdu.data > 0
+
+        """ Set up the containers to store the info """
+        mean = np.zeros(self.wsize)
+        var = np.zeros(self.wsize)
+
+        """ Loop through the slices, calculating the statistics of each """
+        print('Calculating variance spectrum.  Be patient.')
+        count = 0
+        for i in range(self.wsize):
+            if maskdat.ndim == 3:
+                self.set_imslice(i, dmode='mask', display=False)
+                mask = self['slice'].data.copy()
+            else:
+                mask = maskdat
+            self.set_imslice(i, display=False)
+            self['slice'].sigma_clip(mask=mask, verbose=False)
+            mean[i] = self['slice'].mean_clip
+            r = self['slice'].rms_clip
+            var[i] = r**2
+            if verbose:
+                print(count, mean[i], r)
+            count += 1
+
+        self.meanspec = mean
+        self.varspec = var
+
+    # -----------------------------------------------------------------------
+
     def clean(self, nsig1=5., nsig2=5., smtype='median', smsize=3,
               verbose=False):
         """
@@ -425,46 +477,34 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def make_varspec(self, maskfile=None, verbose=False):
-        """
-        Steps through the spectral slices and computes the statistics of
-        the illuminated region and stores the clipped mean and variance
-        for each slice
+    def make_snrcube(self, maskfile=None):
         """
 
-        """ Get the mask info """
-        if maskfile is not None:
-            mhdu = (pf.open(maskfile))[0]
-        elif self['mask'] is not None:
-            mhdu = self['mask']
-        else:
-            raise ValueError('No mask info in the input file')
-        maskdat = mhdu.data > 0
+        Use the information in the variance spectrum to make a SNR cube
 
-        """ Set up the containers to store the info """
-        mean = np.zeros(self.wsize)
-        var = np.zeros(self.wsize)
+        """
 
-        """ Loop through the slices, calculating the statistics of each """
-        print('Calculating variance spectrum.  Be patient.')
-        count = 0
-        for i in range(self.wsize):
-            if maskdat.ndim == 3:
-                self.set_imslice(i, dmode='mask', display=False)
-                mask = self['slice'].data.copy()
-            else:
-                mask = maskdat
-            self.set_imslice(i, display=False)
-            self['slice'].sigma_clip(mask=mask, verbose=False)
-            mean[i] = self['slice'].mean_clip
-            r = self['slice'].rms_clip
-            var[i] = r**2
-            if verbose:
-                print(count, mean[i], r)
-            count += 1
+        """ Make sure that the variance spectrum exists """
+        if self.varspec is None:
+            print('')
+            print('In order to run the make_snrcube algorithm, you first have '
+                  'to run make_varspec')
+            print('')
+            return
 
-        self.meanspec = mean
-        self.varspec = var
+        """
+        Make a copy of the data cube and step through the slices, dividing
+        each by the associated rms value
+        """
+        cube = self.data.copy()
+        rms = np.sqrt(self.varspec)
+        mask = (np.transpose(self['mask'].data)).astype(float)
+        for i, r in enumerate(rms):
+            cube[:, :, i] *= (mask / r)
+
+        """ Save the result """
+        self['snr'] = WcsHDU(cube, self.header)
+        del(cube)
 
     # -----------------------------------------------------------------------
 
@@ -523,7 +563,7 @@ class OsCube(imf.Image):
                 xx = self.xcoords[mask].flatten()
                 yy = self.ycoords[mask].flatten()
                 flux = np.zeros(self.wsize)
-                for i,j in zip(xx,yy):
+                for i, j in zip(xx, yy):
                     flux += cube[i, j, :]
                 npix = len(xx)
 
@@ -580,8 +620,8 @@ class OsCube(imf.Image):
         hdulist = pf.HDUList(phdu)
         if self.drphdu1 is not None:
             hdulist.append(self.drphdu1)
-        if self['mask'] is not None:
-            hdulist.append(self['mask'])
+        if self.drphdu2 is not None:
+            hdulist.append(self.drphdu2)
         hdulist.writeto(outfile)
 
     # -----------------------------------------------------------------------
