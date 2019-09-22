@@ -6,6 +6,7 @@ oscube.py
 
 import numpy as np
 from scipy.ndimage import filters
+from astropy import wcs
 from astropy.io import fits as pf
 from specim import imfuncs as imf
 from specim import specfuncs as ss
@@ -89,13 +90,13 @@ class OsCube(imf.Image):
     # -----------------------------------------------------------------------
 
     # Actually, don't use this syntax below unless required.  See the
-    #  @property calls in dispparam.py
+    #  @property calls in dispparam.py for examples
     #
     # imslice = property(fget=get_imslice, fset=set_imslice)
 
     # -----------------------------------------------------------------------
 
-    def make_wcs2dhdr(self):
+    def make_wcs2dhdr(self, hdr='default'):
         """
 
         Takes the input WCS information for the cube (3 dimesions, including
@@ -104,8 +105,13 @@ class OsCube(imf.Image):
         spatial direction.
         """
 
+        """ Select the WCS information to use """
+        if hdr == 'default':
+            hdr = self.header
+        wcsinfo = wcs.WCS(hdr)
+
         """ Get the WCS information """
-        outwcs = self.wcsinfo.celestial.swapaxes(0, 1)
+        outwcs = wcsinfo.celestial.swapaxes(0, 1)
         outhdr = outwcs.to_header()
 
         """ Add other important info """
@@ -275,11 +281,19 @@ class OsCube(imf.Image):
         cube, cubehdr = self.select_cube(wlim, xlim, ylim, dmode=dmode,
                                          verbose=verbose)
 
+        """
+        Make a wcs header for the slice that will be the output of the
+        compression, i.e., a set of 2d wcs information without the spectral
+        information.
+        """
+        w2dhdr = self.make_wcs2dhdr(hdr=cubehdr)
+
         """ Compress the temporary cube along the spectral axis """
         if combmode == 'median':
-            self['slice'] = WcsHDU(np.transpose(np.median(cube, axis=2)))
+            self['slice'] = WcsHDU(np.transpose(np.median(cube, axis=2)),
+                                   w2dhdr)
         else:
-            self['slice'] = WcsHDU(np.transpose(cube.sum(axis=2)))
+            self['slice'] = WcsHDU(np.transpose(cube.sum(axis=2)), w2dhdr)
 
         """ Display the result if requested """
         if display:
