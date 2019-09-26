@@ -66,10 +66,12 @@ class OsCube(imf.Image):
             self.wav *= 10.
             hdr['crval1'] *= 10.
             hdr['cdelt1'] *= 10.
+            hdr['cunit1'] = 'Angstrom'
         elif hdr['cunit1'] == 'm':
             self.wav *= 1.e10
             hdr['crval1'] *= 1.e10
             hdr['cdelt1'] *= 1.e10
+            hdr['cunit1'] = 'Angstrom'
         else:
             pass
 
@@ -96,6 +98,43 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
+    def brief_header(self, dmode='input'):
+        """
+
+        Returns an abbreviated version of the header, with a lot of the
+        keywords associated with, e.g., instrument temperature, etc.,
+        stripped out.
+
+        NOTE: the returned header card do NOT include any associated with
+        WCS information, since other methods associated with this class
+        can change the WCS values.
+        """
+
+        """ Make a new blank header """
+        outhdr = pf.header.Header()
+
+        """ Set the original header """
+        inhdr = self[dmode].header
+
+        """
+        Set the list of header cards to be saved, if they are present in
+        the original header
+        """
+        klist = ['object', 'telescop', 'instrume', 'bunit', 'bscale', 'bzero',
+                 'itime', 'coadds', 'sampmode','numreads', 'saturate',
+                 'instr', 'pscale', 'pa_spec', 'sfilter', 'targwave',
+                 'airmass', 'filter', 'rotposn', 'instangl', 'ra', 'dec',
+                 'obfmxim', 'obfmyim', 'aotsx', 'aotsy']
+
+        """ Copy the information from the original header """
+        for k in klist:
+            if k.upper() in inhdr.keys():
+                outhdr[k] = inhdr[k]
+
+        return outhdr
+
+    # -----------------------------------------------------------------------
+
     def make_wcs2dhdr(self, hdr='default'):
         """
 
@@ -115,14 +154,9 @@ class OsCube(imf.Image):
         outhdr = outwcs.to_header()
 
         """ Add other important info """
-        hdr = self.header
-        kwlist = ['bunit', 'bscale', 'bzero', 'itime', 'coadds', 'object',
-                  'sfilter', 'sscale', 'telescop', 'instrume', 'elaptime',
-                  'filter', 'rotposn', 'instangl', 'ra', 'dec',
-                  'obfmxim', 'obfmyim', 'aotsx', 'aotsy']
-        for k in kwlist:
-            if k.upper() in hdr.keys():
-                outhdr[k] = hdr[k]
+        tmphdr = self.brief_header()
+        for k in tmphdr.keys():
+            outhdr[k] = tmphdr[k]
 
         return outhdr
 
