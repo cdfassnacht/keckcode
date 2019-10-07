@@ -85,6 +85,7 @@ class OsCube(imf.Image):
 
         """ Set default values """
         self.cube = None
+        self.mask = None
         self.moment0 = None
         self.meanspec = None
         self.varspec = None
@@ -95,6 +96,26 @@ class OsCube(imf.Image):
     #  @property calls in dispparam.py for examples
     #
     # imslice = property(fget=get_imslice, fset=set_imslice)
+
+    # -----------------------------------------------------------------------
+
+    def read_maskfile(self, maskfile):
+        """
+
+        Reads an external file that will be used as a mask for the
+        spatial data.  The data in the file should be set up so that
+        values > 0 indicate good data, while 0 indicates bad data.
+        The information gets saved as the 'mask' attribute of the class,
+        which is a boolean array.
+
+        """
+
+        """
+        Load the information from the file and convert the data into
+        a boolean format
+        """
+        mhdu = WcsHDU(maskfile)
+        self.mask = mhdu.data > 0.
 
     # -----------------------------------------------------------------------
 
@@ -122,9 +143,9 @@ class OsCube(imf.Image):
         """
         klist = ['object', 'telescop', 'instrume', 'bunit', 'bscale', 'bzero',
                  'itime', 'coadds', 'sampmode','numreads', 'saturate',
-                 'instr', 'pscale', 'pa_spec', 'sfilter', 'targwave',
-                 'airmass', 'filter', 'rotposn', 'instangl', 'ra', 'dec',
-                 'obfmxim', 'obfmyim', 'aotsx', 'aotsy']
+                 'detgain', 'instr', 'pscale', 'pa_spec', 'sfilter',
+                 'airmass', 'filter', 'rotposn', 'instangl', 'targwave',
+                 'ra', 'dec', 'obfmxim', 'obfmyim', 'aotsx', 'aotsy']
 
         """ Copy the information from the original header """
         for k in klist:
@@ -419,22 +440,76 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def make_varspec(self, maskfile=None, verbose=False):
+    def slice_stats(self, imslice, verbose=False, debug=False):
+        """
+
+        Calculates a mean and variance associated with the selected slice.
+        The statistics are calculated within the good region of the slice,
+         which is set by the mask if a mask is given.
+        The returned values are the clipped mean and the square of the
+         clipped rms, where "clipped" means that the statistics are
+         calculated after a sigma-clipping routine that rejects obvious
+         outliers has been run.
+
+        Required inputs:
+         imslice - the image slice for which the statistics are calculated
+
+        Optional inputs:
+         verbose - Report the image statistics?
+
+        """
+
+        """ Get the 2-dimensional mask that is appropriate for this slice """
+        if self.mask.ndim == 3:
+            mask2d = self.mask[:, :, imslice]
+        else:
+            mask2d = self.mask
+
+        """
+        Select the requested slice from the science data cube and calculate
+         its statistics
+        """
+        self.set_imslice(imslice, display=False)
+        self['slice'].sigma_clip(mask=mask2d, verbose=False)
+        mean = self['slice'].mean_clip
+        r = self['slice'].rms_clip
+        var = r**2
+        if debug:
+            print('Total pixels in slice: %d' % self['slice'].data.size)
+            print('Number of good pixels: %d' % mask2d.sum())
+            self['slice'].sigma_clip(verbose=False)
+            print('Unmasked rms: %f' % self['slice'].rms_clip)
+            print('Masked rms:   %f' % r)
+            print('')
+
+        """
+        Report statistics, if requested, and return the mean and variance
+        """
+        if verbose:
+            print(imslice, mean, r)
+        return mean, var
+
+    # -----------------------------------------------------------------------
+
+    def make_varspec(self, maskfile=None, outfile=None, outformat='text',
+                     verbose=False):
         """
         Steps through the spectral slices and computes the statistics of
         the illuminated region and stores the clipped mean and variance
-        for each slice
+        for each slice.
+
+        If requested, this method also saves the variance spectrum in
+        an external file, for later use.
         """
 
         """ Get the mask info """
         if maskfile is not None:
-            mhdu = (pf.open(maskfile))[0]
-            self['mask'] = WcsHDU(mhdu.data, mhdu.header)
-        elif self['mask'] is not None:
-            mhdu = self['mask']
+            self.read_maskfile(maskfile)
+            maskdat = self.mask
+        elif self.mask is not None:
+            maskdat = self.mask
         else:
             raise ValueError('No mask info in the input file')
-        maskdat = mhdu.data > 0
 
         """ Set up the containers to store the info """
         mean = np.zeros(self.wsize)
@@ -442,29 +517,21 @@ class OsCube(imf.Image):
 
         """ Loop through the slices, calculating the statistics of each """
         print('Calculating variance spectrum.  Be patient.')
-        count = 0
         for i in range(self.wsize):
-            if maskdat.ndim == 3:
-                self.set_imslice(i, dmode='mask', display=False)
-                mask = self['slice'].data.copy()
-            else:
-                mask = maskdat
-            self.set_imslice(i, display=False)
-            self['slice'].sigma_clip(mask=mask, verbose=False)
-            mean[i] = self['slice'].mean_clip
-            r = self['slice'].rms_clip
-            var[i] = r**2
-            if verbose:
-                print(count, mean[i], r)
-            count += 1
+            mean[i], var[i] = self.slice_stats(i, maskdat, verbose)
 
         self.meanspec = mean
         self.varspec = var
 
+        """ Save the variance spectrum, if requested """
+        if outfile is not None:
+            tmpspec = ss.Spec1d(wav=self.wav, flux=self.varspec)
+            tmpspec.save(outfile, outformat=outformat)
+
     # -----------------------------------------------------------------------
 
     def clean(self, nsig1=5., nsig2=5., smtype='median', smsize=3,
-              verbose=False):
+              skysub=True, verbose=False):
         """
 
         Does a bad-pixel cleaning, slice by slice.  The basic algorithm
@@ -511,14 +578,25 @@ class OsCube(imf.Image):
             print('----- ------')
         rms = np.sqrt(self.varspec)
         for i, r in enumerate(rms):
-            slmean = self.meanspec[i]
-            data[:, :, i] -= slmean
+            """ Subtract the sky if requested """
+            if skysub:
+                slmean = self.meanspec[i]
+            else:
+                slmean = 0.
             smdat = self['smooth'].data[:, :, i] - slmean
-            mdiff = np.fabs(data[:, :, i])
+            mdiff = np.fabs(data[:, :, i] - slmean)
+            data[:, :, i] -= slmean
             mask = (mdiff > nsig1 * r) & (diff[:, :, i] > nsig2 * r)
             data[:, :, i][mask] = smdat[mask]
             if verbose:
                 print(' %3d  %5d' % (i, mask.sum()))
+
+            """
+            Make sure that the regions outside the illuminated part of the
+            chip are set to zero, since they may have been set to a non-zero
+            value in the sky subtraction
+            """
+            data[np.logical_not(self.mask)] = 0.
 
         """ Save the cleaned cube """
         self['clean'] = WcsHDU(data, self.header)
@@ -546,7 +624,7 @@ class OsCube(imf.Image):
         """
         cube = self.data.copy()
         rms = np.sqrt(self.varspec)
-        mask = (np.transpose(self['mask'].data)).astype(float)
+        mask = (np.transpose(self.mask)).astype(float)
         for i, r in enumerate(rms):
             cube[:, :, i] *= (mask / r)
 
