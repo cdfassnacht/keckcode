@@ -4,6 +4,7 @@ oscube.py
 
 """
 
+from os import path
 import numpy as np
 from scipy.ndimage import filters
 from astropy import wcs
@@ -83,6 +84,9 @@ class OsCube(imf.Image):
         """ Create arrays of (x,y) coordinate values """
         self.xcoords, self.ycoords = np.indices((self.xsize, self.ysize))
 
+        """ Get information about the observations """
+        self.obsinfo()
+
         """ Set default values """
         self.cube = None
         self.mask = None
@@ -96,6 +100,26 @@ class OsCube(imf.Image):
     #  @property calls in dispparam.py for examples
     #
     # imslice = property(fget=get_imslice, fset=set_imslice)
+
+    # -----------------------------------------------------------------------
+
+    def obsinfo(self):
+        """
+
+        Uses the input filename to get information about the observational
+        setup, assuming a standard filename from the OSIRIS data reduction
+        pipeline.  Extracts the following parameters:
+          obsdate (e.g., 20190908)
+          lenslet size (e.g., 100)
+          filter (e.g., Kn1)
+
+        """
+
+        name = path.basename(self.infile)
+        pars = name.split('_')
+        self.obsdate = pars[0].replace('s', '20')
+        self.filt = pars[2]
+        self.lenslet = pars[3].split('.')[0]
 
     # -----------------------------------------------------------------------
 
@@ -239,7 +263,7 @@ class OsCube(imf.Image):
         """
         # self['slice'] = WcsHDU(np.transpose(self.data[:, :, imslice]))
         self['slice'] = WcsHDU(np.transpose(self[dmode].data[:, :, imslice]),
-                               w2dhdr)
+                               w2dhdr, wcsverb=False)
 
         """ Display the image slice if requested """
         self.found_rms = False
@@ -247,6 +271,21 @@ class OsCube(imf.Image):
             self.display(dmode='slice', mode=mode,
                          title='Image Slice %d (zero-indexed)' % imslice,
                          **kwargs)
+
+    # -----------------------------------------------------------------------
+
+    def slice_cube(self, dmode='input', outroot='slice'):
+        """
+
+        Splits the cube into all of its individual slices and saves them
+        to disk
+
+        """
+
+        for w in range(self.wslice):
+            self.set_imslice(w, dmode=dmode, display=False)
+            outname = '%s_%03d.fits' % (outroot, w)
+            self['slice'].writeto(outname)
 
     # -----------------------------------------------------------------------
 
@@ -518,7 +557,7 @@ class OsCube(imf.Image):
         """ Loop through the slices, calculating the statistics of each """
         print('Calculating variance spectrum.  Be patient.')
         for i in range(self.wsize):
-            mean[i], var[i] = self.slice_stats(i, maskdat, verbose)
+            mean[i], var[i] = self.slice_stats(i, verbose=verbose)
 
         self.meanspec = mean
         self.varspec = var
@@ -596,7 +635,7 @@ class OsCube(imf.Image):
             chip are set to zero, since they may have been set to a non-zero
             value in the sky subtraction
             """
-            data[np.logical_not(self.mask)] = 0.
+            data[np.transpose(np.logical_not(self.mask))] = 0.
 
         """ Save the cleaned cube """
         self['clean'] = WcsHDU(data, self.header)
