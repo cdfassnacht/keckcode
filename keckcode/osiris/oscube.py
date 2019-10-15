@@ -484,7 +484,8 @@ class OsCube(imf.Image):
 
         Calculates a mean and variance associated with the selected slice.
         The statistics are calculated within the good region of the slice,
-         which is set by the mask if a mask is given.
+         which is set by the mask if the mask has been loaded into the
+         OsCube object.
         The returned values are the clipped mean and the square of the
          clipped rms, where "clipped" means that the statistics are
          calculated after a sigma-clipping routine that rejects obvious
@@ -548,7 +549,7 @@ class OsCube(imf.Image):
         elif self.mask is not None:
             maskdat = self.mask
         else:
-            raise ValueError('No mask info in the input file')
+            raise ValueError('No mask info has been provided')
 
         """ Set up the containers to store the info """
         mean = np.zeros(self.wsize)
@@ -560,12 +561,33 @@ class OsCube(imf.Image):
             mean[i], var[i] = self.slice_stats(i, verbose=verbose)
 
         self.meanspec = mean
-        self.varspec = var
+        self.varspec = ss.Spec1d(wav=self.wav, flux=var)
 
         """ Save the variance spectrum, if requested """
         if outfile is not None:
-            tmpspec = ss.Spec1d(wav=self.wav, flux=self.varspec)
-            tmpspec.save(outfile, outformat=outformat)
+            self.varspec.save(outfile, outformat=outformat)
+
+    # -----------------------------------------------------------------------
+
+    def make_varcube(self, maskfile=None, **kwargs):
+        """
+
+        Takes the 1-dimensional variance spectrum and converts it into a
+         3-dimensional data cube, where each slice is created by multiplying
+         an integer version of the mask (where 1 is good and 0 and bad) by
+         the variance that has been computed for that slice.
+        This method requires that the make_varspec method has been run
+         first.
+
+        """
+
+        """ Make the variance spectrum if it has not already been done """
+        if self.varspec is None:
+            self.make_varspec(maskfile, **kwargs)
+
+        """ Now create the variance cube """
+        self['var'] = WcsHDU(self.data, self.header)
+        self['var'].data *= 0.
 
     # -----------------------------------------------------------------------
 
@@ -615,7 +637,7 @@ class OsCube(imf.Image):
             print('')
             print('Slice N_flag')
             print('----- ------')
-        rms = np.sqrt(self.varspec)
+        rms = np.sqrt(self.varspec['flux'])
         for i, r in enumerate(rms):
             """ Subtract the sky if requested """
             if skysub:
@@ -662,7 +684,7 @@ class OsCube(imf.Image):
         each by the associated rms value
         """
         cube = self.data.copy()
-        rms = np.sqrt(self.varspec)
+        rms = np.sqrt(self.varspec['flux'])
         mask = (np.transpose(self.mask)).astype(float)
         for i, r in enumerate(rms):
             cube[:, :, i] *= (mask / r)
@@ -749,8 +771,8 @@ class OsCube(imf.Image):
         """
         Make, and display if requested, the final spectrum.
         """
-        var = self.varspec * npix
-        spec = ss.Spec1d(wav=self.wav, flux=flux, var=self.varspec)
+        var = self.varspec['flux'] * npix
+        spec = ss.Spec1d(wav=self.wav, flux=flux, var=var)
 
         if display:
             spec.plot(**kwargs)
