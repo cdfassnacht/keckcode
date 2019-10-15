@@ -501,7 +501,7 @@ class OsCube(imf.Image):
 
         """ Get the 2-dimensional mask that is appropriate for this slice """
         if self.mask.ndim == 3:
-            mask2d = self.mask[:, :, imslice]
+            mask2d = np.transpose(self.mask[:, :, imslice])
         else:
             mask2d = self.mask
 
@@ -585,9 +585,22 @@ class OsCube(imf.Image):
         if self.varspec is None:
             self.make_varspec(maskfile, **kwargs)
 
-        """ Now create the variance cube """
+        """ Create the container for the variance cube """
         self['var'] = WcsHDU(self.data, self.header)
         self['var'].data *= 0.
+
+        """ Step through the slices, making each one a 2d variance slice """
+        for imslice, var in enumerate(self.varspec['flux']):
+            """
+            Get the 2-dimensional mask that is appropriate for this slice
+            """
+            if self.mask.ndim == 3:
+                mask2d = self.mask[:, :, imslice]
+            else:
+                mask2d = np.transpose(self.mask)
+
+            """ Set the good pixels to the variance value for the slice """
+            self['var'].data[:, :, imslice][mask2d] = var
 
     # -----------------------------------------------------------------------
 
