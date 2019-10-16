@@ -138,7 +138,7 @@ class OsCube(imf.Image):
         Load the information from the file and convert the data into
         a boolean format
         """
-        mhdu = WcsHDU(maskfile)
+        mhdu = WcsHDU(maskfile, wcsverb=False)
         self.mask = mhdu.data > 0.
 
     # -----------------------------------------------------------------------
@@ -528,6 +528,31 @@ class OsCube(imf.Image):
         if verbose:
             print(imslice, mean, r)
         return mean, var
+
+    # -----------------------------------------------------------------------
+
+    def read_varspec(self, varfile, maskfile, **kwargs):
+        """
+
+        Reads a previously-generated variance spectrum into the OsCube object.
+        The reason for having a method to do this is that the make_varspec
+         code takes a long time to run (on a laptop) and rather than re-running
+         make_varspec multiple times (e.g., when testing code changes), it
+         is much faster to save the variance spectrum and then read it in
+         for subsequent runs.
+
+        Inputs:
+         varfile  - file containing the variance spectrum
+         maskfile - file containing the mask that was used when initially
+                     creating the variance spectrum.  This is included because
+                     other methods in the OsCube class assume that if a
+                     variance spectrum exists then the mask file also exists.
+         **kwargs - arguments associated with initializing a Spec1d object
+
+        """
+
+        self.varspec = ss.Spec1d(varfile, **kwargs)
+        self.read_maskfile(maskfile)
 
     # -----------------------------------------------------------------------
 
