@@ -847,7 +847,7 @@ class OsCube(imf.Image):
             hdulist.append(self.drphdu1)
         if self.drphdu2 is not None:
             hdulist.append(self.drphdu2)
-        hdulist.writeto(outfile)
+        hdulist.writeto(outfile, overwrite=True)
 
     # -----------------------------------------------------------------------
 
