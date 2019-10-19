@@ -32,8 +32,18 @@ class CubeSet(list):
         Option 2: List of already existing OsCubeinstances
         Option 3: A filename, where the file contains within it a list
          of input files
+         - Within this option is a specialized format for the coadd, which
+           can be chosen by setting informat='coadd'
+           For this option, the file must have the following columns:
+             File G CRVAL1 CRVAL2 CRPIX1 CRPIX2
+           where the column names are fairly self-explanatory except for G,
+           which is either 0 or 1 and indicates whether the file is
+           good (G=1) or bad (G=0)
 
         """
+
+        """ Set default values """
+        self.info = None
 
         """
         First check to see if inlist is a list, of either filenames (strings)
@@ -65,17 +75,29 @@ class CubeSet(list):
         elif isinstance(inlist, str):
             """ Option 3: a file containing a list of filenames """
             try:
-                if informat is not None:
-                    intab = ascii.read(inlist, guess=False, format=informat)
-                else:
+                if informat == 'coadd' or informat is None:
                     intab = ascii.read(inlist)
+                else:
+                    intab = ascii.read(inlist, guess=False, format=informat)
             except IOError:
                 print('')
                 print('Could not open requested file: %s' % inlist)
                 print('')
                 return
 
-            for f in intab.columns[0]:
+            """
+            Read in the files.
+            If informat is 'coadd', then use the G column to only select
+             the good files
+            """
+            if informat == 'coadd':
+                goodtab = intab[intab['G'] == 1]
+                flist = goodtab['File']
+                self.info = goodtab
+            else:
+                flist = intab.columns[0]
+                self.info = intab
+            for f in flist:
                 try:
                     cube = OsCube(f)
                 except IOError:
@@ -94,19 +116,11 @@ class CubeSet(list):
 
         """
 
-        """ Set up the mask file """
-        if maskfile == 'default':
-            s0 = self[0]
-            mfile = 'mask_%s_%s.fits' % (s0.filt, s0.lenslet)
-            maskfile = os.path.join(maskdir, mfile)
-            if debug:
-                print(maskfile)
-
         """
         Read the mask file into the first cube, and then copy it to the
         subsequent cubes
         """
-        self[0].read_maskfile(maskfile)
+        self[0].read_maskfile(maskfile, maskdir)
         for i in range(1, len(self)):
             self[i].mask = self[0].mask.copy()
 

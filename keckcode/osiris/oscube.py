@@ -21,7 +21,7 @@ class OsCube(imf.Image):
     A class used to visualize and analyze OSIRIS data
     """
 
-    def __init__(self, indat, verbose=True):
+    def __init__(self, indat, maskfile=None, verbose=True):
         """
         Loads in an OSIRIS data cube that was processed through the
         standard data reduction pipeline and, possibly, has had some
@@ -94,6 +94,10 @@ class OsCube(imf.Image):
         self.meanspec = None
         self.varspec = None
 
+        """ Load a mask file if one has been provided """
+        if maskfile is not None:
+            self.read_maskfile(maskfile)
+
     # -----------------------------------------------------------------------
 
     # Actually, don't use this syntax below unless required.  See the
@@ -106,24 +110,30 @@ class OsCube(imf.Image):
     def obsinfo(self):
         """
 
-        Uses the input filename to get information about the observational
-        setup, assuming a standard filename from the OSIRIS data reduction
-        pipeline.  Extracts the following parameters:
+        Extracts the following parameters from the fits header, if available.
           obsdate (e.g., 20190908)
           lenslet size (e.g., 100)
           filter (e.g., Kn1)
 
         """
 
-        name = path.basename(self.infile)
-        pars = name.split('_')
-        self.obsdate = pars[0].replace('s', '20')
-        self.filt = pars[2]
-        self.lenslet = pars[3].split('.')[0]
+        hdr = self.header
+        try:
+            self.obsdate = (hdr['date-obs']).replace('-', '')
+        except KeyError:
+            self.obsdate = 'DateUnknown'
+        try:
+            self.filt = hdr['sfilter']
+        except KeyError:
+            self.filt = 'FiltUnknown'
+        try:
+            self.lenslet = int(float(hdr['sscale']) * 1000)
+        except KeyError:
+            self.lenslet = -999
 
     # -----------------------------------------------------------------------
 
-    def read_maskfile(self, maskfile):
+    def read_maskfile(self, maskfile, maskdir='../Clean', debug=False):
         """
 
         Reads an external file that will be used as a mask for the
@@ -133,6 +143,16 @@ class OsCube(imf.Image):
         which is a boolean array.
 
         """
+
+        """ Set up the mask filename if 'default' was chosen """
+        if maskfile == 'default':
+            mfile = 'mask_%s_%s.fits' % (self.filt, self.lenslet)
+            if maskdir is not None:
+                maskfile = os.path.join(maskdir, mfile)
+            else:
+                maskfile = mfile
+            if debug:
+                print(maskfile)
 
         """
         Load the information from the file and convert the data into
@@ -167,7 +187,8 @@ class OsCube(imf.Image):
         """
         klist = ['object', 'telescop', 'instrume', 'bunit', 'bscale', 'bzero',
                  'itime', 'coadds', 'sampmode','numreads', 'saturate',
-                 'detgain', 'instr', 'pscale', 'pa_spec', 'sfilter',
+                 'elaptime', 'date-obs', 'mjd-obs', 
+                 'detgain', 'instr', 'pscale', 'pa_spec', 'sfilter', 'sscale',
                  'airmass', 'filter', 'rotposn', 'instangl', 'targwave',
                  'ra', 'dec', 'obfmxim', 'obfmyim', 'aotsx', 'aotsy']
 
@@ -177,6 +198,18 @@ class OsCube(imf.Image):
                 outhdr[k] = inhdr[k]
 
         return outhdr
+
+    # -----------------------------------------------------------------------
+
+    def update_radec(self, crpix, crval, outfile=None, dmode='input'):
+        """
+
+        Updates the RA and Dec keywords 
+
+
+        """
+
+        print('NOT YET IMPLEMENTED')
 
     # -----------------------------------------------------------------------
 
@@ -455,8 +488,10 @@ class OsCube(imf.Image):
         sm = smtype.lower()
         if sm == 'gauss' or sm == 'guass' or sm == 'gaussian':
             cube = filters.gaussian_filter(data, sigma=[kwidth, kwidth, 0])
+            smotype = 'Gaussian'
         elif sm == 'median' or sm == 'medfilt':
             cube = filters.median_filter(data, size=[kwidth, kwidth, 1])
+            smotype = 'Median filter'
         else:
             print('')
             print('Smoothing type %s has not been implemented' % smtype)
@@ -465,9 +500,10 @@ class OsCube(imf.Image):
 
         """ Put the smoothed data into a new WcsHDU """
         hdr = self.header.copy()
-        hdr['history'] = 'Data have been spatially smoothed (gaussian)'
+        hdr['history'] = 'Data have been spatially smoothed'
+        hdr['smotype'] = smotype
         hdr['smoothw'] = ('%5.1f' % kwidth,
-                          'Gaussian smoothing kernel width')
+                          'Smoothing kernel width')
         self['smooth'] = WcsHDU(cube, hdr)
 
         """ Save the smoothed cube in an output file if desired """
