@@ -23,7 +23,8 @@ class CubeSet(list):
 
     # ------------------------------------------------------------------------
 
-    def __init__(self, inlist, informat=None, verbose=True):
+    def __init__(self, inlist, informat=None, indir=None, maskfile=None,
+                 verbose=True):
         """
 
         There are three ways to create a Cubeset instance
@@ -98,11 +99,19 @@ class CubeSet(list):
                 flist = intab.columns[0]
                 self.info = intab
             for f in flist:
+                if indir is 'fromfile':
+                    osirisdir = os.getenv('osiris')
+                    obsdir = (f.split('_')[0]).replace('s', '20')
+                    infile = os.path.join(osirisdir, obsdir, 'Clean', f)
+                elif indir is not None:
+                    infile = os.path.join(indir, f)
+                else:
+                    infile = f
                 try:
-                    cube = OsCube(f)
+                    cube = OsCube(infile)
                 except IOError:
                     print('')
-                    print('Could not open requested file: %s' % f)
+                    print('Could not open requested file: %s' % infile)
                     return
                 self.append(cube)
 
@@ -143,8 +152,8 @@ class CubeSet(list):
 
     # ------------------------------------------------------------------------
 
-    def coadd(self, configfile, outfile, testslice='default', testonly=False,
-              slroot='tmp', wmin=None, wmax=None, verbose=True, **kwargs):
+    def coadd(self, configfile, outfile, wlim=None, testslice='default',
+              testonly=False, slroot='slice', verbose=True, **kwargs):
         """
 
         Coadd the cubes through calls to swarp
@@ -152,10 +161,15 @@ class CubeSet(list):
 
         """
 
-        """ Set the actual range of wavelength slices to use """
-        if wmin is None:
+        """
+        Get the range of wavelength slices to extract from the cube.
+        The default is to use the full wavelength range.
+        """
+        if wlim is not None:
+            wmin = wlim[0]
+            wmax = wlim[1]
+        else:
             wmin = 0
-        if wmax is None:
             wmax = self[0].wsize
 
         """
@@ -168,8 +182,20 @@ class CubeSet(list):
         for i, c in enumerate(self):
             c.set_imslice(testslice, display=False)
             outname = '%s_%02d.fits' % (slroot, i)
+            outwht = outname.replace('.fits', '_wht.fits')
+            hdr = c['slice'].header
+            if 'ELAPTIME' in hdr.keys():
+                hdr['exptime'] = hdr['elaptime']
+            elif 'ITIME' in hdr.keys():
+                hdr['exptime'] = hdr['itime'] / 1000.
             c['slice'].writeto(outname, overwrite=True)
+            pf.PrimaryHDU(c.mask.astype(int),
+                          hdr).writeto(outwht, overwrite=True)
         os.system('swarp %s*fits -c swarp_coseye.config' % slroot)
+
+        """ If the testonly mode has been requested, quit here """
+        if testonly:
+            return
 
         """
         Get the relevent information out of the test file, and then delete
@@ -191,4 +217,4 @@ class CubeSet(list):
             print('Splitting the cubes into slices')
         for i, c in enumerate(self):
             outroot = '%s_%i' % (slroot, i)
-            c.slice_cube(outroot=outroot)
+            c.slice_cube(wlim=wlim, outroot=outroot)

@@ -317,7 +317,7 @@ class OsCube(imf.Image):
         """
 
         """
-        Get the range of redshift slices to extract from the cube.
+        Get the range of wavelength slices to extract from the cube.
         The default is to use the full wavelength range.
         """
         if wlim is not None:
