@@ -307,7 +307,8 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def slice_cube(self, dmode='input', outroot='slice'):
+    def slice_cube(self, wlim=None, dmode='input', outroot='slice',
+                   debug=False):
         """
 
         Splits the cube into all of its individual slices and saves them
@@ -315,10 +316,37 @@ class OsCube(imf.Image):
 
         """
 
-        for w in range(self.wslice):
-            self.set_imslice(w, dmode=dmode, display=False)
+        """
+        Get the range of redshift slices to extract from the cube.
+        The default is to use the full wavelength range.
+        """
+        if wlim is not None:
+            wmin = wlim[0]
+            wmax = wlim[1]
+        else:
+            wmin = 0
+            wmax = self.wsize
+
+        """
+        Make a wcs header for the slice, i.e., a set of 2d wcs information
+        without the spectral information.
+        """
+        w2dhdr = self.make_wcs2dhdr()
+
+        """ Flip the data cube if it hasn't already been done """
+        if 'xyz' not in self:
+            data = self[dmode].data.swapaxes(0, 2)
+            wcsinfo = self.wcsinfo.swapaxes(0,2)
+            hdr = wcsinfo.to_header()
+            self['xyz'] = WcsHDU(data, hdr, wcsverb=False)
+        else:
+            data = self['xyz'].data
+
+        """ Extract the slices """
+        for w in range(wmin, wmax):
             outname = '%s_%03d.fits' % (outroot, w)
-            self['slice'].writeto(outname)
+            dat = data[w, :, :]
+            pf.PrimaryHDU(dat, w2dhdr).writeto(outname, overwrite=True)
 
     # -----------------------------------------------------------------------
 
