@@ -9,6 +9,7 @@ import numpy as np
 from scipy.ndimage import filters
 from astropy import wcs
 from astropy.io import fits as pf
+from cdfutils import datafuncs as df
 from specim import imfuncs as imf
 from specim import specfuncs as ss
 from specim.imfuncs.wcshdu import WcsHDU
@@ -543,7 +544,8 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def slice_stats(self, imslice, verbose=False, debug=False):
+    def slice_stats(self, imslice, dmode='input', nsig=3., verbose=False,
+                    debug=False):
         """
 
         Calculates a mean and variance associated with the selected slice.
@@ -563,20 +565,32 @@ class OsCube(imf.Image):
 
         """
 
-        """ Get the 2-dimensional mask that is appropriate for this slice """
+        """
+        Get the 2-dimensional mask that is appropriate for this slice.
+        NOTE: Ordinarily, if we were getting the mask as a 2d slice from a
+         3d mask, we would have to transpose the mask to match the
+         image slice, since the slices are generally set up to have RA
+         along the x axis.  Here, however, since we just care about image
+         statistics and not the WCS orientation, we don't transpose the
+         image slices.  This does, however, mean that a 2d mask does
+         need to be transposed, since it is assuming the standard WCS
+         orientation.
+        """
         if self.mask.ndim == 3:
-            mask2d = np.transpose(self.mask[:, :, imslice])
+            mask2d = self.mask[:, :, imslice]
         else:
-            mask2d = self.mask
+            mask2d = np.transpose(self.mask)
 
         """
         Select the requested slice from the science data cube and calculate
          its statistics
         """
-        self.set_imslice(imslice, display=False)
-        self['slice'].sigma_clip(mask=mask2d, verbose=False)
-        mean = self['slice'].mean_clip
-        r = self['slice'].rms_clip
+        # self.set_imslice(imslice, display=False)
+        # self['slice'].sigma_clip(mask=mask2d, verbose=False)
+        # mean = self['slice'].mean_clip
+        # r = self['slice'].rms_clip
+        data = self[dmode].data[:, :, imslice]
+        mean, r = df.sigclip(data, nsig=nsig, mask=mask2d, verbose=False)
         var = r**2
         if debug:
             print('Total pixels in slice: %d' % self['slice'].data.size)
