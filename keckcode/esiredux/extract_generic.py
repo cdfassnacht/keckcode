@@ -72,7 +72,7 @@ def coadd(speclist, stdOrderCorr, name, aplab, pref):
     ospex = {} # spectrum
     ovars = {} # variance
     owave = {} # wavelength (one for each order of the echelle)
-    print ''
+    print('')
     for order in range(1,11):
         ospex[order] = []
         ovars[order] = []

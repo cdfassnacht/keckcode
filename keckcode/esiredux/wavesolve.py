@@ -41,9 +41,15 @@ def solve(d,orders):
     lines['hgne'] = numpy.loadtxt(path+"/data/hgne.lines")
     lines['xe'] = numpy.loadtxt(path+"/data/xe.lines")
 
-    startsoln = numpy.load(path+"/data/esi_wavesolution.dat")
+    startsoln = numpy.load(path+"/data/test_wavesol.dat",
+                           allow_pickle=True)
+    #startsoln = numpy.load(path+"/data/esi_wavesolution.dat",
+    #                       allow_pickle=True)
 
-    arclist = d.keys()
+    # arclist = d.keys() # Under python 3 this does not produce a list
+    #                        and so arclist[0] below fails
+    arclist = list(d)
+    arclist.sort()
     soln = []
     if d[arclist[0]].shape[1]>3000:
         xvals = numpy.arange(4096.)
@@ -105,7 +111,7 @@ def solve(d,orders):
 
         refit = []
         corrA = {}
-        err = wave[wave.size/2]-wave[wave.size/2-1]
+        err = wave[int(wave.size/2)]-wave[int(wave.size/2-1)]
         for arc in arclist:
             corr = []
             p = 10.**sf.genfunc(peaks[arc],0.,solution)
@@ -118,7 +124,7 @@ def solve(d,orders):
                 continue
             m,s = clip(corr)
             corr = numpy.median(corr[abs(corr-m)<5.*s])
-            print corr
+            print(corr)
             corrA[arc] = corr
 #        corr = m
 
@@ -159,7 +165,7 @@ def solve(d,orders):
 
         w = 10**sf.genfunc(xvals,0.,solution)
         if (w==wave).all() or converge>8:
-            print "Order %d converged in %d iterations"%(i,converge)
+            print("Order %d converged in %d iterations"%(i,converge))
             soln.append([solution,solution2])
             break
             for arc in arclist:
@@ -292,7 +298,7 @@ def jointSolve(d,orders):
         g2 = 10**sf.genfunc(peak,0.,solution)
         w = 10**sf.genfunc(xvals,0.,solution)
         if (w==wave).all():
-            print "Order %d converged in %d iterations"%(i,converge)
+            print("Order %d converged in %d iterations"%(i,converge))
             soln.append([solution,solution2])
             break
             pylab.plot(w,data)

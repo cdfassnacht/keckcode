@@ -1,10 +1,12 @@
-import spectools,special_functions,scipy
+import scipy
+from scipy import stats
 try:
 	import pyfits
 except:
 	from astropy.io import fits as pyfits
 
-from scipy import stats
+import special_functions
+from . import spectools
 
 def findoffset(scidata,coord,offset,slice=None):
 

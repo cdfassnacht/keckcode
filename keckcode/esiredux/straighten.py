@@ -51,7 +51,7 @@ def startrace(stars,orders):
     smooth = ndimage.gaussian_filter1d(stars-background,1.5,0)
 
     stars -= background
-    start = stars[:,ncols/2].copy()
+    start = stars[:,int(ncols/2)].copy()
 
     # Find the traces down the middle of the image
     peaks = ndimage.maximum_filter(start,fw)
@@ -74,7 +74,7 @@ def startrace(stars,orders):
         ordermatches = numpy.empty((0,3))
         while all[0]<end:
             peak = all[0]
-            col = ncols/2
+            col = int(ncols/2)
             amp = smooth[peak,col]
             line = peak
             matches = []
@@ -220,9 +220,9 @@ def fullSolution(shape,ysoln,orders,wideorders,wsoln):
         if ow.size>x.shape[1]:
             diff = ow.size-x.shape[1]
             if diff%2==0:
-                ow = ow[diff/2:diff/-2]
+                ow = ow[int(diff/2):int(diff/-2)]
             else:
-                ow = ow[diff/2:(diff+1)/-2]
+                ow = ow[int(diff/2):int((diff+1)/-2)]
         xc = genfunc(ow,0.,wout)
         xc = xc.repeat(high-low).reshape((xc.size,high-low)).T
         yc = genfunc(xc.ravel(),y[low:high,:xc.shape[1]].ravel(),ytrue)

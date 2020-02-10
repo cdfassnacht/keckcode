@@ -1,20 +1,25 @@
+import os,sys
+from math import floor,ceil,fabs
+
+import numpy,scipy,pickle
+# import numpy,scipy,cPickle # there is no cPickle in python 3
+from scipy import interpolate,ndimage
+from scipy import io as sio
+from pickle import dump,load
+
 from .biastrim import make_bias,biastrim
 
 from .flat import *
 from .straighten import startrace,straighten,fullSolution,getOrders
 from .wavesolve import solve
-
-from keckcode.spectra import spectools,offset,measure_width
-from keckcode.spectra.extract import extract
 import special_functions as sf
 
-from pickle import dump,load
-from math import floor,ceil,fabs
-import os,sys
+from ..spectra import spectools,offset,measure_width
+from ..spectra.extract import extract
+#from keckcode.spectra import spectools,offset,measure_width
+#from keckcode.spectra.extract import extract
 
-import numpy,scipy,cPickle
-from scipy import interpolate,ndimage
-from scipy import io as sio
+
 
 try:
     import pyfits
@@ -99,7 +104,7 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
     """
     try:
         back = pyfits.open(out_prefix+"_bg.fits")[0].data.copy()
-        print "Initial background opened"
+        print("Initial background opened")
     except:
         strt = straighten(data,y_soln,orders,wideorders)
         back = scipy.zeros(strt.shape)
@@ -114,9 +119,9 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
     try:
         sub = pyfits.open(out_prefix+"_crsub.fits")[0].data.copy()
         masks = numpy.load(out_prefix+'_masks.dat')
-        print 'Opened CR-subbed image'
+        print('Opened CR-subbed image')
     except:
-        print 'Creating CR-subbed image and masks'
+        print('Creating CR-subbed image and masks')
         strt = straighten(data,y_soln,orders,wideorders)
         back = scipy.zeros(strt.shape)
         for indx in range(len(orders)):
@@ -163,7 +168,7 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
     varhdu = pyfits.HDUList([pyfits.PrimaryHDU()])
     varhdu[0].header = hdu[0].header.copy()
 
-    print "Subtracting backgrounds"
+    print("Subtracting backgrounds")
     slits = getOrders(crsub,orders,wideorders,fullsoln)
     for indx in range(len(orders)):
         cut,wlo,whigh,disp = slits[indx]

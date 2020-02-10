@@ -171,7 +171,7 @@ class SpecPlot:
 
     def lineid(self,wave,feature):
         z = (float(wave)/feature)-1.
-        print "wave = %7.2f, z = %2.6f" % (wave,z)
+        print("wave = %7.2f, z = %2.6f" % (wave,z))
         self.redshift(z)
 
     def smooth(self,width=5):

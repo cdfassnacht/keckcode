@@ -63,7 +63,7 @@ def find_orders(flat):
         border = 3
     ncols = flat.shape[1]
 
-    mid = flat[:,ncols/2].copy()
+    mid = flat[:,int(ncols/2)].copy()
     mid[mid<1.] = mid[mid>1.].min()
     midtrace = numpy.log(mid)
     from scipy import signal,ndimage

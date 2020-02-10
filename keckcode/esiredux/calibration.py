@@ -36,21 +36,25 @@ def clip(arr,nsig=3.5):
         m,s,l = a.mean(),a.std(),a.size
 
 
-def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,onearc=False,redoWave=False,arc=None):
+def prepare(rawdir, prefix, bias, stars, hgne, cuar, xe, flat, out_prefix,
+            onearc=False, redoWave=False, arc=None):
     biasnums = bias.split(",")
     starnums = stars.split(",")
     flatnums = flat.split(",")
 
     for i in range(len(biasnums)):
-        biasnums[i] = dir+prefix+biasnums[i]+".fits"
+        tmpfile = prefix+biasnums[i]+".fits"
+        biasnums[i] = os.path.join(rawdir, tmpfile)
     for i in range(len(starnums)):
-        starnums[i] = dir+prefix+starnums[i]+".fits"
+        tmpfile = prefix+starnums[i]+".fits"
+        starnums[i] = os.path.join(rawdir, tmpfile)
     for i in range(len(flatnums)):
-        flatnums[i] = dir+prefix+flatnums[i]+".fits"
+        tmpfile = prefix+flatnums[i]+".fits"
+        flatnums[i] = os.path.join(rawdir, tmpfile)
 
-    hgne = dir+prefix+hgne+".fits"
-    cuar = dir+prefix+cuar+".fits"
-    xe = dir+prefix+xe+".fits"
+    hgne = os.path.join(rawdir, prefix+hgne+".fits")
+    cuar = os.path.join(rawdir, prefix+cuar+".fits")
+    xe = os.path.join(rawdir, prefix+xe+".fits")
 
     message("Bias and bad pixel mask ... ")
     try:
@@ -107,7 +111,7 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,onearc=False,redo
       try:
           hgne = pyfits.open(out_prefix+"_hgne.fits")[0].data.astype(scipy.float32)
       except:
-          print "Straightening HgNe arc"
+          print ("Straightening HgNe arc")
           hdu = pyfits.open(hgne)
           hgne = hdu[0].data.copy()
           hgne = biastrim(hgne,bias,bpm)
@@ -118,7 +122,7 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,onearc=False,redo
       try:
           cuar = pyfits.open(out_prefix+"_cuar.fits")[0].data.astype(scipy.float32)
       except:
-          print "Straightening CuAr arc"
+          print("Straightening CuAr arc")
           hdu = pyfits.open(cuar)
           cuar = hdu[0].data.copy()
           cuar = biastrim(cuar,bias,bpm)
@@ -128,7 +132,7 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,onearc=False,redo
       try:
           xe = pyfits.open(out_prefix+"_xe.fits")[0].data.astype(scipy.float32)
       except:
-          print "Straightening Xe arc"
+          print("Straightening Xe arc")
           hdu = pyfits.open(xe)
           xe = hdu[0].data.copy()
           xe = biastrim(xe,bias,bpm)
@@ -153,8 +157,8 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,onearc=False,redo
                 arcs['xe'] = True
             arcs['arc'] = arc
         except:
-            print "Straightening arc"
-            arc = dir+prefix+arc+".fits"
+            print("Straightening arc")
+            arc = os.path.join(rawdir, prefix+arc+".fits")
             archdu = pyfits.open(arc)[0]
             arc = archdu.data.copy()
             arc = biastrim(arc,bias,bpm)
@@ -177,7 +181,7 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,onearc=False,redo
         except:
             redoWave = True
     if redoWave==True:
-        print "Determining wavelength solutions"
+        print("Determining wavelength solutions")
         if onearc is False:
             wave_solution = wavesolve.solve(arcs,orders)
         else:
@@ -188,16 +192,16 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,onearc=False,redo
         file.close()
 
 
-    print "Creating full slit solutions"
+    print("Creating full slit solutions")
     soln = fullSolution(bias.shape,solutions,orders,wideorders,wave_solution)
     file = open(out_prefix+"_full.dat",'wb')
     dump(soln,file,2)
     file.close()
 
-    print ""
-    print "**********************"
-    print "Preparations complete!"
-    print "**********************"
-    print ""
+    print("")
+    print("**********************")
+    print("Preparations complete!")
+    print("**********************")
+    print("")
 
 

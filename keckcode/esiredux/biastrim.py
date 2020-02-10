@@ -12,21 +12,21 @@ def make_bias(filelist):
             n = 2
         if count==0:
             if namps==2:
-                bias = numpy.empty((len(filelist),2048/n,4096/n))
+                bias = numpy.empty((len(filelist), int(2048/n), int(4096/n)))
             else:
-                bias = numpy.empty((len(filelist),2046/n,4096/n))
+                bias = numpy.empty((len(filelist), int(2046/n), int(4096/n)))
         if namps==2:
-            bias[count] = data[24/n:2072/n].copy()
+            bias[count] = data[int(24/n):int(2072/n)].copy()
         else:
-            bias[count] = data[14/n:2060/n].copy()
+            bias[count] = data[int(14/n):int(2060/n)].copy()
         count += 1
     bias = numpy.median(bias,axis=0)
     diff = bias.copy()
-    diff[:1024/n] -= numpy.median(bias[:1024/n])
-    diff[1024/n:] -= numpy.median(bias[1024/n:])
+    diff[:int(1024/n)] -= numpy.median(bias[:int(1024/n)])
+    diff[int(1024/n):] -= numpy.median(bias[int(1024/n):])
     pix = diff.flatten()
     pix.sort()
-    std = pix[10000/n:-10000/n].std()
+    std = pix[int(10000/n):-int(10000/n)].std()
     bpm = numpy.where(abs(diff)>10.*std,numpy.nan,1)
     return bias,bpm
 

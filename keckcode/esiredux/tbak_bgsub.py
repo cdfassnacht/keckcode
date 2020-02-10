@@ -87,9 +87,9 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
 
     try:
         masks = numpy.loadtxt(cal_prefix+"_bpmOrders.dat")
-        print 'BPM opened'
+        print('BPM opened')
     except:
-        print "Making BPM"
+        print("Making BPM")
         mask = numpy.where(bpm==1.,1.,0.)
         mask = getOrders(mask,y_soln,orders,wideorders)
         for i in range(len(mask)):

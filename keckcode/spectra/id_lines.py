@@ -38,10 +38,10 @@ class SpecID:
 		else:
 			point = sf.genfunc(xpos,0.,self.inverse)
 			point = point[0].round()
-		print point
+		print(point)
 		center = self.data[point-5:point+6].argmax()+point-5
-		print self.data[point-5:point+6]
-		print self.data[point-5:point+6].argmax()
+		print(self.data[point-5:point+6])
+		print(self.data[point-5:point+6].argmax())
 
 		max = self.data[center]
 		fit = scipy.empty(4)
@@ -52,7 +52,7 @@ class SpecID:
 
 		fit,chi = sf.ngaussfit(self.data[center-7:center+8],fit)
 		centroid = fit[2]+center-7
-		print "Press enter to input wavelength"
+		print("Press enter to input wavelength")
 		wave = float(input("Wavelength: "))
 		max = self.data[centroid-2:centroid+3].max()
 		try:
@@ -94,7 +94,7 @@ class SpecID:
 			pylab.draw()
 
 	def dofit(self):
-		print "Press Enter to input order"
+		print("Press Enter to input order")
 		order = raw_input("Order: ")
 		order = int(order)
 		lines = scipy.empty(len(self.lines))

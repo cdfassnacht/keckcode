@@ -107,7 +107,7 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,redoWave=False):
     try:
         hgne = pyfits.open(out_prefix+"_hgne.fits")[0].data.astype(scipy.float32)
     except:
-        print "Straightening HgNe arc"
+        print("Straightening HgNe arc")
         hdu = pyfits.open(hgne)
         hgne = hdu[0].data.copy()
         hgne = biastrim(hgne,bias,bpm)
@@ -118,7 +118,7 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,redoWave=False):
     try:
         cuar = pyfits.open(out_prefix+"_cuar.fits")[0].data.astype(scipy.float32)
     except:
-        print "Straightening CuAr arc"
+        print("Straightening CuAr arc")
         hdu = pyfits.open(cuar)
         cuar = hdu[0].data.copy()
         cuar = biastrim(cuar,bias,bpm)
@@ -128,7 +128,7 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,redoWave=False):
     try:
         xe = pyfits.open(out_prefix+"_xe.fits")[0].data.astype(scipy.float32)
     except:
-        print "Straightening Xe arc"
+        print("Straightening Xe arc")
         hdu = pyfits.open(xe)
         xe = hdu[0].data.copy()
         xe = biastrim(xe,bias,bpm)
@@ -147,7 +147,7 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,redoWave=False):
         except:
             redoWave = True
     if redoWave==True:
-        print "Determining wavelength solutions"
+        print("Determining wavelength solutions")
         wave_solution = solve(arcs,orders)
 
         file = open(out_prefix+"_wave.dat","wb")
@@ -155,17 +155,17 @@ def prepare(dir,prefix,bias,stars,hgne,cuar,xe,flat,out_prefix,redoWave=False):
         file.close()
 
 
-    print "Creating full slit solutions"
+    print("Creating full slit solutions")
     soln = fullSolution(bias.shape,solutions,orders,wideorders,wave_solution)
     file = open(out_prefix+"_full.dat",'wb')
     dump(soln,file,2)
     file.close()
 
-    print ""
-    print "**********************"
-    print "Preparations complete!"
-    print "**********************"
-    print ""
+    print("")
+    print("**********************")
+    print("Preparations complete!")
+    print("**********************")
+    print("")
 
 
 def bgsub(dir,inname,diffim,out_prefix,cal_prefix):
@@ -260,7 +260,7 @@ def pipeline(dir,inname,out_prefix,cal_prefix):
 
     try:
         mask = pyfits.open(cal_prefix+"_mask.fits")[0].data.copy()
-        print 'mask opened'
+        print('mask opened')
     except:
         mask = numpy.where(bpm==1.,1.,0.)
         mask = straighten(mask,y_soln,orders)
