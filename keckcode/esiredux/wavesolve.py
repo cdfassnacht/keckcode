@@ -41,12 +41,12 @@ def solve(d,orders):
     lines['hgne'] = numpy.loadtxt(path+"/data/hgne.lines")
     lines['xe'] = numpy.loadtxt(path+"/data/xe.lines")
 
-    startsoln = numpy.load(path+"/data/test_wavesol.dat",
-                           allow_pickle=True)
-    #startsoln = numpy.load(path+"/data/esi_wavesolution.dat",
+    #startsoln = numpy.load(path+"/data/test_wavesol.dat",
     #                       allow_pickle=True)
+    startsoln = numpy.load(path+"/data/esi_wavesolution.dat",
+                           allow_pickle=True)
 
-    # arclist = d.keys() # Under python 3 this does not produce a list
+    #arclist = d.keys() # Under python 3 this does not produce a list
     #                        and so arclist[0] below fails
     arclist = list(d)
     arclist.sort()

@@ -101,7 +101,7 @@ class EsiSet(list):
             """ Create a list of Spec1d objects """
             speclist = []
             for espec in self:
-                if espec.spec1d is not None:
+                if espec[i].spec1d is not None:
                     speclist.append(espec.spec1d)
             if len(speclist) == 0:
                 print('')

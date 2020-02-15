@@ -19,9 +19,12 @@ import numpy as np
 from math import log10
 from scipy import ndimage, interpolate
 from matplotlib import pyplot as plt
+
 from astropy.io import fits as pf
 from astropy.table import Table
+
 import special_functions as sf
+
 from cdfutils import datafuncs as df
 from specim import specfuncs as ss
 from specim.specfuncs import echelle2d as ech2d
@@ -191,6 +194,54 @@ class Esi2d(ech2d.Ech2d):
 
     # --------------------------------------------------------------------
 
+    def _extract_cdf(self, spec, info, muorder=-1, sigorder=-1,
+                     apmin=-1., apmax=1., weight='gauss', normalize=False,
+                     plot_traces=False):
+        """
+
+        Extracts the spectrum from an individual order using the
+         Spec2d class functionality from the specim.specfuncs module
+
+        For now assume that the data reduction has properly rectified
+        the 2D spectra, so that it is not necessary to trace a varying
+        position and width as the position changes
+        NOTE: This is almost certainly not true, but keep for now
+        """
+        
+        """ Clear the figure container if we're going to plot the trace  """
+        if plot_traces:
+            plt.figure(info['order'] + 2)
+            plt.clf()
+            
+        """ Set the aperture boundaries, IN ARCSECONDS """
+        spec.apmin = apmin / info['pixscale']
+        spec.apmax = apmax / info['pixscale']
+
+        """ Set the range of valid pixels for fitting the trace """
+        B = info['pixmin']
+        R = info['pixmax']
+
+        """ Trace and then extract the spectrum using the Spec2d methods  """
+        print('')
+        print('==================================================')
+        print('%s' % info['name'])
+        print('')
+        spec.find_and_trace(doplot=plot_traces, muorder=muorder,
+                            sigorder=sigorder, fitrange=[B, R],
+                            verbose=False)
+        spec.extract(weight=weight, doplot=False, verbose=False)
+
+        """
+        Also normalize the flux and variance of the extracted
+        spectrum in the same way that the Oldham extraction does
+        """
+        if normalize:
+            medflux = np.median(spec.spec1d['flux'])
+            spec.spec1d['flux'] /= medflux
+            spec.spec1d['var'] /= medflux**2
+
+   # --------------------------------------------------------------------
+
     def plot_extracted(self, method='1x1', xmin=3840., xmax=10910.,
                        ymin=-0.2, ymax=5., color='b'):
         """
@@ -215,10 +266,11 @@ class Esi2d(ech2d.Ech2d):
     # --------------------------------------------------------------------
 
     def extract_all(self, method='oldham', apcent=0., nsig=1.0,
-                    apmin=-1., apmax=1., normap=False,
-                    plot_profiles=True, plot_traces=False, plot_extracted=True,
+                    apmin=-1., apmax=1., muorder=-1, sigorder=-1,
+                    normap=False, weight='gauss', plot_profiles=True,
+                    plot_traces=False, plot_extracted=True,
                     xmin=3840., xmax=10910., ymin=-0.2, ymax=5.,
-                    apnum=None):
+                    apnum=None, showfit=False):
         """
         Goes through each of the 10 orders on the ESI spectrograph and
         extracts the spectrum via one of two procedures:
@@ -247,44 +299,15 @@ class Esi2d(ech2d.Ech2d):
         # for i in range(10):
         for spec, info in zip(self, self.ordinfo):
             if method == 'cdf':
-                if plot_traces:
-                    plt.figure(info['order'] + 2)
-                    plt.clf()
-                """
-                For now assume that the data reduction has properly rectified
-                the 2D spectra, so that it is not necessary to trace a varying
-                position and width as the position changes
-                """
-                muorder = -1
-                sigorder = -1
-                print('')
-                print('==================================================')
-                print('%s' % info['name'])
-                print('')
-                spec.apmin = apmin / info['pixscale']
-                spec.apmax = apmax / info['pixscale']
-                B = info['pixmin']
-                R = info['pixmax']
-                spec.find_and_trace(doplot=plot_traces, muorder=muorder,
-                                    sigorder=sigorder, fitrange=[B, R],
-                                    verbose=False)
-                spec.extract(doplot=False, verbose=False)
-
-                """
-                Also normalize the flux and variance of the extracted
-                spectrum in the same way that the Oldham extraction does
-                """
-                medflux = np.median(spec.spec1d['flux'])
-                spec.spec1d['flux'] /= medflux
-                spec.spec1d['var'] /= medflux**2
-
+                self._extract_cdf(spec, info, plot_traces=plot_traces,
+                                  muorder=muorder, sigorder=sigorder,
+                                  apmin=apmin, apmax=apmax, weight=weight)
             elif method == 'oldham':
                 self._extract_oldham(spec, info, apcent, nsig, normap=normap)
 
         """ Plot all the spatial profiles, along with the profile fits """
         if plot_profiles and method == 'cdf':
-            # self.plot_profiles(showfit=True)
-            self.plot_profiles(showfit=False)
+            self.plot_profiles(showfit=showfit)
 
         """
         Plot the extracted spectra

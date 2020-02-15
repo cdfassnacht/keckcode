@@ -14,7 +14,7 @@ from .straighten import startrace,straighten,fullSolution,getOrders
 from .wavesolve import solve
 import special_functions as sf
 
-from ..spectra import spectools,offset,measure_width
+from ..spectra import spectools, offset, measure_width
 from ..spectra.extract import extract
 #from keckcode.spectra import spectools,offset,measure_width
 #from keckcode.spectra.extract import extract
@@ -90,8 +90,9 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
     bpm = pyfits.open(cal_prefix+"_bpm.fits")[0].data.astype(scipy.float32)
     flat = pyfits.open(cal_prefix+"_norm.fits")[0].data.astype(scipy.float32)
 
-    orders,y_soln,wideorders = numpy.load(cal_prefix+"_ycor.dat")
-    fullsoln = numpy.load(cal_prefix+"_full.dat")
+    orders,y_soln,wideorders = numpy.load(cal_prefix+"_ycor.dat",
+                                          allow_pickle=True)
+    fullsoln = numpy.load(cal_prefix+"_full.dat", allow_pickle=True)
 
     hdu = pyfits.open(dir+inname)
     data = hdu[0].data.copy()
@@ -118,7 +119,7 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
 
     try:
         sub = pyfits.open(out_prefix+"_crsub.fits")[0].data.copy()
-        masks = numpy.load(out_prefix+'_masks.dat')
+        masks = numpy.load(out_prefix+'_masks.dat', allow_pickle=True)
         print('Opened CR-subbed image')
     except:
         print('Creating CR-subbed image and masks')
@@ -157,7 +158,7 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
         for i in range(len(masks)):
             masks[i][0] = numpy.where(masks[i][0]<0.7,0,1)
         f = open(out_prefix+'_masks.dat','wb')
-        cPickle.dump(masks,f,2)
+        dump(masks,f,2)
         f.close()
 
         pyfits.PrimaryHDU(crsub).writeto(out_prefix+"_crsub.fits")

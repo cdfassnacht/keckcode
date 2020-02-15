@@ -88,7 +88,8 @@ def prepare(rawdir, prefix, bias, stars, hgne, cuar, xe, flat, out_prefix,
 
     message("Order solutions ... ")
     try:
-        orders,solutions,wideorders = numpy.load(out_prefix+"_ycor.dat")
+        orders,solutions,wideorders = numpy.load(out_prefix+"_ycor.dat",
+                                                 allow_pickle=True)
         message("opened.\n")
     except:
         orders = find_orders(flat)
@@ -174,10 +175,11 @@ def prepare(rawdir, prefix, bias, stars, hgne, cuar, xe, flat, out_prefix,
                 arcs['xe'] = True
             arcs['arc'] = arc
 
-
+    print(redoWave)
     if redoWave==False:
         try:
-            wave_solution = numpy.load(out_prefix+"_wave.dat")
+            wave_solution = numpy.load(out_prefix+"_wave.dat",
+                                       allow_pickle=True)
         except:
             redoWave = True
     if redoWave==True:

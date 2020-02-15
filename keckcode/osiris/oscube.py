@@ -34,7 +34,7 @@ class OsCube(imf.Image):
 
         """ Read the data into an Image structure """
         super(OsCube, self).__init__(indat, verbose=verbose)  # Python 2.7
-        # super().__init__(self, indat, verbose=verbose) # Python 3 syntax
+        # super().__init__(indat, verbose=verbose) # Python 3 syntax
         print('Number of wavelength slices: %d' % self.header['naxis1'])
 
         """
