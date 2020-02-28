@@ -100,7 +100,7 @@ def coadd(speclist, stdOrderCorr, name, aplab, pref):
     outspec = np.zeros((outwave.size, 10)) * np.nan
     outvar = outspec.copy()
 
-    corr = np.load(stdOrderCorr)
+    corr = np.load(stdOrderCorr, allow_pickle=True)
     right = None
     rb = None
     rr = None
@@ -190,7 +190,8 @@ def coadd(speclist, stdOrderCorr, name, aplab, pref):
     spec = np.nansum(outspec/outvar,1)/np.nansum(1./outvar,1)
 
     var = np.nansum(1./outvar,1)**-1
-    ow,s,v = outwave,spec,var
+    finalmask = (10**outwave > 4177.) & (10**outwave < 10267.)
+    ow, s, v = outwave[finalmask], spec[finalmask], var[finalmask]
     plt.figure()
     tmpspec = ss.Spec1d(wav=10.**ow,flux=s,var=v)
     tmpspec.plot()

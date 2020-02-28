@@ -229,7 +229,8 @@ class Esi2d(ech2d.Ech2d):
         spec.find_and_trace(doplot=plot_traces, muorder=muorder,
                             sigorder=sigorder, fitrange=[B, R],
                             verbose=False)
-        spec.extract(weight=weight, doplot=False, verbose=False)
+        spec.extract(extrange=[B, R], weight=weight, doplot=False,
+                     verbose=False)
 
         """
         Also normalize the flux and variance of the extracted
@@ -243,7 +244,7 @@ class Esi2d(ech2d.Ech2d):
    # --------------------------------------------------------------------
 
     def plot_extracted(self, method='1x1', xmin=3840., xmax=10910.,
-                       ymin=-0.2, ymax=5., color='b'):
+                       ymin=None, ymax=None, color='b'):
         """
 
         Plots the 10 extracted 1d spectra in one plot.  There are two
@@ -261,7 +262,8 @@ class Esi2d(ech2d.Ech2d):
             for i in self:
                 i.spec1d.plot(color=color)
             plt.xlim(xmin, xmax)
-            plt.ylim(ymin, ymax)
+            if ymin is not None and ymax is not None:
+                plt.ylim(ymin, ymax)
 
     # --------------------------------------------------------------------
 

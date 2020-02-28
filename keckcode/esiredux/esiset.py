@@ -102,7 +102,7 @@ class EsiSet(list):
             speclist = []
             for espec in self:
                 if espec[i].spec1d is not None:
-                    speclist.append(espec.spec1d)
+                    speclist.append(espec[i].spec1d)
             if len(speclist) == 0:
                 print('')
                 print('ERROR: Called coadd1d but inputs do not have '

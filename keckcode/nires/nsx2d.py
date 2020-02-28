@@ -4,7 +4,7 @@ nsx2d.py
 
 A class written to take the *corrected.fits files produced by running
 Tom Barlow's NSX program to reduce NIRES data, and to process them as
-echelle2d.Ech2d structures.
+ech2d.Ech2d structures.
 
 """
 
@@ -21,7 +21,7 @@ class Nsx2d(ech2d.Ech2d):
 
     A class written to take the *corrected.fits files produced by running
     Tom Barlow's NSX program to reduce NIRES data, and to process them as
-    echelle2d.Ech2d structures.
+    ech2d.Ech2d structures.
 
     """
 
