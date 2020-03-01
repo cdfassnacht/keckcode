@@ -1,3 +1,5 @@
+import numpy as np
+from astropy.table import Table
 from specim.specfuncs import echelle1d
 
 """
@@ -30,15 +32,20 @@ class Esi1d(echelle1d.Ech1d):
         steps.
         """
         dtype = [('order', int), ('pixmin', int), ('pixmax', int)]
-        # oinfo = np.array([
-        #         (7, 0, -1),
-        #         (6, 0, -1),
-        #         (5, 0, -1),
-        #         (4, 0, -1),
-        #         (3, 0, -1),
-        #         ], dtype=dtype)
-        # ordinfo = Table(oinfo)
-        ordinfo = None
+        oinfo = np.array([
+                (1,  0, -1),
+                (2,  0, -1),
+                (3,  0, -1),
+                (4,  0, -1),
+                (5,  0, -1),
+                (6,  0, -1),
+                (7,  0, -1),
+                (8,  0, -1),
+                (9,  0, -1),
+                (10, 0, -1),
+                ], dtype=dtype)
+        ordinfo = Table(oinfo)
+        # ordinfo = None
 
         """ Initialize by calling the parent class """
         super(Esi1d, self).__init__(inspec, informat=informat, ordinfo=ordinfo,

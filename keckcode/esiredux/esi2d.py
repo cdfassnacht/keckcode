@@ -28,6 +28,7 @@ import special_functions as sf
 from cdfutils import datafuncs as df
 from specim import specfuncs as ss
 from specim.specfuncs import echelle2d as ech2d
+from . import esi1d
 
 """
 ============================== Esi2d class ==============================
@@ -196,7 +197,7 @@ class Esi2d(ech2d.Ech2d):
 
     def _extract_cdf(self, spec, info, muorder=-1, sigorder=-1,
                      apmin=-1., apmax=1., weight='gauss', normalize=False,
-                     plot_traces=False):
+                     plot_traces=False, verbose=True):
         """
 
         Extracts the spectrum from an individual order using the
@@ -222,10 +223,8 @@ class Esi2d(ech2d.Ech2d):
         R = info['pixmax']
 
         """ Trace and then extract the spectrum using the Spec2d methods  """
-        print('')
-        print('==================================================')
-        print('%s' % info['name'])
-        print('')
+        if verbose:
+            print('%s' % info['name'])
         spec.find_and_trace(doplot=plot_traces, muorder=muorder,
                             sigorder=sigorder, fitrange=[B, R],
                             verbose=False)
@@ -272,7 +271,7 @@ class Esi2d(ech2d.Ech2d):
                     normap=False, weight='gauss', plot_profiles=True,
                     plot_traces=False, plot_extracted=True,
                     xmin=3840., xmax=10910., ymin=-0.2, ymax=5.,
-                    apnum=None, showfit=False):
+                    apnum=None, showfit=False, verbose=True, **kwargs):
         """
         Goes through each of the 10 orders on the ESI spectrograph and
         extracts the spectrum via one of two procedures:
@@ -294,11 +293,17 @@ class Esi2d(ech2d.Ech2d):
         """
         if plot_profiles:
             plt.figure()
+            if method == 'cdf':
+                self.plot_profiles(showfit=showfit)
 
         """
         Extract the spectra
         """
-        # for i in range(10):
+        speclist = []
+        if verbose:
+            print('')
+            print('Extracting spectra')
+            print('------------------')
         for spec, info in zip(self, self.ordinfo):
             if method == 'cdf':
                 self._extract_cdf(spec, info, plot_traces=plot_traces,
@@ -307,16 +312,18 @@ class Esi2d(ech2d.Ech2d):
             elif method == 'oldham':
                 self._extract_oldham(spec, info, apcent, nsig, normap=normap)
 
-        """ Plot all the spatial profiles, along with the profile fits """
-        if plot_profiles and method == 'cdf':
-            self.plot_profiles(showfit=showfit)
+            speclist.append(spec.spec1d)
 
         """
         Plot the extracted spectra
         """
+        if verbose:
+            print('')
+        specout = esi1d.Esi1d(speclist)
         if plot_extracted:
             plt.figure()
-            self.plot_extracted()
+            # self.plot_extracted()
+            specout.plot_all(**kwargs)
 
     # --------------------------------------------------------------------
 
