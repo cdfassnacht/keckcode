@@ -7,6 +7,7 @@ esiset.py - Code to perform actions on multiple 2d ESI data sets
 from os import path
 from matplotlib import pyplot as plt
 from specim.specfuncs.specset1d import SpecSet1d
+from specim.specfuncs.ech1dset import Ech1dSet
 from .esi2d import Esi2d
 
 
@@ -21,7 +22,7 @@ class EsiSet(list):
     # ------------------------------------------------------------------------
 
     def __init__(self, inlist, usevar=True, indir='.', prefix=None,
-                 suffix='bgsub'):
+                 suffix='bgsub', verbose=True):
 
         """
         Reads the input data and possibly its associated variance.
@@ -61,36 +62,62 @@ class EsiSet(list):
                 varname = indat.replace(suffix, 'var')
             else:
                 varname = None
-            d = Esi2d(indat, varfile=varname)
+
+            if verbose:
+                print('')
+                print(filename)
+            d = Esi2d(indat, varfile=varname, verbose=verbose)
 
             self.append(d)
 
     # ------------------------------------------------------------------------
 
-    def extract(self, doplot=True, **kwargs):
+    def extract(self, doplot=True, verbose=True, debug=False, **kwargs):
         """
 
-        Loops through each 2d spectrum in the list and extracts a 1d spectrum
-         from each of the 10 orders in the 2d spectrum
+        Loops through each 2d spectrum in the list and, from each of the
+         2d spectra extracts a the individual spectra from each order
+         and returns them as an Esi1d object
+        The final output from this method is thus a list of Esi1d objects
 
         """
 
+        """ Set up the container for the extracted spectra """
+        extract_list = []
+
+        """
+        Loop through the input 2d spectra and extract all of the spectral
+        orders from each one with the extract_all method
+        """
         for i in self:
 
-            """ Extract the 1d spectrum """
-            print('')
-            print(i.infile)
-            i.extract_all(**kwargs)
+            """ Extract the 1d spectra """
+            if verbose:
+                print('')
+                print(i.infile)
+            tmpspec = i.extract_all(plot_profiles=doplot,
+                                    plot_extracted=doplot, **kwargs)
+            extract_list.append(tmpspec)
+            del(tmpspec)
 
             if doplot:
                 plt.show()
+
+        """
+        Convert the list of extracted spectra to an Ech1dSet object
+        and return
+        """
+        if debug:
+            print(type(extract_list[0]))
+            print(type(extract_list[0][0]))
+        return Ech1dSet(extract_list)
 
     # ------------------------------------------------------------------------
 
     def coadd1d(self, doplot=True, outfile=None):
         """
 
-        Coadds the extracted 1d spectra from each order separately
+        Takes a set of Esi1d objects
 
         """
 

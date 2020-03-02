@@ -43,7 +43,7 @@ class Esi2d(ech2d.Ech2d):
     Essentially this class is just a list of Spec2d objects
     """
 
-    def __init__(self, infile, varfile=None):
+    def __init__(self, infile, varfile=None, verbose=True):
         """
 
         Create an instance of this class by loading the data from the input
@@ -77,7 +77,8 @@ class Esi2d(ech2d.Ech2d):
 
         """ Read in the spectra by a call to the superclass """
         super(Esi2d, self).__init__(infile, varspec=varfile, logwav=True,
-                                    ordinfo=self.ordinfo, fixnans=False)
+                                    ordinfo=self.ordinfo, fixnans=False,
+                                    summary=verbose)
 
         """ Set the default gridding for multi-order plots """
         self.plotgrid = (2, 5)
@@ -319,11 +320,13 @@ class Esi2d(ech2d.Ech2d):
         """
         if verbose:
             print('')
-        specout = esi1d.Esi1d(speclist)
+        outspec = esi1d.Esi1d(speclist)
         if plot_extracted:
             plt.figure()
-            # self.plot_extracted()
-            specout.plot_all(**kwargs)
+            outspec.plot_all(**kwargs)
+
+        """ Return the extracted spectrum (as an Esi1d object) """
+        return outspec
 
     # --------------------------------------------------------------------
 

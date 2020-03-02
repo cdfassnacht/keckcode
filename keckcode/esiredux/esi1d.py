@@ -20,7 +20,7 @@ class Esi1d(echelle1d.Ech1d):
         """
 
         Initializes an Esi1d instance, essentially by initializing an
-        Ech1d instance with the NIRES order information
+        Ech1d instance with the ESI order information
 
         """
 
