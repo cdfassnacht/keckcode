@@ -15,10 +15,7 @@ import os,sys
 import numpy,scipy
 from scipy import stats,interpolate,ndimage
 from scipy import io as sio
-try:
-    import pyfits
-except:
-    from astropy.io import fits as pyfits
+from astropy.io import fits as pyfits
 
 
 def message(string):
