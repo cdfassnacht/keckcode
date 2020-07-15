@@ -64,7 +64,7 @@ class Mask:
 
     def readMaskFile(self, maskfile):
 
-        print "Processing file %s" % maskfile
+        print("Processing file %s" % maskfile)
 
         self.file = maskfile
         f = open(self.file,"r")
@@ -74,7 +74,7 @@ class Mask:
         # parse the second line of the file, which contains the field
         # name, field center, and equinox...
         if self.debug:
-            print l[1]
+            print(l[1])
         pattern = "^(.+)\s+(\d+:\d+:\d+\.\d+)\s+(\S*\d+:\d+:\d+\.\d+)\s+(\S+)\s+PA=\s*(\S*)\s+##"
         mobj = re.match( pattern, l[1])
         if mobj:
@@ -84,7 +84,7 @@ class Mask:
             self.equinox = float(mobj.group(4))
             self.pa = float(mobj.group(5))
         else:
-            print '  ERROR: line 2 does not match expected format -- abort!'
+            print('  ERROR: line 2 does not match expected format -- abort!')
             sys.exit(1)
 
 
@@ -98,18 +98,18 @@ if __name__ == '__main__':
 
     try:
         optlist, args = getopt.getopt(sys.argv[1:], 'hD')
-    except getopt.GetoptError,err:
+    except getopt.GetoptError as err:
         print(err)
-        print usage
+        print(usage)
         sys.exit(2)
 
     debug = False
     for o,a in optlist:
         if o == "-h":
-            print usage
+            print(usage)
             sys.exit(1)
         elif o in "-D":
-            print "DEBUG mode enabled"
+            print("DEBUG mode enabled")
             debug = True
         else:
             assert False, "unhandled option"
@@ -124,9 +124,9 @@ if __name__ == '__main__':
         m.debug = debug
         try:
             m.readMaskFile(input)
-        except Exception, err:
-            print 'ERROR: Unable to read mask file: '+ml
-            print err
+        except Exception as err:
+            print('ERROR: Unable to read mask file: '+ml)
+            print(err)
             sys.exit(1)
 
         # build starlist
@@ -158,6 +158,6 @@ if __name__ == '__main__':
         targname = m.name[:16]
         slist = (targname,srah,sram,sras,sign,adech,sdecm,sdecs,seqnx,spa)
         sformat = '%-16s  %02i %s %s %s%02i %s %s %s rotdest=%.2f rotmode=pa\n'
-        print "  "+sformat % slist
+        print("  "+sformat % slist)
         slf.write(sformat % slist)
 

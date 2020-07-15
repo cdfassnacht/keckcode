@@ -3,40 +3,40 @@ from distutils.command.install import INSTALL_SCHEMES
 from os import sys
 import os
 import re
+from importlib.util import find_spec
+#from imp import find_module  # This is deprecated in the latest python
 
 for scheme in INSTALL_SCHEMES.values():
     scheme['data'] = scheme['purelib']
 
-
-from imp import find_module
 try:
-    find_module('numpy')
+    find_spec('numpy')
 except ImportError:
     sys.exit('### Error: python module numpy not found')
     
 try:
-    find_module('scipy')
+    find_spec('scipy')
 except ImportError:
     sys.exit('### Error: python module scipy not found')
     
 try:
-    find_module('astropy')
+    find_spec('astropy')
 except ImportError:
     sys.exit('### Error: Neither astropy nor pyfits found.')
 
 try:
-    find_module('matplotlib')
+    find_spec('matplotlib')
 except ImportError:
     sys.exit('### Error: python module matplotlib not found')
 
 try:
-    find_module('cdfutils')
+    find_spec('cdfutils')
 except ImportError:
     sys.exit('\n*** Error: python module cdfutils not found. ***\n '
              'Download and install: https://github.com/cdfassnacht/cdfutils\n')
 
 try:
-    find_module('specim')
+    find_spec('specim')
 except ImportError:
     sys.exit('\n*** Error: python module specim not found. ***\n'
              'Download and install: https://github.com/cdfassnacht/specim\n')
@@ -69,7 +69,7 @@ setup(
     long_description = open('README.txt').read(),
     requires = ['numpy', 'scipy', 'astropy', 'matplotlib', 'cdfutils'],
     packages = ['keckcode', 'keckcode.osiris', 'keckcode.esiredux',
-                'keckcode.nires', 'keckcode.spectra'],
+                'keckcode.nires', 'keckcode.spectra', 'keckcode.deimos'],
 #    package_dir = {'':'src'},
     package_data = {'keckcode.esiredux' : ['data/*']}
 )

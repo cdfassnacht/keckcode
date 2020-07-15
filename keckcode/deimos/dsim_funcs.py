@@ -56,10 +56,10 @@ class dsimCat(cf.Secat):
 
       self.get_radec()
       if self.radec is None:
-         print ''
-         print 'ERROR: Input file %s does not have recognized RA and Dec data' \
-             % self.infile
-         print ''
+         print('')
+         print('ERROR: Input file %s does not have recognized RA and Dec data'
+               % self.infile)
+         print('')
          return None
 
       """ 
@@ -229,10 +229,10 @@ class dsimCat(cf.Secat):
       array within the dsimCat structure
       """
       if self.dstab is None:
-         print ''
-         print 'ERROR: Cannot write out galaxies without dstab (priorities,etc.)'
-         print ' being set'
-         print ''
+         print('')
+         print('ERROR: Cannot write out galaxies without dstab'
+               ' (priorities,etc.) being set')
+         print('')
          return
 
       """ 
@@ -258,7 +258,7 @@ class dsimCat(cf.Secat):
       speed in writing out the data.
       """
       nsel = self.selmask.sum()
-      print 'Writing out %d selected galaxies to %s' % (nsel,outfile)
+      print('Writing out %d selected galaxies to %s' % (nsel,outfile))
       dfmt = ['S16','S12','S13',float,float,'S2',int,int,int,float]
       dnames = ['id','ra','dec','equinox','mag','band','pri','samp','sel',
                 'pa']
@@ -272,7 +272,7 @@ class dsimCat(cf.Secat):
       outarr['pri'] = self.dstab['pri']
       outarr['samp'] = sample
       outarr['pa'] = self.dstab['pa']
-      #print outarr
+      #print(outarr)
 
       """ Write to the output file """
       outfmt = '%-16s %s %s %.1f %5.2f %s %4d %d %d %.1f'
@@ -364,16 +364,16 @@ class dsimCat(cf.Secat):
       if primag is not None:
          pri[outinfo[magname] <= primag] += 2000
       self.make_dstab(pri=pri)
-      # print ''
-      # print 'SDSS Galaxies'
-      # print '-------------------------------------'
-      # print 'Selection conditions'
-      # print '--------------------'
-      # print ' Within %2.0f arcmin of lens' % rmax
-      # print ' %s <= %4.1f' % (sselband,sselmag)
-      # print ' No redshift in SDSS'
-      # print 'Total number:                %d' % self.nrows
-      # print 'Number of selected galaxies: %d' % nsel
+      # print('')
+      # print('SDSS Galaxies')
+      # print('-------------------------------------')
+      # print('Selection conditions')
+      # print('--------------------')
+      # print(' Within %2.0f arcmin of lens' % rmax)
+      # print(' %s <= %4.1f' % (sselband,sselmag))
+      # print(' No redshift in SDSS')
+      # print('Total number:                %d' % self.nrows)
+      # print('Number of selected galaxies: %d' % nsel)
       if outfile is not None:
          self.write_gal(outfile, sample=sample)
 
@@ -402,6 +402,6 @@ def write_dsim(outcat, outradec, outid, pri, theta, selband, magname, outfile,
             (outid[i],tmpra[i],tmpdec[i],mag[i],selband,pri[i],theta[i])
         f.write('%s\n' % tmpstr)
         if verbose:
-            print tmpstr
+            print(tmpstr)
 
     f.close()

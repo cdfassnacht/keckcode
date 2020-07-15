@@ -14,7 +14,7 @@ tdat = hdu[1].data
 nobj = len(tdat)
 for i in range(nobj):
     i = tdat[i]
-    print '%-15s %-3s %-7s %1d %7.4f %g %s' % \
-        (i['objname'],i['slitname'],i['maskname'],i['zquality'],i['z'], \
-        i['z_err'],i['comment'])
+    print('%-15s %-3s %-7s %1d %7.4f %g %s' % 
+          (i['objname'],i['slitname'],i['maskname'],i['zquality'],i['z'], \
+           i['z_err'],i['comment']))
     
