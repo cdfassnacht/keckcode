@@ -6,11 +6,18 @@ deimosmask1d  - Code to define a DeimosMask1d class, which is used to
 
 """
 
+import numpy as np
+from collections import OrderedDict
 from astropy.io import fits as pf
 from specim.specfuncs import spec1d
 
+import sys
+pyversion = sys.version_info.major
 
-class DeimosMask1d(list):
+# ---------------------------------------------------------------------------
+
+
+class DeimosMask1d(OrderedDict):
     """
 
     Class to visualize and perhaps process the 1d spectra that are contained
@@ -30,6 +37,12 @@ class DeimosMask1d(list):
 
         """
 
+        """ Set up the empty container by calling the superclass """
+        if pyversion == 2:
+            super(DeimosMask1d, self).__init__()
+        else:
+            super().__init__()
+
         """
         Load the data from the input file and get information from the
         primary header
@@ -37,42 +50,68 @@ class DeimosMask1d(list):
         hdu = pf.open(infile)
         hdr0 = hdu[0].header
         self.nspec = hdr0['nspec']
+        self.slitid = np.zeros(self.nspec)
 
         """ Load the spectra into a list of Spec1d objects """
         colnames = ['opt_wave', 'opt_counts', 'opt_counts_ivar',
                     'opt_counts_sky']
         if verbose:
-            print('')
-            print('Loading %d spectra from %s' % (self.nspec, infile))
+            print('Read %d spectra from %s' % (self.nspec, infile))
         for i in range(1, self.nspec+1):
             spec = spec1d.Spec1d(hdu[i], colnames=colnames, verbose=False)
             mask = spec['var'] > 0.
             spec['var'][mask] = 1. / spec['var'][mask]
             spec['var'][~mask] = 25. * spec['var'].max()
-            self.append(spec)
+            # self.append(spec)
+            slitid = hdu[i].header['slitid']
+            self[slitid] = spec
+            self.slitid[(i-1)] = slitid
 
     # -----------------------------------------------------------------------
 
-    def plot(self, index, **kwargs):
+    def __str__(self):
         """
 
-        Plots the spectrum designated by index, where index runs from
-        0 to nspec-1
+        Gives a cleaner output when doing a print statement for the object
 
         """
 
-        self[index].plot(**kwargs)
-
+        return('DeimosMask1d with %d spectra' % self.nspec)
+    
     # -----------------------------------------------------------------------
 
-    def smooth(self, index, filtwidth, **kwargs):
+    def __repr__(self):
         """
 
-        Plots a smoothed version of the spectrum designated by index,
-         where index runs from 0 to nspec-1
+        Gives a cleaner representation of the object
+
+        """
+
+        return('DeimosMask1d with %d spectra' % self.nspec)
+    
+    # -----------------------------------------------------------------------
+
+    def plot(self, slitid, **kwargs):
+        """
+
+        Plots the spectrum for the slit designated by the slitid paramters
 
         Inputs:
-         index     - index of spectrum to plot (between 0 and nspec-1)
+           slitid    - slit ID (an integer value)
+        """
+
+        self[slitid].plot(**kwargs)
+
+    # -----------------------------------------------------------------------
+
+    def smooth(self, slitid, filtwidth, **kwargs):
+        """
+
+        Plots a smoothed version of the spectrum designated by the
+         slitid parameter
+
+        Inputs:
+         slitid    - slit ID (an integer value)
          filtwidth - width of kernel to be used for smoothing
 
         """
