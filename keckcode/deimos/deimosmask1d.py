@@ -99,7 +99,7 @@ class DeimosMask1d(OrderedDict):
         Inputs:
            slitid    - slit ID (an integer value)
         """
-        return self[index].plot(**kwargs)
+        return self[slitid].plot(**kwargs)
 
     # -----------------------------------------------------------------------
 
@@ -117,14 +117,17 @@ class DeimosMask1d(OrderedDict):
 
         self[index].smooth(filtwidth, **kwargs)
 
+    # -----------------------------------------------------------------------
+
     def mark_lines(self, lines, z, index, **kwargs):
         """
         Draws a plot with spectral line marks on a given spectra.
 
         Inputs:
           index - index of spectrum to plot (between 0 and nspec-1)
-          z - redshift estimate
-          lines - dictionary. Key should be the line name, value should be boolean
+          z     - redshift estimate
+          lines - dictionary. Key should be the line name, value should be
+                  boolean
 
         """
         if lines['em'] and lines['strongem']:
