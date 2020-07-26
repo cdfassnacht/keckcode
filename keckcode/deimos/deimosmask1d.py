@@ -115,7 +115,7 @@ class DeimosMask1d(OrderedDict):
 
         """
 
-        self[index].smooth(filtwidth, **kwargs)
+        self[slitid].smooth(filtwidth, **kwargs)
 
     # -----------------------------------------------------------------------
 
