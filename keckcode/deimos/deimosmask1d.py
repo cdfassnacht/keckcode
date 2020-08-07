@@ -209,7 +209,7 @@ class DeimosMask1d(OrderedDict):
 
     # -----------------------------------------------------------------------
 
-    def mark_lines(self, slitid, z, lines, **kwargs):
+    def mark_lines(self, line, z, index, **kwargs):
         """
         Draws a plot with spectral line marks on a given spectra.
 
@@ -225,7 +225,7 @@ class DeimosMask1d(OrderedDict):
 
         for k,v in lines.items():
             if v:
-                self[0].mark_lines(k, z, **kwargs)
+                self[index].mark_lines(k, z, **kwargs)
 
     # -----------------------------------------------------------------------
 
