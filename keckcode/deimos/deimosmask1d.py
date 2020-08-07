@@ -225,7 +225,7 @@ class DeimosMask1d(OrderedDict):
 
         for k,v in lines.items():
             if v:
-                self[0].mark_lines(k, z, **kwargs)
+                self[slitid].mark_lines(k, z, **kwargs)
 
     # -----------------------------------------------------------------------
 
