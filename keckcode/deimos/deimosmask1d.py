@@ -79,7 +79,7 @@ class DeimosMask1d(OrderedDict):
          infile - name of input fits file
 
         """
-        
+
         """
         Load the data from the input file and get information from the
         primary header
@@ -136,7 +136,7 @@ class DeimosMask1d(OrderedDict):
             if name not in specinfo.colnames:
                 raise KeyError('Missing %s column in input table' % name)
         self.slitinfo = specinfo.copy()
-        
+
         """ Prepare to read in the data """
         self.nspec = len(specinfo)
 
@@ -149,7 +149,7 @@ class DeimosMask1d(OrderedDict):
                                       info['objid'], info['spatloc'])
             if specid in specdict.keys():
                 self[specid] = specdict[specid]
-            
+
     # -----------------------------------------------------------------------
 
     def __str__(self):
@@ -160,7 +160,7 @@ class DeimosMask1d(OrderedDict):
         """
 
         return('DeimosMask1d with %d spectra' % self.nspec)
-    
+
     # -----------------------------------------------------------------------
 
     def __repr__(self):
@@ -171,7 +171,7 @@ class DeimosMask1d(OrderedDict):
         """
 
         return('DeimosMask1d with %d spectra' % self.nspec)
-    
+
     # -----------------------------------------------------------------------
 
     def plot(self, specid, title='default', **kwargs):
@@ -225,7 +225,7 @@ class DeimosMask1d(OrderedDict):
 
         for k,v in lines.items():
             if v:
-                self[0].mark_lines(k, z, **kwargs)
+                self[index].mark_lines(k, z, **kwargs)
 
     # -----------------------------------------------------------------------
 
@@ -265,7 +265,7 @@ class DeimosMask1d(OrderedDict):
             """
             mask = spec['var'] > 0
             tmpvar = spec['var'].copy()
-            
+
             """ Temporarily rename columns """
             incols = ['wav', 'flux', 'var', 'sky']
             outcols = ['opt_wave', 'opt_counts', 'opt_counts_ivar',
@@ -309,7 +309,7 @@ class DeimosMask1d(OrderedDict):
         """ Standardize the format of the input data """
         if not isinstance(other, (list, tuple, np.ndarray)):
             other = [other,]
-        
+
         """ Match the objects in the masks """
         print('')
         print('Spectra extracted for exposure 1: %d' % self.nspec)
