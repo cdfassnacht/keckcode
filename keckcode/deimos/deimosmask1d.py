@@ -255,8 +255,8 @@ class DeimosMask1d(OrderedDict):
         for info in self.slitinfo:
             name = '%d_%d_%d_%d' % (info['det'], info['slitid'], info['objid'],
                                     info['spatloc'])
-            extname = \
-                'SPAT%04d-SLIT%04d-DET01' % (info['spatloc'], info['slitid'])
+            extname = 'SPAT%04d-SLIT%04d-DET%02d' % \
+                (info['spatloc'], info['slitid'], info['det'])
             spec = self[name]
 
             """
@@ -312,14 +312,14 @@ class DeimosMask1d(OrderedDict):
 
         """ Match the objects in the masks """
         print('')
-        print('Spectra extracted for exposure 1: %d' % self.nspec)
+        print('Extracted spectra in exposure 1: %d' % self.nspec)
         if self.hdr0 is not None:
             exptime = self.hdr0['exptime']
         else:
             exptime = None
         for i, exp_i in enumerate(other):
-            print('Exposure %d has %d extracted spectra: %d' %
-                  (exp_i.nspec, (i+2)))
+            print('Extracted spectra in exposure %d: %d' %
+                  ((i+2), exp_i.nspec))
             if exptime is not None:
                 if exp_i.hdr0 is not None:
                     exptime += exp_i.hdr0['exptime']
@@ -355,6 +355,7 @@ class DeimosMask1d(OrderedDict):
                 speclist.append(exp_i[specid_i])
             ss = specset1d.SpecSet1d(spec1dlist=speclist)
             outspec[specid] = ss.coadd(doplot=False, verbose=False)
+            # print(specid)
 
         """
         Convert the dictionary of coadded spectra into a DeimosMask1d object
