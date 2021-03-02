@@ -259,15 +259,16 @@ class Esi2d(ech2d.Ech2d):
             print('NOTE: tenplot is not yet implemented')
             return
         else:
+            fig, ax = plt.subplots(111)
             for i in self:
-                i.spec1d.plot(color=color)
+                i.spec1d.plot(color=color, fig=fig, ax=ax)
             plt.xlim(xmin, xmax)
             if ymin is not None and ymax is not None:
                 plt.ylim(ymin, ymax)
 
     # --------------------------------------------------------------------
 
-    def extract_all(self, method='oldham', apcent=0., nsig=1.0,
+    def extract_all(self, method='oldham', modlist=None, apcent=0., nsig=1.0,
                     apmin=-1., apmax=1., muorder=-1, sigorder=-1,
                     normap=False, weight='gauss', plot_profiles=True,
                     plot_traces=False, plot_extracted=True,
