@@ -241,31 +241,6 @@ class Esi2d(ech2d.Ech2d):
             spec.spec1d['flux'] /= medflux
             spec.spec1d['var'] /= medflux**2
 
-   # --------------------------------------------------------------------
-
-    def plot_extracted(self, method='1x1', xmin=3840., xmax=10910.,
-                       ymin=None, ymax=None, color='b'):
-        """
-
-        Plots the 10 extracted 1d spectra in one plot.  There are two
-        ways to do this, which are set by the method parameter:
-          method='oneplot' - (default) Have one plot window showing the
-                              full wavelength range and the overlapping orders
-          method='tenplot' - The plot has 10 separate windows, one for each
-                              order
-
-        """
-        if method == 'tenplot':
-            print('NOTE: tenplot is not yet implemented')
-            return
-        else:
-            fig, ax = plt.subplots(111)
-            for i in self:
-                i.spec1d.plot(color=color, fig=fig, ax=ax)
-            plt.xlim(xmin, xmax)
-            if ymin is not None and ymax is not None:
-                plt.ylim(ymin, ymax)
-
     # --------------------------------------------------------------------
 
     def extract_all(self, method='oldham', modlist=None, apcent=0., nsig=1.0,
@@ -316,14 +291,15 @@ class Esi2d(ech2d.Ech2d):
 
             speclist.append(spec.spec1d)
 
+        """ Put the extracted spectra into an Echelle1d structure """
+        outspec = esi1d.Esi1d(speclist)
+
         """
         Plot the extracted spectra
         """
         if verbose:
             print('')
-        outspec = esi1d.Esi1d(speclist)
         if plot_extracted:
-            plt.figure()
             outspec.plot_all(**kwargs)
 
         """ Return the extracted spectrum (as an Esi1d object) """
