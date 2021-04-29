@@ -226,9 +226,10 @@ class Esi2d(ech2d.Ech2d):
         """ Trace and then extract the spectrum using the Spec2d methods  """
         if verbose:
             print('%s' % info['name'])
-        spec.find_and_trace(doplot=plot_traces, muorder=muorder,
-                            sigorder=sigorder, fitrange=[B, R],
-                            verbose=False)
+        fitorder= {'mean_1': muorder, 'stddev_1': sigorder}
+        spec.find_and_trace(doplot=plot_traces, do_subplot=plot_traces,
+                            fitorder=fitorder,
+                            fitrange=[B, R], verbose=False)
         spec.extract(extrange=[B, R], weight=weight, doplot=False,
                      verbose=False)
 
