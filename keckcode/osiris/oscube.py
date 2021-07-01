@@ -33,8 +33,8 @@ class OsCube(imf.Image):
         """
 
         """ Read the data into an Image structure """
-        super(OsCube, self).__init__(indat, verbose=verbose)  # Python 2.7
-        # super().__init__(indat, verbose=verbose) # Python 3 syntax
+        # super(OsCube, self).__init__(indat, verbose=verbose)  # Python 2.7
+        super().__init__(indat, verbose=verbose) # Python 3 syntax
         print('Number of wavelength slices: %d' % self.header['naxis1'])
 
         """
@@ -149,7 +149,7 @@ class OsCube(imf.Image):
         if maskfile == 'default':
             mfile = 'mask_%s_%s.fits' % (self.filt, self.lenslet)
             if maskdir is not None:
-                maskfile = os.path.join(maskdir, mfile)
+                maskfile = path.join(maskdir, mfile)
             else:
                 maskfile = mfile
             if debug:
@@ -447,9 +447,10 @@ class OsCube(imf.Image):
         """ Compress the temporary cube along the spectral axis """
         if combmode == 'median':
             self['slice'] = WcsHDU(np.transpose(np.median(cube, axis=2)),
-                                   w2dhdr)
+                                   w2dhdr, wcsverb=True)
         else:
-            self['slice'] = WcsHDU(np.transpose(cube.sum(axis=2)), w2dhdr)
+            self['slice'] = WcsHDU(np.transpose(cube.sum(axis=2)), w2dhdr,
+                                   wcsverb=True)
 
         """ Display the result if requested """
         if display:
@@ -984,11 +985,14 @@ class OsCube(imf.Image):
             hdr['%s2' % k] = hdr0['%s2' % k]
             hdr['%s3' % k] = hdr0['%s1' % k]
         hdr['cunit3'] = 'Ang'
+        
         """ PC matrix """
-        hdr['pc1_1'] = hdr0['pc%d_%d' % (self.raaxis, self.raaxis)]
-        hdr['pc1_2'] = hdr0['pc%d_%d' % (self.raaxis, self.decaxis)]
-        hdr['pc2_1'] = hdr0['pc%d_%d' % (self.decaxis, self.raaxis)]
-        hdr['pc2_2'] = hdr0['pc%d_%d' % (self.decaxis, self.decaxis)]
+        raaxis = self['input'].raaxis
+        decaxis = self['input'].decaxis
+        hdr['pc1_1'] = hdr0['pc%d_%d' % (raaxis, raaxis)]
+        hdr['pc1_2'] = hdr0['pc%d_%d' % (raaxis, decaxis)]
+        hdr['pc2_1'] = hdr0['pc%d_%d' % (decaxis, raaxis)]
+        hdr['pc2_2'] = hdr0['pc%d_%d' % (decaxis, decaxis)]
 
         print('')
         print('Saving to output file %s' % outfits)

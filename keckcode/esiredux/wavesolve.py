@@ -16,6 +16,10 @@ def clip(data,clip=3.):
         if d.size==l:
             return m,s
 
+import sys
+pyversion = sys.version_info.major
+
+
 
 def getContinuum(spec,bw=100.):
     from scipy import ndimage
@@ -41,10 +45,12 @@ def solve(d,orders):
     lines['hgne'] = numpy.loadtxt(path+"/data/hgne.lines")
     lines['xe'] = numpy.loadtxt(path+"/data/xe.lines")
 
-    #startsoln = numpy.load(path+"/data/test_wavesol.dat",
-    #                       allow_pickle=True)
-    startsoln = numpy.load(path+"/data/esi_wavesolution.dat",
-                           allow_pickle=True)
+    if pyversion == 2:
+        startsoln = numpy.load(path+"/data/esi_wavesoln_py27.dat",
+                               allow_pickle=True)
+    else:
+        startsoln = numpy.load(path+"/data/esi_wavesoln_py3.dat",
+                               allow_pickle=True)
 
     #arclist = d.keys() # Under python 3 this does not produce a list
     #                        and so arclist[0] below fails
