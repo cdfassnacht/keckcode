@@ -14,6 +14,9 @@ from specim import imfuncs as imf
 from specim import specfuncs as ss
 from specim.imfuncs.wcshdu import WcsHDU
 
+import sys
+pyversion = sys.version_info.major
+
 # ===========================================================================
 
 
@@ -33,8 +36,10 @@ class OsCube(imf.Image):
         """
 
         """ Read the data into an Image structure """
-        # super(OsCube, self).__init__(indat, verbose=verbose)  # Python 2.7
-        super().__init__(indat, verbose=verbose) # Python 3 syntax
+        if pyversion == 2:
+            super(OsCube, self).__init__(indat, verbose=verbose)  # Python 2.7
+        else:
+            super().__init__(indat, verbose=verbose) # Python 3 syntax
         print('Number of wavelength slices: %d' % self.header['naxis1'])
 
         """
@@ -202,15 +207,30 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def update_radec(self, crpix, crval, outfile=None, dmode='input'):
+    def update_wcs_from_2d(self, crpix, crval, verbose='False'):
         """
 
-        Updates the RA and Dec keywords 
-
+        Updates the RA and Dec keywords based on passed CRPIX and CRVAL
+        values that were obtained from a 2d image.
+        Note that in the OSIRIS DRP format, the RA axis is axis 3, while in
+        the standard 2d setup, RA is on axis 1.  This needs to be taken
+        into account.
 
         """
 
-        print('NOT YET IMPLEMENTED')
+        """ Set up axis mapping """
+        # axes2d = [1, 2]
+        axesdrp = [3, 2]
+
+        """ Loop through """
+        hdr = self.header
+        for i in range(2):
+            incrpix = crpix[i]
+            incrval = crval[i]
+            outcrpixkey = 'crpix%d' % axesdrp[i]
+            outcrvalkey = 'crval%d' % axesdrp[i]
+            hdr[outcrpixkey] = incrpix
+            hdr[outcrvalkey] = incrval
 
     # -----------------------------------------------------------------------
 
