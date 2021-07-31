@@ -7,8 +7,10 @@ oscube.py
 from os import path
 import numpy as np
 from scipy.ndimage import filters
+
 from astropy import wcs
 from astropy.io import fits as pf
+
 from cdfutils import datafuncs as df
 from specim import imfuncs as imf
 from specim import specfuncs as ss
@@ -52,7 +54,6 @@ class OsCube(imf.Image):
             except IOError:
                 self.drphdu1 = None
                 self.drphdu2 = None
-                test.close()
             else:
                 if len(test) == 3:
                     self.drphdu1 = test[1].copy()
@@ -655,8 +656,8 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def make_varspec(self, maskfile=None, outfile=None, outformat='text',
-                     verbose=False):
+    def make_varspec(self, maskfile=None, outfile=None, outformat='fitstab',
+                     doplot=False, verbose=False, **kwargs):
         """
         Steps through the spectral slices and computes the statistics of
         the illuminated region and stores the clipped mean and variance
@@ -687,13 +688,18 @@ class OsCube(imf.Image):
         self.meanspec = mean
         self.varspec = ss.Spec1d(wav=self.wav, flux=var)
 
+        """ Plot the spectrum if requested """
+        if doplot:
+            self.varspec.plot(**kwargs)
+
         """ Save the variance spectrum, if requested """
         if outfile is not None:
             self.varspec.save(outfile, outformat=outformat)
 
     # -----------------------------------------------------------------------
 
-    def make_varcube(self, maskfile=None, **kwargs):
+    def _make_varcube_from_varspec(self, maskfile=None, **kwargs):
+
         """
 
         Takes the 1-dimensional variance spectrum and converts it into a
@@ -709,11 +715,8 @@ class OsCube(imf.Image):
         if self.varspec is None:
             self.make_varspec(maskfile, **kwargs)
 
-        """ Create the container for the variance cube """
-        self['var'] = WcsHDU(self.data, self.header)
-        self['var'].data *= 0.
-
         """ Step through the slices, making each one a 2d variance slice """
+        data = self.data * 0.
         for imslice, var in enumerate(self.varspec['flux']):
             """
             Get the 2-dimensional mask that is appropriate for this slice
@@ -724,7 +727,75 @@ class OsCube(imf.Image):
                 mask2d = np.transpose(self.mask)
 
             """ Set the good pixels to the variance value for the slice """
-            self['var'].data[:, :, imslice][mask2d] = var
+            data[:, :, imslice][mask2d] = var
+
+        return data
+
+    # -----------------------------------------------------------------------
+
+    def _make_varcube_from_darksub(self, darksubfile, texp=None, gain=None):
+
+        """ Read in the dark-subtracted file """
+        try:
+            darksub = OsCube(darksubfile)
+        except IOError:
+            print('')
+            print('Cannot find dark-subtracted file: %s' % darksubfile)
+            print('')
+            return None
+
+        """ Get the exposure time and gain """
+        if texp is None:
+            try:
+                texp = darksub.header['elaptime']
+            except KeyError:
+                print('')
+                print('Missing ELAPTIME header keyword in %s' % darksubfile)
+                print('')
+                return None
+
+        if gain is None:
+            try:
+                gain = darksub.header['sysgain']
+            except KeyError:
+                print('')
+                print('Missing SYSGAIN header keyword in %s' % darksubfile)
+                print('')
+                return None
+
+        """ Convert the dark-subtracted data to a variance """
+        var = darksub.data / (texp * gain)
+        del darksub
+        return var
+
+    # -----------------------------------------------------------------------
+
+    def make_varcube(self, method, maskfile=None, darksubfile=None,
+                     outfile=None, **kwargs):
+
+        if method == 'varspec':
+            data = self._make_varcube_from_varspec(maskfile=maskfile, **kwargs)
+        elif method == 'darksub':
+            if darksubfile is None:
+                raise ValueError('make_varcube method "darksub" requires the'
+                                 ' darksubfile parameter to be set')
+            data = self._make_varcube_from_darksub(darksubfile=darksubfile,
+                                                   **kwargs)
+        else:
+            print('')
+            raise ValueError('make_varcube method must be either "darksub"'
+                             ' or "varspec"')
+
+        """ Create the container for the variance cube """
+        if data is not None:
+            self['var'] = WcsHDU(self.data, self.header)
+            self['var'].data = data
+        else:
+            raise ValueError('Could not create variance cube data')
+
+        """ Save the variance cube if requested """
+        if outfile is not None:
+            self.save_drp(outfile, 'var')
 
     # -----------------------------------------------------------------------
 
@@ -933,7 +1004,7 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def save_drp(self, dmode, outfile):
+    def save_drp(self, outfile, dmode):
         """
 
         Save the cube in a format that will be recognized by the OSIRIS DRP
@@ -950,7 +1021,7 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def save_xyl(self, outfits, outtext=None, **kwargs):
+    def save_xyl(self, outfits, dmode='input', outtext=None, **kwargs):
         """
 
         Saves the data cube as a fits file but with the spectral axis
@@ -970,12 +1041,15 @@ class OsCube(imf.Image):
                     in the format expected by Francesca Rizzo's modeling code.
                     The default value (None) means that no output file is
                     created.
+
+          NOTE: This should be rewritten to take advantage of the new
+          functionality in the WcsHDU writeto method
         """
 
         """
         Create a copy of the data cube and swap the axes
         """
-        cube, hdr0 = self.select_cube(verbose=True, **kwargs)
+        cube, hdr0 = self.select_cube(dmode=dmode, verbose=True, **kwargs)
         tmp = cube.copy()
         tmp2 = np.swapaxes(tmp, 0, 2)
 
@@ -1004,6 +1078,7 @@ class OsCube(imf.Image):
             hdr['%s1' % k] = hdr0['%s3' % k]
             hdr['%s2' % k] = hdr0['%s2' % k]
             hdr['%s3' % k] = hdr0['%s1' % k]
+        """ Override 'Angstrom' to 'Ang' to help ds9 """
         hdr['cunit3'] = 'Ang'
         
         """ PC matrix """

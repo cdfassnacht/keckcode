@@ -141,14 +141,14 @@ class CubeSet(list):
         for f in self:
             basename = os.path.basename(f.infile)
             outfile = os.path.join(outdir, basename)
-            varfile = outfile.replace('.fits', '.varspec')
+            varfile = outfile.replace('.fits', '_varspec.fits')
             if debug:
                 print('Input file:   %s' % f.infile)
                 print('Output file:  %s' % outfile)
                 print('Varspec file: %s' % varfile)
-            f.make_varspec(outfile=varfile)
+            f.make_varspec(outfile=varfile, outformat='fitstab')
             f.clean(**kwargs)
-            f.save_drp('clean', outfile)
+            f.save_drp(outfile, 'clean')
 
     # ------------------------------------------------------------------------
 
