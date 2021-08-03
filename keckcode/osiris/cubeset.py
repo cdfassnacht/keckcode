@@ -24,7 +24,7 @@ class CubeSet(list):
     # ------------------------------------------------------------------------
 
     def __init__(self, inlist, informat=None, indir=None, maskfile='default',
-                 verbose=True):
+                 maskdir=None, verbose=True):
         """
 
         There are three ways to create a Cubeset instance
@@ -61,9 +61,11 @@ class CubeSet(list):
                         maskfile = 'mask_%s_%s.fits' % (filt, lenslet)
                     if indir is not None:
                         infile = os.path.join(indir, f)
-                        maskpath = os.path.join(indir, maskfile)
                     else:
                         infile = f
+                    if maskdir is not None:
+                        maskpath = os.path.join(maskdir, maskfile)
+                    else:
                         maskpath = maskfile
                     try:
                         cube = OsCube(infile, maskfile=maskpath, verbose=False)
