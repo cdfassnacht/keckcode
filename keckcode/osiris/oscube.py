@@ -39,10 +39,13 @@ class OsCube(imf.Image):
 
         """ Read the data into an Image structure """
         if pyversion == 2:
-            super(OsCube, self).__init__(indat, verbose=verbose)  # Python 2.7
+            # Python 2.7
+            super(OsCube, self).__init__(indat, verbose=verbose, wcsverb=False)
         else:
-            super().__init__(indat, verbose=verbose) # Python 3 syntax
-        print('Number of wavelength slices: %d' % self.header['naxis1'])
+            # Python 3 syntax
+            super().__init__(indat, verbose=verbose, wcsverb=False)
+        if verbose:
+            print('Number of wavelength slices: %d' % self.header['naxis1'])
 
         """
         If indat is a file that has come out of the OSIRIS DRP, it will
@@ -103,7 +106,7 @@ class OsCube(imf.Image):
 
         """ Load a mask file if one has been provided """
         if maskfile is not None:
-            self.read_maskfile(maskfile)
+            self.read_maskfile(maskfile, verbose=verbose)
 
     # -----------------------------------------------------------------------
 
@@ -140,7 +143,8 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def read_maskfile(self, maskfile, maskdir='../Clean', debug=False):
+    def read_maskfile(self, maskfile, maskdir='../Clean', verbose=True,
+                      debug=False):
         """
 
         Reads an external file that will be used as a mask for the
@@ -165,7 +169,7 @@ class OsCube(imf.Image):
         Load the information from the file and convert the data into
         a boolean format
         """
-        mhdu = WcsHDU(maskfile, wcsverb=False)
+        mhdu = WcsHDU(maskfile, verbose=verbose, wcsverb=False)
         self.mask = mhdu.data > 0.
 
     # -----------------------------------------------------------------------
@@ -631,7 +635,7 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def read_varspec(self, varfile, maskfile, **kwargs):
+    def read_varspec(self, varfile, maskfile, informat='fitstab', **kwargs):
         """
 
         Reads a previously-generated variance spectrum into the OsCube object.
@@ -651,7 +655,7 @@ class OsCube(imf.Image):
 
         """
 
-        self.varspec = ss.Spec1d(varfile, **kwargs)
+        self.varspec = ss.Spec1d(varfile, informat=informat, **kwargs)
         self.read_maskfile(maskfile)
 
     # -----------------------------------------------------------------------
@@ -770,17 +774,16 @@ class OsCube(imf.Image):
 
     # -----------------------------------------------------------------------
 
-    def make_varcube(self, method, maskfile=None, darksubfile=None,
+    def make_varcube(self, method, maskfile=None, dsfile=None,
                      outfile=None, **kwargs):
 
         if method == 'varspec':
             data = self._make_varcube_from_varspec(maskfile=maskfile, **kwargs)
         elif method == 'darksub':
-            if darksubfile is None:
+            if dsfile is None:
                 raise ValueError('make_varcube method "darksub" requires the'
-                                 ' darksubfile parameter to be set')
-            data = self._make_varcube_from_darksub(darksubfile=darksubfile,
-                                                   **kwargs)
+                                 ' dsfile parameter to be set')
+            data = self._make_varcube_from_darksub(dsfile, **kwargs)
         else:
             print('')
             raise ValueError('make_varcube method must be either "darksub"'

@@ -23,7 +23,7 @@ class CubeSet(list):
 
     # ------------------------------------------------------------------------
 
-    def __init__(self, inlist, informat=None, indir=None, maskfile=None,
+    def __init__(self, inlist, informat=None, indir=None, maskfile='default',
                  verbose=True):
         """
 
@@ -36,10 +36,8 @@ class CubeSet(list):
          - Within this option is a specialized format for the coadd, which
            can be chosen by setting informat='coadd'
            For this option, the file must have the following columns:
-             File G CRVAL1 CRVAL2 CRPIX1 CRPIX2
-           where the column names are fairly self-explanatory except for G,
-           which is either 0 or 1 and indicates whether the file is
-           good (G=1) or bad (G=0)
+             File CRVAL1 CRVAL2 CRPIX1 CRPIX2
+           where the column names are fairly self-explanatory
 
         """
 
@@ -57,8 +55,18 @@ class CubeSet(list):
             """ Option 1 or 2: list of files or of OsCube instances """
             if isinstance(inlist[0], str):
                 for f in inlist:
+                    tmp = ((os.path.basename(f)).split('.')[0]).split('_')
+                    frame, filt, lenslet = tmp[1:4]
+                    if maskfile == 'default':
+                        maskfile = 'mask_%s_%s.fits' % (filt, lenslet)
+                    if indir is not None:
+                        infile = os.path.join(indir, f)
+                        maskpath = os.path.join(indir, maskfile)
+                    else:
+                        infile = f
+                        maskpath = maskfile
                     try:
-                        cube = OsCube(f)
+                        cube = OsCube(infile, maskfile=maskpath, verbose=False)
                     except IOError:
                         print('')
                         print('Could not open requested file: %s' % f)
@@ -92,23 +100,29 @@ class CubeSet(list):
              the good files
             """
             if informat == 'coadd':
-                goodtab = intab[intab['G'] == 1]
+                goodmask = (intab['CRPIX1'] > 0.) & (intab['CRPIX2'] > 0.)
+                goodtab = intab[goodmask]
                 flist = goodtab['File']
                 self.info = goodtab
             else:
                 flist = intab.columns[0]
                 self.info = intab
-            for f in flist:
+            for f, info in zip(flist, goodtab):
+                tmp = ((os.path.basename(f)).split('.')[0]).split('_')
+                obsdir = tmp[0].replace('s', '20')
+                frame, filt, lenslet = tmp[1:4]
                 if indir is 'fromfile':
                     osirisdir = os.getenv('osiris')
-                    obsdir = (f.split('_')[0]).replace('s', '20')
                     infile = os.path.join(osirisdir, obsdir, 'Clean', f)
                 elif indir is not None:
                     infile = os.path.join(indir, f)
                 else:
                     infile = f
                 try:
-                    cube = OsCube(infile)
+                    cube = OsCube(infile, maskfile=maskfile,verbose=False)
+                    crpix = [info['CRPIX1'], info['CRPIX2']]
+                    crval = [info['CRVAL1'], info['CRVAL2']]
+                    cube.update_wcs_from_2d(crpix, crval)
                 except IOError:
                     print('')
                     print('Could not open requested file: %s' % infile)
@@ -117,7 +131,7 @@ class CubeSet(list):
 
     # ------------------------------------------------------------------------
 
-    def clean(self, maskfile='default', maskdir='../Clean',
+    def clean(self, maskfile='default', maskdir='../Clean', dsdir='../DarkSub',
               outdir='../Clean', debug=False, **kwargs):
         """
 
@@ -142,18 +156,31 @@ class CubeSet(list):
             basename = os.path.basename(f.infile)
             outfile = os.path.join(outdir, basename)
             varfile = outfile.replace('.fits', '_varspec.fits')
+            if dsdir is not None:
+                dsfile = os.path.join(dsdir, basename)
+                varcubefile = varfile.replace('varspec', 'varcube')
+            else:
+                dsfile = None
             if debug:
                 print('Input file:   %s' % f.infile)
                 print('Output file:  %s' % outfile)
                 print('Varspec file: %s' % varfile)
+                if dsfile is not None:
+                    print('Darksub file: %s' % dsfile)
+                    print('Varcube file: %s' % varcubefile)
             f.make_varspec(outfile=varfile, outformat='fitstab')
             f.clean(**kwargs)
             f.save_drp(outfile, 'clean')
+            if dsfile is not None:
+                f.make_varcube('darksub', dsfile=dsfile, outfile=varcubefile)
 
     # ------------------------------------------------------------------------
 
-    def coadd(self, configfile, outfile, wlim=None, testslice='default',
-              testonly=False, slroot='slice', verbose=True, **kwargs):
+    def coadd(self, lensroot, configfile, centpos=None, whttype='mask',
+              varsuff='varcube', wlim=None,
+              testslice='default', swarp='swarp', testonly=False,
+              slroot='slice', verbose=True,
+              **kwargs):
         """
 
         Coadd the cubes through calls to swarp
@@ -180,25 +207,46 @@ class CubeSet(list):
             testslice = int((wmin + wmax) / 2.)
 
         for i, c in enumerate(self):
+            """ Get the data in the test slice """
             c.set_imslice(testslice, display=False)
-            outname = '%s_%02d.fits' % (slroot, i)
-            outwht = outname.replace('.fits', '_wht.fits')
+            outname = '%s_%03d_%02d.fits' % (slroot, testslice, i)
+
+            """ Set the input weights type for swarp """
+            if whttype == 'mask':
+                outwht = outname.replace('.fits', '_wht.fits')
             hdr = c['slice'].header
             if 'ELAPTIME' in hdr.keys():
                 hdr['exptime'] = hdr['elaptime']
             elif 'ITIME' in hdr.keys():
                 hdr['exptime'] = hdr['itime'] / 1000.
-            c['slice'].writeto(outname, overwrite=True)
-            pf.PrimaryHDU(c.mask.astype(int),
-                          hdr).writeto(outwht, overwrite=True)
-        os.system('swarp %s*fits -c swarp_coseye.config' % slroot)
+            c['slice'].writeto(outname)
+            mask = c.mask.astype(int)
+            outmask = outname.replace('.fits', '_mask.fits')
+            texp = mask * hdr['exptime']
+            outtexp = outmask.replace('mask', 'texp')
+            pf.PrimaryHDU(mask, hdr).writeto(outwht, overwrite=True)
+            pf.PrimaryHDU(mask, hdr).writeto(outmask, overwrite=True)
+            pf.PrimaryHDU(texp, hdr).writeto(outtexp, overwrite=True)
+
+        """ Run swarp on the science and ancillary files """
+        if whttype == 'mask':
+            keyvals = '-WEIGHT_TYPE MAP_WEIGHT  -WEIGHT_SUFFIX _wht.fits'
+        os.system('%s %s*fits -c %s %s' % (swarp, slroot, configfile, keyvals))
+
+        addkeys = '-WEIGHT_TYPE NONE -COMBINE_TYPE SUM'
+        addkeys = '%s -RESAMPLING_TYPE BILINEAR' % addkeys
+        mkeys = '-IMAGEOUT_NAME %s_mask.fits' % lensroot
+        os.system('%s %s*mask.fits -c %s %s %s' %
+                  (swarp, slroot, configfile, addkeys, mkeys))
+        # os.system('%s %s*fits -c %s %s' % (swarp, slroot, configfile, keyvals))
 
         """ If the testonly mode has been requested, quit here """
         if testonly:
+            # os.system('rm %s*fits' % slroot)
             return
 
         """
-        Get the relevent information out of the test file, and then delete
+        Get the relevant information out of the test file, and then delete
         the temporary files.
         The reason for using the WCS call is to get the WCS information in 
          the header of the swarped file into a standard format
