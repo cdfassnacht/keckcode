@@ -201,6 +201,19 @@ class CubeSet(list):
             wmin = 0
             wmax = self[0].wsize
 
+        """ Get variance information if given """
+        if whttype == 'varcube':
+            varlist = []
+            for i, cube in enumerate(self):
+                if cube.infile is not None:
+                    inname = cube.infile.replace('.fits', '_%s.fits' % varsuff)
+                    varlist.append(inname)
+                else:
+                    raise IOError('No filename associated with cube %d' % i)
+            varcube = CubeSet(varlist)
+        else:
+            varcube = None
+
         """
         Make a test file, with the swarped coadd of a single slice.
         This is used to set the size of the output array
@@ -213,26 +226,53 @@ class CubeSet(list):
             c.set_imslice(testslice, display=False)
             outname = '%s_%03d_%02d.fits' % (slroot, testslice, i)
 
-            """ Set the input weights type for swarp """
-            if whttype == 'mask':
-                outwht = outname.replace('.fits', '_wht.fits')
+            """ Get information from the fits header """
             hdr = c['slice'].header
             if 'ELAPTIME' in hdr.keys():
                 hdr['exptime'] = hdr['elaptime']
             elif 'ITIME' in hdr.keys():
                 hdr['exptime'] = hdr['itime'] / 1000.
+            else:
+                hdr['exptime'] = 1.
+
+            """ Save the science data """
             c['slice'].writeto(outname)
+
+            """ Set the input weight type for swarp """
             mask = c.mask.astype(int)
+            if whttype == 'mask':
+                wsuff = '_wht.fits'
+                wstr = 'MAP_WEIGHT'
+                whtdat = mask
+            elif whttype == 'varspec':
+                wsuff = '_wht.fits'
+                wstr = 'MAP_WEIGHT'
+                if c.varspec is None:
+                    c.make_varspec()
+                whtdat = mask * c.varspec[testslice]
+            elif whttype == 'varcube':
+                wsuff = '_rms.fits'
+                wstr = 'MAP_RMS'
+                varcube[i].set_imslice(testslice, display=False)
+                whtdat = varcube[i]['slice']
+            else:
+                raise ValueError('whttype must be one of "varcube", "varspec"'
+                                 ' or "mask"')
+
+            """ Define and save the weight image"""
+            outwht = outname.replace('.fits', wsuff)
+            pf.PrimaryHDU(whtdat, hdr).writeto(outwht, overwrite=True)
+
+            """ Save the mask and exposure time images """
             outmask = outname.replace('.fits', '_mask.fits')
             texp = mask * hdr['exptime']
             outtexp = outmask.replace('mask', 'texp')
-            pf.PrimaryHDU(mask, hdr).writeto(outwht, overwrite=True)
             pf.PrimaryHDU(mask, hdr).writeto(outmask, overwrite=True)
             pf.PrimaryHDU(texp, hdr).writeto(outtexp, overwrite=True)
 
         """ Run swarp on the science and ancillary files """
         if whttype == 'mask':
-            keyvals = '-WEIGHT_TYPE MAP_WEIGHT  -WEIGHT_SUFFIX _wht.fits'
+            keyvals = '-WEIGHT_TYPE %s  -WEIGHT_SUFFIX %s' % (wstr, wsuff)
         os.system('%s %s*fits -c %s %s' % (swarp, slroot, configfile, keyvals))
 
         addkeys = '-WEIGHT_TYPE NONE -COMBINE_TYPE SUM'
