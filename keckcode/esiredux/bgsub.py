@@ -118,7 +118,7 @@ def bgsub(dir,inname,out_prefix,cal_prefix):
     """
 
     try:
-        sub = pyfits.open(out_prefix+"_crsub.fits")[0].data.copy()
+        crsub = pyfits.open(out_prefix+"_crsub.fits")[0].data.copy()
         masks = numpy.load(out_prefix+'_masks.dat', allow_pickle=True)
         print('Opened CR-subbed image')
     except:
