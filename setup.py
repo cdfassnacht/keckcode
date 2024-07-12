@@ -24,7 +24,8 @@ setuptools.setup(
         'scipy',#>=1.1',
         'astropy',#>=3.1',
         'matplotlib',#>=3.0',
-        'cdfutils'
+        'cdfutils',
+        'specim'
     ],
     package_data = {'keckcode.esiredux' : ['data/*']}
 )
