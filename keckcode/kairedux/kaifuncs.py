@@ -18,6 +18,7 @@ is necessary when running the code in a Docker container
 """
 import matplotlib
 matplotlib.use('Agg')
+from matplotlib.colors import LogNorm
 
 import numpy as np
 import os, sys
@@ -36,7 +37,7 @@ from kai import instruments
 osiris = instruments.OSIRIS()
 
 
-def assn_to_framelist(assnlist, rootname):
+def assn_to_framelist(assnlist, rootname, suffix=None):
     """
 
     Utility function to make a list of frame numbers from a list of
@@ -93,7 +94,10 @@ def assn_to_framelist(assnlist, rootname):
         """
         assn = i['assn']
         for j in i['frames']:
-            framelist.append('%s%03d%03d' % (rootname, assn, j))
+            framename = '%s%03d%03d' % (rootname, assn, j)
+            if suffix is not None:
+                framename = '%s_%s' % (framename, suffix)
+            framelist.append(framename)
 
     return framelist
 
@@ -179,8 +183,7 @@ def go_calib():
     calib.makemask('Dark_180sec.fits', 'flat_Kp.fits', 'supermask.fits',
                    instrument=osiris)
 
-from matplotlib.colors import LogNorm
-                   
+
 def plot_image(imagePath, flip = False):
 
     # Initializing the Image
@@ -229,14 +232,17 @@ def name_checker(a,b):
             print("(Length should be 25 or below 21)")
             sys.exit()
 
-def go(target, obsdate, refSrc):
+
+def go(target, obsdate, assnlist, obsfilt, refSrc, usestrehl=False,
+       dockerun=False):
     """
     Do the full data reduction.
 
     Inputs:
-      target - 
-      obsdate -
-      refSrc - make sure you use the position in the _flipped_ image.
+      target   -
+      obsdate  -
+      assnlist -
+      refSrc   - make sure you use the position in the _flipped_ image.
     """	
 
     ##########
@@ -249,22 +255,33 @@ def go(target, obsdate, refSrc):
     #       (but non saturated) source in the first exposure of sci_files.
     #    -- If you use the OSIRIS image, you must include the full filename in the list. 
 
-    # Download weather data we will need.
+    """ 
+    Download weather data we will need.
+    This step is only needed if running the code within docker, and not even
+     then if the "makelog_and_prep_images" function has been run within the same 
+     docker session that is being used to run this "go" function  
+    """
     obsyear = obsdate[:4]
-    print('Downloading weather data for year %s' % obsyear)
-    dar.get_atm_conditions(obsyear)
+    if dockerun:
+        print('Downloading weather data for year %s' % obsyear)
+        dar.get_atm_conditions(obsyear)
 
-    #name_checker(epoch,target)
-    sci_files = ['i201105_a007{0:03d}_flip'.format(ii) for ii in range(2, 11)]
+    """ Make the list of science frames from the input assn list"""
+    #  name_checker(epoch,target) - don't need this any more
+    frameroot = 'i%s' % obsdate[2:]
+    sci_frames = assn_to_framelist(assnlist, frameroot)
+    # sci_files = ['i201105_a007{0:03d}_flip'.format(ii) for ii in range(2, 11)]
 
     """ For this target, use the sky created for 2022_06_05 """
     # sky.makesky(sky_files, target, 'Kp', instrument=osiris)
-    data.clean(sci_files, target, 'Kp', refSrc, refSrc, field=target,
+    data.clean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
                instrument=osiris)
-    # data.calcStrehl(sci_files, 'kp_tdOpen', field=target, instrument=osiris)
-    # data.combine(sci_files, 'kp_tdOpen', epoch, field=target,
-    #                 trim=0, weight='strehl', submaps=3, instrument=osiris)
-    data.combine(sci_files, 'Kp', obsdate, field=target,
-                 trim=0, weight=None, submaps=3, instrument=osiris)   
+    if usestrehl:
+        data.calcStrehl(sci_frames, obsfilt, field=target, instrument=osiris)
+        combwht = 'strehl'
+    else:
+        combwht = None
+    data.combine(sci_frames, obsfilt, obsdate, field=target,
+                 trim=0, weight=combwht, submaps=3, instrument=osiris)
                      
                       
