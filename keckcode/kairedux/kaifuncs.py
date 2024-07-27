@@ -233,16 +233,24 @@ def name_checker(a,b):
             sys.exit()
 
 
-def go(target, obsdate, assnlist, obsfilt, refSrc, usestrehl=False,
+def go(target, obsdate, assnlist, obsfilt, refSrc, suffix=None, usestrehl=False,
        dockerun=False):
     """
     Do the full data reduction.
 
     Inputs:
-      target   -
-      obsdate  -
-      assnlist -
-      refSrc   - make sure you use the position in the _flipped_ image.
+      target    - root name of the target object
+      obsdate   - 8-digit observation date in yyyymmdd format (e.g., 20201101)
+      assnlist  -
+      refSrc    - make sure you use the position in the _flipped_ image.
+      suffix    - any suffix that should be added to the frame names that
+                   are generated from the assnlist, e.g., 'flip'.
+                  The default (None) means do not add a suffix
+      usestrehl -
+      dockerrun - is this function being called within a Docker run in which
+                  the weather files have not yet been downloaded.
+                  Set to True to download the weather files.
+                  Default is False
     """	
 
     ##########
@@ -269,11 +277,10 @@ def go(target, obsdate, assnlist, obsfilt, refSrc, usestrehl=False,
     """ Make the list of science frames from the input assn list"""
     #  name_checker(epoch,target) - don't need this any more
     frameroot = 'i%s' % obsdate[2:]
-    sci_frames = assn_to_framelist(assnlist, frameroot)
-    # sci_files = ['i201105_a007{0:03d}_flip'.format(ii) for ii in range(2, 11)]
+    sci_frames = assn_to_framelist(assnlist, frameroot, suffix=suffix)
 
     """ For this target, use the sky created for 2022_06_05 """
-    # sky.makesky(sky_files, target, 'Kp', instrument=osiris)
+    # sky.makesky(sky_frames, obsdate, obsfilt, instrument=osiris)
     data.clean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
                instrument=osiris)
     if usestrehl:
