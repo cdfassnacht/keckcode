@@ -233,8 +233,8 @@ def name_checker(a,b):
             sys.exit()
 
 
-def go(target, obsdate, assnlist, obsfilt, refSrc, suffix=None, usestrehl=False,
-       dockerun=False):
+def go(target, obsdate, assnlist, obsfilt, refSrc, suffix=None, skyscale=False,
+       usestrehl=False, dockerun=False):
     """
     Do the full data reduction.
 
@@ -246,6 +246,7 @@ def go(target, obsdate, assnlist, obsfilt, refSrc, suffix=None, usestrehl=False,
       suffix    - any suffix that should be added to the frame names that
                    are generated from the assnlist, e.g., 'flip'.
                   The default (None) means do not add a suffix
+      skyscale  -
       usestrehl -
       dockerrun - is this function being called within a Docker run in which
                   the weather files have not yet been downloaded.
@@ -261,7 +262,8 @@ def go(target, obsdate, assnlist, obsfilt, refSrc, suffix=None, usestrehl=False,
     #       clean them seperatly.
     #    -- Strehl and Ref src should be the pixel coordinates of a bright
     #       (but non saturated) source in the first exposure of sci_files.
-    #    -- If you use the OSIRIS image, you must include the full filename in the list. 
+    #    -- If you use the OSIRIS image, you must include the full filename
+    #    in the list.
 
     """ 
     Download weather data we will need.
@@ -282,7 +284,7 @@ def go(target, obsdate, assnlist, obsfilt, refSrc, suffix=None, usestrehl=False,
     """ For this target, use the sky created for 2022_06_05 """
     # sky.makesky(sky_frames, obsdate, obsfilt, instrument=osiris)
     data.clean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
-               instrument=osiris)
+               instrument=osiris, skyscale=skyscale)
     if usestrehl:
         data.calcStrehl(sci_frames, obsfilt, field=target, instrument=osiris)
         combwht = 'strehl'
