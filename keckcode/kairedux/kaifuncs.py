@@ -278,7 +278,7 @@ def go(target, obsdate, assnlist, obsfilt, refSrc, suffix=None, skyscale=False,
 
     """ Make the list of science frames from the input assn list"""
     #  name_checker(epoch,target) - don't need this any more
-    frameroot = 'i%s' % obsdate[2:]
+    frameroot = 'i%s_a' % obsdate[2:]
     sci_frames = assn_to_framelist(assnlist, frameroot, suffix=suffix)
     print('')
     print('Science frames to be cleaned and combined')
