@@ -280,6 +280,12 @@ def go(target, obsdate, assnlist, obsfilt, refSrc, suffix=None, skyscale=False,
     #  name_checker(epoch,target) - don't need this any more
     frameroot = 'i%s' % obsdate[2:]
     sci_frames = assn_to_framelist(assnlist, frameroot, suffix=suffix)
+    print('')
+    print('Science frames to be cleaned and combined')
+    print('-----------------------------------------')
+    for frame in sci_frames:
+        print('%s' % frame)
+    print('')
 
     """ For this target, use the sky created for 2022_06_05 """
     # sky.makesky(sky_frames, obsdate, obsfilt, instrument=osiris)
