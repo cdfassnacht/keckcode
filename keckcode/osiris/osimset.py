@@ -11,8 +11,6 @@ import sys
 import numpy as np
 from math import sqrt
 
-from astropy import wcs
-
 from cdfutils import coords
 from specim.imfuncs.wcshdu import WcsHDU
 from ccdredux.ccdset import CCDSet
