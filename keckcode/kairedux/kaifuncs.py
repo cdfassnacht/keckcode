@@ -317,6 +317,15 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
         coofile = '%s.coo' % combroot
         print('')
         print('Reading reference pixel information from %s' % coofile)
-        cootab = ascii.read(coofile, names=['x', 'y'])
-        refcoo = [cootab['x'][0], cootab['y'][0]]
-        print('Reference pixel: %.2f %.2f' % (refcoo[0], refcoo[1]))
+        try:
+            cootab = ascii.read(coofile, names=['x', 'y'])
+            refcoo = [cootab['x'][0], cootab['y'][0]]
+            print('Reference pixel: %.2f %.2f' % (refcoo[0], refcoo[1]))
+        except:
+            print('')
+            print('Could not find %s' % coofile)
+            print('')
+            print(os.getenv('PWD'))
+            print('')
+            os.system('ls')
+            print('')
