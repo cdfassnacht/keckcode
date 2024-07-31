@@ -8,23 +8,28 @@
 #
 ##################################################
 
-# Turn off header deprecation warnings
+""" Import basic modules """
 import warnings
-warnings.filterwarnings('ignore', category=UserWarning, append=True)
+import numpy as np
+import os
+import sys
+import glob
 
 """
-These two lines prevent any display functionality by matplotlib, which
-is necessary when running the code in a Docker container
+The matplotlib.use('Agg') line prevents any display functionality by 
+matplotlib, which is necessary when running the code in a Docker container.
+It must come before any import statement that will also lead to an
+import of matplotlib, which it needs to be before the specim and kai imports
 """
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib.colors import LogNorm
 
-import numpy as np
-import os, sys
-import glob
+""" Import additional helper modules """
+from astropy.io import ascii
+from specim.imfuncs.wcshdu import WcsHDU
 
-# Import KAI modules
+""" Import KAI modules """
 from kai.reduce import calib
 from kai.reduce import sky
 from kai.reduce import data
@@ -32,6 +37,9 @@ from kai.reduce import util
 from kai.reduce import dar
 from kai.reduce import kai_util
 from kai import instruments
+
+""" Turn off header deprecation warnings """
+warnings.filterwarnings('ignore', category=UserWarning, append=True)
 
 """ Define a global variable """
 osiris = instruments.OSIRIS()
@@ -137,7 +145,7 @@ def makelog_and_prep_images(year, instrument=osiris, rawdir='../raw'):
 # Reduce
 ##########
 #def go_calib(darkdict, flatondict, darkflatoffdict=None):
-def go_calib():
+def make_calfiles():
     """Do the calibration reduction.
 
     @author Jessica Lu
@@ -220,21 +228,21 @@ def plot_image(imagePath, flip = False):
     plt.ylabel('Pixel Coordinates (pixel)')
     plt.axis('equal')
     plt.title(imagePath.split("/")[-1])
-    
-    
+
     return
+
 
 def name_checker(a,b):
     length = len(a) + len(b)
-    if(length > 12+8):
-        if(length != 25):
+    if length > 12+8:
+        if length != 25:
             print("Check your ABCs, length is " + str(length))
             print("(Length should be 25 or below 21)")
             sys.exit()
 
 
-def go(target, obsdate, assnlist, obsfilt, refSrc, suffix=None, skyscale=False,
-       usestrehl=False, dockerun=False):
+def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
+           skyscale=False, usestrehl=False, dockerun=False):
     """
     Do the full data reduction.
 
@@ -298,5 +306,17 @@ def go(target, obsdate, assnlist, obsfilt, refSrc, suffix=None, skyscale=False,
         combwht = None
     data.combine(sci_frames, obsfilt, obsdate, field=target,
                  trim=0, weight=combwht, submaps=3, instrument=osiris)
-                     
-                      
+
+    """
+    In the final combined science image, assign the refradec values to the
+    correct ref pixel in the drizzed image.  The appropriate pixel location
+    is stored in the mag[obsdate]_[target]_[obsfilt].coo file
+    """
+    if refradec is not None:
+        combroot = '../combo/mag%s_%s_%s' % (obsdate, target, obsfilt)
+        coofile = '%s.coo' % combroot
+        print('')
+        print('Reading reference pixel information from %s' % coofile)
+        cootab = ascii.read(coofile, names=['x', 'y'])
+        refcoo = [cootab['x'][0], cootab['y'][0]]
+        print('Reference pixel: %.2f %.2f' % (refcoo[0], refcoo[1]))
