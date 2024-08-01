@@ -313,7 +313,9 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
     is stored in the mag[obsdate]_[target]_[obsfilt].coo file
     """
     if refradec is not None:
-        combroot = '../combo/mag%s_%s_%s' % (obsdate, target, obsfilt)
+        combdir = '%s/../combo' % os.getcwd()
+        combroot = os.path.join(combdir, 'mag%s_%s_%s' %
+                                (obsdate, target, obsfilt))
         coofile = '%s.coo' % combroot
         print('')
         print('Reading reference pixel information from %s' % coofile)
@@ -326,6 +328,4 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
             print('Could not find %s' % coofile)
             print('')
             print(os.getenv('PWD'))
-            print('')
-            os.system('ls')
             print('')
