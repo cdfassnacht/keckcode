@@ -262,10 +262,6 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
                   Default is False
     """	
 
-    ##########
-    # Kp-band reduction
-    ##########
-
     #    -- If you have more than one position angle, make sure to
     #       clean them seperatly.
     #    -- Strehl and Ref src should be the pixel coordinates of a bright
@@ -331,12 +327,37 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
             cootab = ascii.read(coofile, names=['x', 'y'])
             refcoo = [cootab['x'][0], cootab['y'][0]]
             print('Reference pixel: %.2f %.2f' % (refcoo[0], refcoo[1]))
-        except:
+        except IOError:
             print('')
             print('Could not find %s' % coofile)
             print('')
-            print(os.getenv('PWD'))
+            print('Current directory is: %s' % os.getcwd())
             print('')
+            raise IOError
+
+        """ Set the WCS values in the science image """
+        sciin = WcsHDU(scifile)
+        sciin.crpix = refcoo
+        sciin.crval = refradec
+        sciin.pixscale = 0.01
+
+        """
+        Get some information from the drizzle output and put it into SHARP
+        standardized form
+        """
+        hdr = sciin.header
+        if 'ITIME' in hdr.keys():
+            hdr['elaptime'] = hdr['itime'] / 1000.
+            hdr['exptime'] = hdr['itime'] / 1000.
+        if 'NDRIZIM' in hdr.keys():
+            hdr['ncombine'] = hdr['ndrizim']
+        if 'FILTER' not in hdr.keys() and 'IFILTER' in hdr.keys():
+            hdr['filter'] = hdr['ifilter']
+
+        """ Save the updated file with a new name """
+        keeplist = ['object', 'telescope', 'instrume', 'filter', 'date-obs',
+                    'exptime', 'elaptime', 'ncombine', 'gain']
+        sciin.writeto(outfile=outsci, keeplist=keeplist)
 
     """
     Also fix the DATASEC header key for the sig image so that ds9 will display
