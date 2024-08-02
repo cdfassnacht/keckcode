@@ -313,10 +313,18 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
     is stored in the mag[obsdate]_[target]_[obsfilt].coo file
     """
     if refradec is not None:
-        combdir = '%s/../combo' % os.getcwd()
+        """ Set up the relevant filenames """
+        combdir = '%s/combo' % os.getcwd()
         combroot = os.path.join(combdir, 'mag%s_%s_%s' %
                                 (obsdate, target, obsfilt))
         coofile = '%s.coo' % combroot
+        scifile = '%s.fits' % combroot
+        sigfile = '%s_sig.fits' % combroot
+        outroot = os.path.join(combdir, '%s_%s_%s' % (target, obsdate, obsfilt))
+        outsci = '%s.fits' % outroot
+        outwht = '%s_wht.fits' % outroot
+
+        """ Read the reference pixel information from the *.coo file """
         print('')
         print('Reading reference pixel information from %s' % coofile)
         try:
@@ -329,3 +337,8 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
             print('')
             print(os.getenv('PWD'))
             print('')
+
+    """
+    Also fix the DATASEC header key for the sig image so that ds9 will display
+    it properly.
+    """
