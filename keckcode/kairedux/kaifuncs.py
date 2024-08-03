@@ -241,7 +241,7 @@ def name_checker(a,b):
             sys.exit()
 
 
-def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
+def reduce(target, obsdate, assnlist, obsfilt, refSrc, suffix=None,
            skyscale=False, usestrehl=False, dockerun=False):
     """
     Do the full data reduction.
@@ -295,20 +295,39 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
 
     """ For this target, use the sky created for 2022_06_05 """
     # sky.makesky(sky_frames, obsdate, obsfilt, instrument=osiris)
+    print('Calibrating and cleaning the input files')
+    print('----------------------------------------')
     data.clean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
                instrument=osiris, skyscale=skyscale)
     if usestrehl:
         data.calcStrehl(sci_frames, obsfilt, field=target, instrument=osiris)
         combwht = 'strehl'
+        submaps = 0  # UCB group sets this to 3 for their images (have stars)
     else:
         combwht = None
+        submaps = 0
+    print('')
+    print('Combining the calibrated files')
+    print('------------------------------')
     data.combine(sci_frames, obsfilt, obsdate, field=target,
-                 trim=0, weight=combwht, submaps=3, instrument=osiris)
+                 trim=0, weight=combwht, submaps=submaps, instrument=osiris)
 
-    """ 
-    Get the combined drizzled image into its final format.
-    Start by setting up the relevant filenames
+
+def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
     """
+    Get the combined drizzled image into its final format.
+    Inputs:
+      target    - root name of the target object
+      obsdate   - 8-digit observation date in yyyymmdd format (e.g., 20201101)
+      assnlist  -
+      refSrc    - make sure you use the position in the _flipped_ image.
+      suffix    - any suffix that should be added to the frame names that
+                   are generated from the assnlist, e.g., 'flip'.
+                  The default (None) means do not add a suffix
+
+    """
+
+    """ Start by setting up the relevant filenames """
     combdir = '%s/combo' % os.getcwd()
     combroot = os.path.join(combdir, 'mag%s_%s_%s' % (obsdate, target, obsfilt))
     scifile = '%s.fits' % combroot
@@ -316,6 +335,10 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
     outroot = os.path.join(combdir, '%s_%s_%s' % (target, obsdate, obsfilt))
     outsci = '%s.fits' % outroot
     outwht = '%s_wht.fits' % outroot
+
+    """ Make the list of science frames from the input assn list"""
+    frameroot = 'i%s_a' % obsdate[2:]
+    sci_frames = assn_to_framelist(assnlist, frameroot, suffix=suffix)
 
     """ Set the pixel scale to the proper value """
     sciin = WcsHDU(scifile)
@@ -327,8 +350,12 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
     """
     hdr = sciin.header
     if 'ITIME' in hdr.keys():
-        hdr['elaptime'] = hdr['itime'] / 1000.
-        hdr['exptime'] = hdr['itime'] / 1000.
+        tottime = hdr['itime'] / 1000.
+        hdr['elaptime'] = tottime
+        hdr['exptime'] = tottime
+        avgtime = tottime / len(sci_frames)
+    else:
+        avgtime = 1.
     if 'FILTER' not in hdr.keys() and 'IFILTER' in hdr.keys():
         hdr['filter'] = hdr['ifilter']
     if 'NDRIZIM' in hdr.keys():
@@ -372,10 +399,17 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
     sciin.writeto(outfile=outsci, keeplist=keeplist)
 
     """
-    Also fix the DATASEC header key for the sig image so that ds9 will display
-    it properly.
+    Convert the drizzle "sig" file to a weight file in the style of
+    astrodrizzle, where the weight in each pixel is the effective exposure time
+    in that pixel.
     """
     whtin = WcsHDU(sigfile)
+    whtin.data *= avgtime
+    """
+    Also fix the DATASEC header key for the wht image so that ds9 will display
+    it properly.
+    """
     whdr = whtin.header
     whdr['dataset'] = '[1:%d,1:%d]' % (hdr['naxis1'], hdr['naxis2'])
+
     whtin.writeto(outfile=outwht)
