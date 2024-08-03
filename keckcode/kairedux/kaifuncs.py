@@ -290,6 +290,8 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
     for frame in sci_frames:
         print('%s' % frame)
     print('')
+    print(os.getcwd())
+    print('')
 
     """ For this target, use the sky created for 2022_06_05 """
     # sky.makesky(sky_frames, obsdate, obsfilt, instrument=osiris)
@@ -349,14 +351,18 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
         if 'ITIME' in hdr.keys():
             hdr['elaptime'] = hdr['itime'] / 1000.
             hdr['exptime'] = hdr['itime'] / 1000.
-        if 'NDRIZIM' in hdr.keys():
-            hdr['ncombine'] = hdr['ndrizim']
         if 'FILTER' not in hdr.keys() and 'IFILTER' in hdr.keys():
             hdr['filter'] = hdr['ifilter']
+        if 'NDRIZIM' in hdr.keys():
+            hdr['ncombine'] = hdr['ndrizim']
+        for i, f in enumerate(sci_frames):
+            hdr.set('orig%03d' % (i+1), f, 'Original input file %d' % (i + 1))
 
         """ Save the updated file with a new name """
         keeplist = ['object', 'telescope', 'instrume', 'filter', 'date-obs',
-                    'exptime', 'elaptime', 'ncombine', 'gain']
+                    'gain', 'exptime', 'elaptime', 'ncombine']
+        for i in range(len(sci_frames)):
+            keeplist += ['orig%03d' % (i + 1)]
         sciin.writeto(outfile=outsci, keeplist=keeplist)
 
     """
