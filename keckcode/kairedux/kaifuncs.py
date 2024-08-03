@@ -305,22 +305,45 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
     data.combine(sci_frames, obsfilt, obsdate, field=target,
                  trim=0, weight=combwht, submaps=3, instrument=osiris)
 
+    """ 
+    Get the combined drizzled image into its final format.
+    Start by setting up the relevant filenames
     """
-    In the final combined science image, assign the refradec values to the
-    correct ref pixel in the drizzed image.  The appropriate pixel location
-    is stored in the mag[obsdate]_[target]_[obsfilt].coo file
+    combdir = '%s/combo' % os.getcwd()
+    combroot = os.path.join(combdir, 'mag%s_%s_%s' % (obsdate, target, obsfilt))
+    scifile = '%s.fits' % combroot
+    sigfile = '%s_sig.fits' % combroot
+    outroot = os.path.join(combdir, '%s_%s_%s' % (target, obsdate, obsfilt))
+    outsci = '%s.fits' % outroot
+    outwht = '%s_wht.fits' % outroot
+
+    """ Set the pixel scale to the proper value """
+    sciin = WcsHDU(scifile)
+    sciin.pixscale = 0.01
+
     """
+    Get some information from the drizzle output and put it into SHARP
+    standardized form
+    """
+    hdr = sciin.header
+    if 'ITIME' in hdr.keys():
+        hdr['elaptime'] = hdr['itime'] / 1000.
+        hdr['exptime'] = hdr['itime'] / 1000.
+    if 'FILTER' not in hdr.keys() and 'IFILTER' in hdr.keys():
+        hdr['filter'] = hdr['ifilter']
+    if 'NDRIZIM' in hdr.keys():
+        hdr['ncombine'] = hdr['ndrizim']
+    for i, f in enumerate(sci_frames):
+        hdr.set('orig%03d' % (i + 1), f, 'Original input file %d' % (i + 1))
+
+    """ Put the correct WCS info into the file, if requested """
     if refradec is not None:
-        """ Set up the relevant filenames """
-        combdir = '%s/combo' % os.getcwd()
-        combroot = os.path.join(combdir, 'mag%s_%s_%s' %
-                                (obsdate, target, obsfilt))
+        """
+        In the final combined science image, assign the refradec values to the
+        correct ref pixel in the drizzed image.  The appropriate pixel location
+        is stored in the mag[obsdate]_[target]_[obsfilt].coo file
+        """
         coofile = '%s.coo' % combroot
-        scifile = '%s.fits' % combroot
-        sigfile = '%s_sig.fits' % combroot
-        outroot = os.path.join(combdir, '%s_%s_%s' % (target, obsdate, obsfilt))
-        outsci = '%s.fits' % outroot
-        outwht = '%s_wht.fits' % outroot
 
         """ Read the reference pixel information from the *.coo file """
         print('')
@@ -338,34 +361,21 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, refradec, suffix=None,
             raise IOError
 
         """ Set the WCS values in the science image """
-        sciin = WcsHDU(scifile)
         sciin.crpix = refcoo
         sciin.crval = refradec
-        sciin.pixscale = 0.01
 
-        """
-        Get some information from the drizzle output and put it into SHARP
-        standardized form
-        """
-        hdr = sciin.header
-        if 'ITIME' in hdr.keys():
-            hdr['elaptime'] = hdr['itime'] / 1000.
-            hdr['exptime'] = hdr['itime'] / 1000.
-        if 'FILTER' not in hdr.keys() and 'IFILTER' in hdr.keys():
-            hdr['filter'] = hdr['ifilter']
-        if 'NDRIZIM' in hdr.keys():
-            hdr['ncombine'] = hdr['ndrizim']
-        for i, f in enumerate(sci_frames):
-            hdr.set('orig%03d' % (i+1), f, 'Original input file %d' % (i + 1))
-
-        """ Save the updated file with a new name """
-        keeplist = ['object', 'telescope', 'instrume', 'filter', 'date-obs',
-                    'gain', 'exptime', 'elaptime', 'ncombine']
-        for i in range(len(sci_frames)):
-            keeplist += ['orig%03d' % (i + 1)]
-        sciin.writeto(outfile=outsci, keeplist=keeplist)
+    """ Save the updated file with a new name """
+    keeplist = ['object', 'telescope', 'instrume', 'filter', 'date-obs',
+                'gain', 'exptime', 'elaptime', 'ncombine']
+    for i in range(len(sci_frames)):
+        keeplist += ['orig%03d' % (i + 1)]
+    sciin.writeto(outfile=outsci, keeplist=keeplist)
 
     """
     Also fix the DATASEC header key for the sig image so that ds9 will display
     it properly.
     """
+    whtin = WcsHDU(sigfile)
+    whdr = whtin.header
+    whdr['dataset'] = '[1:%d,1:%d]' % (hdr['naxis1'], hdr['naxis2'])
+    whtin.writeto(outfile=outwht)
