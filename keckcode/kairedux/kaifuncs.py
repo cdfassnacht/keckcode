@@ -343,6 +343,8 @@ def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
     """ Set the pixel scale to the proper value """
     sciin = WcsHDU(scifile)
     sciin.pixscale = 0.01
+    whtin = WcsHDU(sigfile)
+    whtin.pixscale = 0.01
 
     """
     Get some information from the drizzle output and put it into SHARP
@@ -390,6 +392,8 @@ def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
         """ Set the WCS values in the science image """
         sciin.crpix = refcoo
         sciin.crval = refradec
+        whtin.crpix = refcoo
+        whtin.crval = refradec
 
     """ Save the updated file with a new name """
     keeplist = ['object', 'telescope', 'instrume', 'filter', 'date-obs',
@@ -403,13 +407,12 @@ def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
     astrodrizzle, where the weight in each pixel is the effective exposure time
     in that pixel.
     """
-    whtin = WcsHDU(sigfile)
     whtin.data *= avgtime
     """
     Also fix the DATASEC header key for the wht image so that ds9 will display
     it properly.
     """
     whdr = whtin.header
-    whdr['dataset'] = '[1:%d,1:%d]' % (hdr['naxis1'], hdr['naxis2'])
+    whdr['datasec'] = '[1:%d,1:%d]' % (hdr['naxis1'], hdr['naxis2'])
 
     whtin.writeto(outfile=outwht)
