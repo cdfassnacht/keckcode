@@ -332,7 +332,7 @@ def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
     combroot = os.path.join(combdir, 'mag%s_%s_%s' % (obsdate, target, obsfilt))
     scifile = '%s.fits' % combroot
     sigfile = '%s_sig.fits' % combroot
-    outroot = os.path.join(combdir, '%s_%s_%s' % (target, obsdate, obsfilt))
+    outroot = os.path.join(combdir, '%s_kai_%s_%s' % (target, obsdate, obsfilt))
     outsci = '%s.fits' % outroot
     outwht = '%s_wht.fits' % outroot
 
@@ -340,11 +340,9 @@ def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
     frameroot = 'i%s_a' % obsdate[2:]
     sci_frames = assn_to_framelist(assnlist, frameroot, suffix=suffix)
 
-    """ Set the pixel scale to the proper value """
+    """ Read in the science and "sig" files """
     sciin = WcsHDU(scifile)
-    sciin.pixscale = 0.01
     whtin = WcsHDU(sigfile)
-    whtin.pixscale = 0.01
 
     """
     Get some information from the drizzle output and put it into SHARP
@@ -364,6 +362,23 @@ def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
         hdr['ncombine'] = hdr['ndrizim']
     for i, f in enumerate(sci_frames):
         hdr.set('orig%03d' % (i + 1), f, 'Original input file %d' % (i + 1))
+
+    """
+    Use the WcsHDR functionality to:
+      1. Set the pixel scale to 0.01 arcsec
+      2. Convert the pixel units to e-/sec
+    """
+    pixscale = 0.01
+    if 'SYSGAIN' in hdr.keys():
+        gain = hdr['sysgain']
+    else:
+        gain = -1.
+    if avgtime > 1.:
+        texp = avgtime
+    else:
+        texp = -1.
+    sciin.process_data(gain=gain, texp=texp, pixscale=pixscale)
+    whtin.process_data(pixscale=pixscale)
 
     """ Put the correct WCS info into the file, if requested """
     if refradec is not None:
@@ -397,7 +412,8 @@ def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
 
     """ Save the updated file with a new name """
     keeplist = ['object', 'telescope', 'instrume', 'filter', 'date-obs',
-                'gain', 'exptime', 'elaptime', 'ncombine']
+                'bunit', 'binfo_1', 'binfo_2', 'gain', 'ogain', 'exptime',
+                'semester', 'progpi', 'progid', 'elaptime', 'ncombine']
     for i in range(len(sci_frames)):
         keeplist += ['orig%03d' % (i + 1)]
     sciin.writeto(outfile=outsci, keeplist=keeplist)
