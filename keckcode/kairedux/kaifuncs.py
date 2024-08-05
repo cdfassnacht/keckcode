@@ -377,8 +377,8 @@ def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
         texp = avgtime
     else:
         texp = -1.
-    sciin.process_data(gain=gain, texp=texp, pixscale=pixscale)
-    whtin.process_data(pixscale=pixscale)
+    newsci = sciin.process_data(gain=gain, texp=texp, pixscale=pixscale)
+    newwht = whtin.process_data(pixscale=pixscale)
 
     """ Put the correct WCS info into the file, if requested """
     if refradec is not None:
@@ -405,10 +405,10 @@ def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
             raise IOError
 
         """ Set the WCS values in the science image """
-        sciin.crpix = refcoo
-        sciin.crval = refradec
-        whtin.crpix = refcoo
-        whtin.crval = refradec
+        newsci.crpix = refcoo
+        newsci.crval = refradec
+        newwht.crpix = refcoo
+        newwht.crval = refradec
 
     """ Save the updated file with a new name """
     keeplist = ['object', 'telescope', 'instrume', 'filter', 'date-obs',
@@ -416,19 +416,19 @@ def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
                 'semester', 'progpi', 'progid', 'elaptime', 'ncombine']
     for i in range(len(sci_frames)):
         keeplist += ['orig%03d' % (i + 1)]
-    sciin.writeto(outfile=outsci, keeplist=keeplist)
+    newsci.writeto(outfile=outsci, keeplist=keeplist)
 
     """
     Convert the drizzle "sig" file to a weight file in the style of
     astrodrizzle, where the weight in each pixel is the effective exposure time
     in that pixel.
     """
-    whtin.data *= avgtime
+    newwht.data *= avgtime
     """
     Also fix the DATASEC header key for the wht image so that ds9 will display
     it properly.
     """
-    whdr = whtin.header
+    whdr = newwht.header
     whdr['datasec'] = '[1:%d,1:%d]' % (hdr['naxis1'], hdr['naxis2'])
 
-    whtin.writeto(outfile=outwht)
+    newwht.writeto(outfile=outwht)
