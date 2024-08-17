@@ -41,8 +41,9 @@ from kai import instruments
 """ Turn off header deprecation warnings """
 warnings.filterwarnings('ignore', category=UserWarning, append=True)
 
-""" Define a global variable """
+""" Define global variables for the two possible instruments """
 osiris = instruments.OSIRIS()
+nirc2 = instruments.NIRC2()
 
 
 def assn_to_framelist(assnlist, rootname, suffix=None):
@@ -109,12 +110,58 @@ def assn_to_framelist(assnlist, rootname, suffix=None):
 
     return framelist
 
+def inlist_to_framelist(inlist):
+    """
+
+    Takes an input list that is either a list of integers (for NIRC2) or
+    a list of associations (a list of dicts, for OSIRIS) and converts it
+    to the proper framelist format needed for the KAI functions.
+
+    Inputs:
+       inlist - A list of either integer frame numbers (for NIRC2) or dict
+                objects, with a 'assn' and 'frames' keywords (for ORIRIS)
+       instrument - either 'nirc2' or 'osiris'
+
+    Output:
+       framelist - a list of frames, in the proper format for KAI
+
+    """
+
+    """ Convert the input list into a frame list"""
+    if isinstance(inlist, (dict, int)):
+        framelist = [inlist]
+    elif isinstance(inlist, list):
+        el1 = inlist[0]
+        if inst == osiris and isinstance(el1, dict):
+            frameroot = 'i%s_a' % obsdate[2:]
+            framelist = assn_to_framelist(inlist, frameroot, suffix=suffix)
+        elif inst == nirc2 and isinstance(el1, int):
+            framelist = inlist
+        else:
+            print('')
+            print('ERROR: wrong datatype for inlist parameter.')
+            if inst == osiris:
+                print('For OSIRIS data type must be a dict or a list of dicts')
+            else:
+                print('For NIRC2 data type must be an int or a list of ints')
+            raise TypeError()
+    else:
+        print('')
+        print('ERROR: Input frame(s) [inlist parameter] must be one of the '
+              'following')
+        print('   1. An int (NIRC2)')
+        print('   2. A dict with "assn" and "frames" keywords')
+        print('   3. A list of either ints (NIRC2) or dicts (OSIRIS)')
+        print('')
+        raise TypeError()
+
+    return framelist
 
 ##########
 # Make electronic logs
 #    - run this first thing for a new observing run.
 ##########
-def makelog_and_prep_images(year, instrument=osiris, rawdir='../raw'):
+def makelog_and_prep_images(year, instrument, rawdir='../raw'):
     """
 
     Make an electronic log from all the files in the ../raw/ directory.
@@ -124,13 +171,24 @@ def makelog_and_prep_images(year, instrument=osiris, rawdir='../raw'):
     @author Sylvana Yelda
 
     """
+
+    """ Set up the instrument and make the log """
+    if instrument.lower() == 'osiris':
+        inst = osiris
+    elif instrument.lower() == 'nirc2'
+        inst = nirc2
+    else:
+        print('')
+        raise ValueError('makelog_and_prep_images: instrument must be '
+                         '"osiris" or "nirc2"\n')
+
     print('Making instrument log from files')
-    kai_util.makelog(rawdir, instrument=instrument)
+    kai_util.makelog(rawdir, instrument=inst)
 
     """
     If you are reducing OSIRIS, you need to flip the images first.
     """
-    if instrument == osiris:
+    if inst == osiris:
         print('Flipping data (needed for OSIRIS images)')
         raw_files = glob.glob('%s/i*.fits' % rawdir)
         osiris.flip_images(raw_files)
@@ -141,9 +199,24 @@ def makelog_and_prep_images(year, instrument=osiris, rawdir='../raw'):
 
     return
 
-##########
-# Reduce
-##########
+def make_dark(darklist, outfile, instrument, texp=None):
+    """
+
+    Makes a dark frame given either an input list of integer frame numbers
+    (for NIRC2) or a dict or list of dicts containing 'assn' and 'frames'
+    keywords (for OSIRIS)
+
+    """
+
+    """ Create the framelist in the proper format """
+    darkframes = inlist_to_framelist(darklist)
+
+    """ Make the dark file """
+    if texp is not None:
+        darktime = float(texp)
+        print('Making the dark for the %.1f sec exposures' % darktime)
+    calib.makedark(darkframes, outfile, instrument=instrument)
+
 #def go_calib(darkdict, flatondict, darkflatoffdict=None):
 def make_calfiles():
     """Do the calibration reduction.
@@ -172,8 +245,8 @@ def make_calfiles():
     
     # remove instrument = osiris if nirc2.
     print('Making dark for 6sec exposures')
-    calib.makedark(darkFiles, 'Dark_006sec.fits', instrument=osiris) 
-    
+    calib.makedark(darkFiles, 'Dark_006sec.fits', instrument=osiris)
+
     darkFiles = ['i201105_a020{0:03d}_flip'.format(ii) for ii in range(16, 21)]
     print('Making dark for 180sec exposures')
     calib.makedark(darkFiles, 'dark_180sec.fits', instrument=osiris)
@@ -220,7 +293,8 @@ def plot_image(imagePath, flip = False):
     # Plot the image
     plt.figure(figsize=(10,8))
 
-    plt.imshow(img, cmap='gist_heat_r', norm=norm, extent=extent, origin = "lower")
+    plt.imshow(img, cmap='gist_heat_r', norm=norm, extent=extent,
+               origin = "lower")
     
     # Plot titles, etc.
     plt.colorbar(label='Starlist Magnitude (mag)')
@@ -241,25 +315,26 @@ def name_checker(a,b):
             sys.exit()
 
 
-def reduce(target, obsdate, assnlist, obsfilt, refSrc, suffix=None,
+def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
            skyscale=False, usestrehl=False, dockerun=False):
     """
     Do the full data reduction.
 
     Inputs:
-      target    - root name of the target object
-      obsdate   - 8-digit observation date in yyyymmdd format (e.g., 20201101)
-      assnlist  -
-      refSrc    - make sure you use the position in the _flipped_ image.
-      suffix    - any suffix that should be added to the frame names that
-                   are generated from the assnlist, e.g., 'flip'.
-                  The default (None) means do not add a suffix
-      skyscale  -
-      usestrehl -
-      dockerrun - is this function being called within a Docker run in which
-                  the weather files have not yet been downloaded.
-                  Set to True to download the weather files.
-                  Default is False
+      target     - root name of the target object
+      obsdate    - 8-digit observation date in yyyymmdd format (e.g., 20201101)
+      inlist     -
+      refSrc     - make sure you use the position in the _flipped_ image.
+      instrument -
+      suffix     - any suffix that should be added to the frame names that
+                    are generated from the assnlist, e.g., 'flip'.
+                   The default (None) means do not add a suffix
+      skyscale   -
+      usestrehl  -
+      dockerrun  - is this function being called within a Docker run in which
+                   the weather files have not yet been downloaded.
+                   Set to True to download the weather files.
+                   Default is False
     """	
 
     #    -- If you have more than one position angle, make sure to
@@ -269,11 +344,26 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, suffix=None,
     #    -- If you use the OSIRIS image, you must include the full filename
     #    in the list.
 
+    """ Set the instrument """
+    if instrument.lower() == 'osiris':
+        inst = osiris
+        listtype = dict
+    elif instrument.lower() == 'nirc2'
+        inst = nirc2
+        listtype = int
+    else:
+        print('')
+        raise ValueError('makelog_and_prep_images: instrument must be '
+                         '"osiris" or "nirc2"\n')
+
+    """ Get the input framelist """
+    sci_frames = inlist_to_framelist(inlist)
+
     """ 
-    Download weather data we will need.
-    This step is only needed if running the code within docker, and not even
-     then if the "makelog_and_prep_images" function has been run within the same 
-     docker session that is being used to run this "go" function  
+    Download weather data that will be used in later steps.
+    NOTE: This step is only needed if running the code within docker, and not 
+     even then if the "makelog_and_prep_images" function has been run within 
+     the same docker session that is being used to run this "go" function  
     """
     obsyear = obsdate[:4]
     if dockerun:
@@ -281,9 +371,7 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, suffix=None,
         dar.get_atm_conditions(obsyear)
 
     """ Make the list of science frames from the input assn list"""
-    #  name_checker(epoch,target) - don't need this any more
-    frameroot = 'i%s_a' % obsdate[2:]
-    sci_frames = assn_to_framelist(assnlist, frameroot, suffix=suffix)
+    #  name_checker(epoch,target) - don't need this anymore
     print('')
     print('Science frames to be cleaned and combined')
     print('-----------------------------------------')
@@ -298,9 +386,9 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, suffix=None,
     print('Calibrating and cleaning the input files')
     print('----------------------------------------')
     data.clean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
-               instrument=osiris, skyscale=skyscale)
+               instrument=inst, skyscale=skyscale)
     if usestrehl:
-        data.calcStrehl(sci_frames, obsfilt, field=target, instrument=osiris)
+        data.calcStrehl(sci_frames, obsfilt, field=target, instrument=inst)
         combwht = 'strehl'
         submaps = 0  # UCB group sets this to 3 for their images (have stars)
     else:
@@ -310,20 +398,22 @@ def reduce(target, obsdate, assnlist, obsfilt, refSrc, suffix=None,
     print('Combining the calibrated files')
     print('------------------------------')
     data.combine(sci_frames, obsfilt, obsdate, field=target,
-                 trim=0, weight=combwht, submaps=submaps, instrument=osiris)
+                 trim=0, weight=combwht, submaps=submaps, instrument=inst)
 
 
-def finalize(target, obsdate, assnlist, obsfilt, refradec, suffix=None):
+def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
+             suffix=None):
     """
     Get the combined drizzled image into its final format.
     Inputs:
-      target    - root name of the target object
-      obsdate   - 8-digit observation date in yyyymmdd format (e.g., 20201101)
-      assnlist  -
-      refSrc    - make sure you use the position in the _flipped_ image.
-      suffix    - any suffix that should be added to the frame names that
-                   are generated from the assnlist, e.g., 'flip'.
-                  The default (None) means do not add a suffix
+      target     - root name of the target object
+      obsdate    - 8-digit observation date in yyyymmdd format (e.g., 20201101)
+      inlist     -
+      refSrc     - make sure you use the position in the _flipped_ image.
+      instrument -
+      suffix     - any suffix that should be added to the frame names that
+                    are generated from the assnlist, e.g., 'flip'.
+                   The default (None) means do not add a suffix
 
     """
 
