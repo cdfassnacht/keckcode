@@ -239,7 +239,7 @@ def make_dark(darklist, obsdate, outfile, instrument, suffix=None):
                                      suffix=suffix)
 
     """ Make the dark file """
-    print('Creating the dark file' % outfile)
+    print('Creating the dark file: %s' % outfile)
     calib.makedark(darkframes, outfile, instrument=inst)
 
 
@@ -272,7 +272,7 @@ def make_flat(onlist, offlist, obsdate, outfile, instrument, suffix=None):
     offframes = inlist_to_framelist(offlist, instrument, obsdate, suffix=suffix)
 
     """ Make the dark file """
-    print('Creating the flat-field file' % outfile)
+    print('Creating the flat-field file: %s' % outfile)
     calib.makeflat(onframes, offframes, outfile, instrument=inst)
 
 
