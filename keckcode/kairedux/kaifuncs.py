@@ -46,6 +46,22 @@ osiris = instruments.OSIRIS()
 nirc2 = instruments.NIRC2()
 
 
+def get_instrument(instrument):
+    """
+
+    Makes sure that either NIRC2 or OSIRIS has been selected
+
+    """
+    if instrument.lower() == 'osiris':
+        return osiris
+    elif instrument.lower() == 'nirc2':
+        return nirc2
+    else:
+        print('')
+        raise ValueError('get_instrument: instrument must be '
+                         '"osiris" or "nirc2"\n')
+
+
 def assn_to_framelist(assnlist, rootname, suffix=None):
     """
 
@@ -110,7 +126,8 @@ def assn_to_framelist(assnlist, rootname, suffix=None):
 
     return framelist
 
-def inlist_to_framelist(inlist):
+
+def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
     """
 
     Takes an input list that is either a list of integers (for NIRC2) or
@@ -126,6 +143,12 @@ def inlist_to_framelist(inlist):
        framelist - a list of frames, in the proper format for KAI
 
     """
+
+    """ Get the instrument """
+    try:
+        inst = get_instrument(instrument)
+    except ValueError:
+        return
 
     """ Convert the input list into a frame list"""
     if isinstance(inlist, (dict, int)):
@@ -157,10 +180,7 @@ def inlist_to_framelist(inlist):
 
     return framelist
 
-##########
-# Make electronic logs
-#    - run this first thing for a new observing run.
-##########
+
 def makelog_and_prep_images(year, instrument, rawdir='../raw'):
     """
 
@@ -173,14 +193,14 @@ def makelog_and_prep_images(year, instrument, rawdir='../raw'):
     """
 
     """ Set up the instrument and make the log """
-    if instrument.lower() == 'osiris':
-        inst = osiris
-    elif instrument.lower() == 'nirc2'
-        inst = nirc2
-    else:
+    try:
+        inst = get_instrument(instrument)
+    except ValueError:
         print('')
-        raise ValueError('makelog_and_prep_images: instrument must be '
-                         '"osiris" or "nirc2"\n')
+        print('ERROR in makelog_and_prep_images: '
+              'invalid value for instrument parameter')
+        print('')
+        return
 
     print('Making instrument log from files')
     kai_util.makelog(rawdir, instrument=inst)
@@ -199,7 +219,8 @@ def makelog_and_prep_images(year, instrument, rawdir='../raw'):
 
     return
 
-def make_dark(darklist, outfile, instrument, texp=None):
+
+def make_dark(darklist, obsdate, outfile, instrument, suffix=None):
     """
 
     Makes a dark frame given either an input list of integer frame numbers
@@ -208,64 +229,155 @@ def make_dark(darklist, outfile, instrument, texp=None):
 
     """
 
+    try:
+        inst = get_instrument(instrument)
+    except ValueError:
+        return
+
     """ Create the framelist in the proper format """
-    darkframes = inlist_to_framelist(darklist)
+    darkframes = inlist_to_framelist(darklist, instrument, obsdate,
+                                     suffix=suffix)
 
     """ Make the dark file """
-    if texp is not None:
-        darktime = float(texp)
-        print('Making the dark for the %.1f sec exposures' % darktime)
-    calib.makedark(darkframes, outfile, instrument=instrument)
+    print('Creating the dark file' % outfile)
+    calib.makedark(darkframes, outfile, instrument=inst)
 
-#def go_calib(darkdict, flatondict, darkflatoffdict=None):
-def make_calfiles():
-    """Do the calibration reduction.
 
-    @author Jessica Lu
-    @author Sylvana Yelda
+def make_flat(onlist, offlist, obsdate, outfile, instrument, suffix=None):
     """
 
-    ####################
-    #
-    # Calibration files:
-    #     everything created under calib/
-    #
-    ####################
-    # Darks - created in subdir darks/
-    #  - darks needed to make bad pixel mask
-    #  - store the resulting dark in the file name that indicates the
-    #    integration time
-    #  - If you use the OSIRIS image, you must include the full filename
-    #   in the list. 
+    Makes a flat-field file
 
-    # Use the following format for NIRC2
-    # darkFiles = range(23, 27 + 1)
-    # Use the following format for OSIRIS
-    darkFiles = ['i201105_a020{0:03d}_flip'.format(ii) for ii in range(11, 16)]
+    Inputs:
+     onlist     - A list of integers (for NIRC2) or dicts (for OSIRIS)
+                   designating the frames associated with the exposures taken
+                   when the dome lamp was on.  If twilight or sky exposures are
+                   being used instead, then they should be designated here.
+     offlist    - The list that designates the frames for which the dome lamp
+                   was turned off.  If no dome flats were taken and, thus, the
+                   onlist parameter contains twilight flats or sky frames, then
+                   just set this offlist parameter to None or to range(0, 0)
+     outfile    - Output file name
+     instrument - Either 'nirc2' or 'osiris'
+
+    """
+
+    try:
+        inst = get_instrument(instrument)
+    except ValueError:
+        return
+
+    """ Create the framelist in the proper format """
+    onframes = inlist_to_framelist(onlist, instrument, obsdate, suffix=suffix)
+    offframes = inlist_to_framelist(offlist, instrument, obsdate, suffix=suffix)
+
+    """ Make the dark file """
+    print('Creating the flat-field file' % outfile)
+    calib.makeflat(onframes, offframes, outfile, instrument=inst)
+
+
+def make_calfiles(obsdate, darkinfo, flatinfo, dark4mask, flat4mask,
+                  instrument, suffix=None):
+    """
     
-    # remove instrument = osiris if nirc2.
-    print('Making dark for 6sec exposures')
-    calib.makedark(darkFiles, 'Dark_006sec.fits', instrument=osiris)
-
-    darkFiles = ['i201105_a020{0:03d}_flip'.format(ii) for ii in range(16, 21)]
-    print('Making dark for 180sec exposures')
-    calib.makedark(darkFiles, 'dark_180sec.fits', instrument=osiris)
-
-
-    # Flats - created in subdir flats/
-    offFiles = ['i201105_a020{0:03d}_flip'.format(ii) for ii in range(21, 41, 2)]
-    onFiles  = ['i201105_a020{0:03d}_flip'.format(ii) for ii in range(22, 42, 2)]
-    calib.makeflat(onFiles, offFiles, 'flat_Kp.fits', instrument=osiris)
-    # The above's name scheme is 'flat_<filter>_<dichroic>.fits'
+    Makes all of the calibration files
     
-    # Masks (assumes files were created under calib/darks/ and calib/flats/)
-    # Use a long exposure mask (>20 sec) for this makemask.
+    Inputs:
+     darkinfo   - A single dict or a list of dicts, where each one contains the
+                  information needed to make one dark file.  A list of dicts
+                  is needed if dark exposures with several different exposure
+                  times (e.g., 7 sec and 180 sec) were taken.  If all of the
+                  dark exposures had the same exposure time, then darkinfo
+                  will just be a single dict rather than a list of dicts.
+                  The keys for each dict are:
+                   inlist     - a list of integer frame numbers (for NIRC2) or
+                                dicts (for OSIRIS) defining the exposures needed
+                                for this given dark.  For the OSIRIS data, the
+                                dicts should contain 'assn' and 'frames' 
+                                keywords
+                   outfile    - output filename 
+     flatinfo   - A single dict or a list of dicts, where each one contains the
+                  information needed to make one flat file.  A list of dicts
+                  is needed if flat-field exposures in several different filters
+                  (e.g., Kp and H) were taken.  If flats were taken through only
+                  one filter, then flatinfo will just be a single dict rather
+                  than a list of dicts.
+                  The keys for each dict are:
+                   band       -
+                   onlist     -
+                   offlist    - [OPTIONAL]
+                   outfile    -
+     dark4mask  -
+     flat4mask  -
+     instrument - either 'nirc2' or 'osiris'
+
+    """
+
+    """ Get the instrument """
+    try:
+        inst = get_instrument(instrument)
+    except ValueError:
+        return
+
+    """ Create the dark(s) as long as darkinfo is not None"""
+    if darkinfo is not None:
+        """ Check the darkinfo format """
+        if isinstance(darkinfo, dict):
+            darklist = [darkinfo]
+        elif isinstance(darkinfo, list):
+            if isinstance(darkinfo[0], dict):
+                darklist = darkinfo
+            else:
+                raise TypeError
+        else:
+            raise TypeError
+
+        """ Create the dark(s) """
+        darkkeys = ['inlist', 'outfile']
+        for info in darklist:
+            for key in darkkeys:
+                if key not in info.keys():
+                    raise KeyError
+            make_dark(info['inlist'], obsdate, info['outfile'], instrument,
+                      suffix=suffix)
+
+    """ Create the flat(s) as long as flatinfo is not None"""
+    if flatinfo is not None:
+        """ Check the flatinfo format """
+        if isinstance(flatinfo, dict):
+            flatlist = [flatinfo]
+        elif isinstance(flatinfo, list):
+            if isinstance(flatinfo[0], dict):
+                flatlist = flatinfo
+            else:
+                raise TypeError
+        else:
+            raise TypeError
+
+        """ Create the flat(s) """
+        flatkeys = ['onlist', 'outfile']
+        for info in flatlist:
+            for key in flatkeys:
+                if key not in info.keys():
+                    raise KeyError
+            if 'offlist' not in info.keys():
+                offlist = range(0, 0)
+            else:
+                offlist = info['offlist']
+            make_flat(info['onlist'], offlist, obsdate, info['outfile'],
+                      instrument, suffix=suffix)
+
+    """
+    Make the 'supermask' from a dark and a flat.
+    Use a long-exposure dark (>20 sec) for this.
+    Note: the code assumes that the input files are found in calib/darks
+     and calib/flats
+    """
     print('Making supermask.fits')
-    calib.makemask('Dark_180sec.fits', 'flat_Kp.fits', 'supermask.fits',
-                   instrument=osiris)
+    calib.makemask(dark4mask, flat4mask, 'supermask.fits', instrument=inst)
 
 
-def plot_image(imagePath, flip = False):
+def plot_image(imagePath, flip=False):
 
     # Initializing the Image
     img = fits.getdata(imagePath)
@@ -274,14 +386,13 @@ def plot_image(imagePath, flip = False):
     x_axis = np.arange(img.shape[0], dtype=float)
     y_axis = np.arange(img.shape[1], dtype=float)
 
-    
     # Extent of image to be plotted in imshow
     extent = [x_axis[0], x_axis[-1], y_axis[0], y_axis[-1]]
     
     # Flips image in case it's backwards
     if flip:
         x_axis *= -1
-        img = np.flip(img, axis = 1)
+        img = np.flip(img, axis=1)
         extent = [x_axis[-1], x_axis[0], y_axis[0], y_axis[-1]]
     
     # Plotting prerequisites
@@ -289,12 +400,11 @@ def plot_image(imagePath, flip = False):
     vmax = 1e5
     norm = LogNorm(vmin, vmax)
        
-    
     # Plot the image
-    plt.figure(figsize=(10,8))
+    plt.figure(figsize=(10, 8))
 
     plt.imshow(img, cmap='gist_heat_r', norm=norm, extent=extent,
-               origin = "lower")
+               origin="lower")
     
     # Plot titles, etc.
     plt.colorbar(label='Starlist Magnitude (mag)')
@@ -306,7 +416,7 @@ def plot_image(imagePath, flip = False):
     return
 
 
-def name_checker(a,b):
+def name_checker(a, b):
     length = len(a) + len(b)
     if length > 12+8:
         if length != 25:
@@ -344,20 +454,8 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     #    -- If you use the OSIRIS image, you must include the full filename
     #    in the list.
 
-    """ Set the instrument """
-    if instrument.lower() == 'osiris':
-        inst = osiris
-        listtype = dict
-    elif instrument.lower() == 'nirc2'
-        inst = nirc2
-        listtype = int
-    else:
-        print('')
-        raise ValueError('makelog_and_prep_images: instrument must be '
-                         '"osiris" or "nirc2"\n')
-
     """ Get the input framelist """
-    sci_frames = inlist_to_framelist(inlist)
+    sci_frames = inlist_to_framelist(inlist, instrument, obsdate, suffix=suffix)
 
     """ 
     Download weather data that will be used in later steps.
@@ -380,6 +478,15 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     print('')
     print(os.getcwd())
     print('')
+
+    """ Check the instrument """
+    try:
+        inst = get_instrument(instrument)
+    except ValueError:
+        print('')
+        print('ERROR: Invalid choice of instrument parameter')
+        print('')
+        return
 
     """ For this target, use the sky created for 2022_06_05 """
     # sky.makesky(sky_frames, obsdate, obsfilt, instrument=osiris)
@@ -428,7 +535,7 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
 
     """ Make the list of science frames from the input assn list"""
     frameroot = 'i%s_a' % obsdate[2:]
-    sci_frames = assn_to_framelist(assnlist, frameroot, suffix=suffix)
+    sci_frames = assn_to_framelist(inlist, frameroot, suffix=suffix)
 
     """ Read in the science and "sig" files """
     sciin = WcsHDU(scifile)
