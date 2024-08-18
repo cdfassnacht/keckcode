@@ -164,13 +164,6 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
             framelist = inlist
         else:
             is_error = True
-            print('')
-            print('ERROR: wrong datatype for inlist parameter.')
-            if inst == osiris:
-                print('For OSIRIS data type must be a dict or a list of dicts')
-            else:
-                print('For NIRC2 data type must be an int or a list of ints')
-            raise TypeError()
     elif isinstance(inlist, (np.ndarray, tuple, range)):
         framelist = inlist
     else:
@@ -543,8 +536,7 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
     outwht = '%s_wht.fits' % outroot
 
     """ Make the list of science frames from the input assn list"""
-    frameroot = 'i%s_a' % obsdate[2:]
-    sci_frames = assn_to_framelist(inlist, frameroot, suffix=suffix)
+    sci_frames = inlist_to_framelist(inlist, instrument, obsdate, suffix=suffix)
 
     """ Read in the science and "sig" files """
     sciin = WcsHDU(scifile)
