@@ -151,6 +151,8 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
         return
 
     """ Convert the input list into a frame list"""
+    is_error = False
+    framelist = None
     if isinstance(inlist, (dict, int)):
         framelist = [inlist]
     elif isinstance(inlist, list):
@@ -161,6 +163,7 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
         elif inst == nirc2 and isinstance(el1, int):
             framelist = inlist
         else:
+            is_error = True
             print('')
             print('ERROR: wrong datatype for inlist parameter.')
             if inst == osiris:
@@ -168,13 +171,19 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
             else:
                 print('For NIRC2 data type must be an int or a list of ints')
             raise TypeError()
+    elif isinstance(inlist, (np.ndarray, tuple, range)):
+        framelist = inlist
     else:
+        is_error = True
+    if is_error:
         print('')
         print('ERROR: Input frame(s) [inlist parameter] must be one of the '
               'following')
         print('   1. An int (NIRC2)')
-        print('   2. A dict with "assn" and "frames" keywords')
+        print('   2. A dict with "assn" and "frames" keywords (OSIRIS)')
         print('   3. A list of either ints (NIRC2) or dicts (OSIRIS)')
+        print('   4. A tuple or numpy array containing integers (NIRC2)')
+        print('   5. A range, i.e., range(151,157) - (NIRC2)')
         print('')
         raise TypeError()
 
