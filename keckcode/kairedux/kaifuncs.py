@@ -157,19 +157,24 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
     framelist = None
     if isinstance(inlist, (dict, int)):
         framelist = [inlist]
-    elif isinstance(inlist, range):
-        framelist = inlist
+    # NOTE: in python 3, "range" is a type, but in python 2, which this
+    #       code runs in, the range function produces a list output
+    # elif isinstance(inlist, range):
+    #    framelist = inlist
     elif isinstance(inlist, (tuple, numpy.ndarray)):
         framelist = inlist
     elif isinstance(inlist, list):
-        el1 = inlist[0]
-        if inst == osiris and isinstance(el1, dict):
-            frameroot = 'i%s_a' % obsdate[2:]
-            framelist = assn_to_framelist(inlist, frameroot, suffix=suffix)
-        elif inst == nirc2 and isinstance(el1, int):
-            framelist = inlist
+        if len(inlist) == 0:
+            framelist = range(0,0)
         else:
-            is_error = True
+            el1 = inlist[0]
+            if inst == osiris and isinstance(el1, dict):
+                frameroot = 'i%s_a' % obsdate[2:]
+                framelist = assn_to_framelist(inlist, frameroot, suffix=suffix)
+            elif inst == nirc2 and isinstance(el1, int):
+                framelist = inlist
+            else:
+                is_error = True
     else:
         is_error = True
     if is_error:
