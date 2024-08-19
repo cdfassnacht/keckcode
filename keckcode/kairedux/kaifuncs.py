@@ -288,7 +288,7 @@ def make_flat(onlist, offlist, obsdate, outfile, instrument, suffix=None):
     calib.makeflat(onframes, offframes, outfile, instrument=inst)
 
 
-def make_calfiles(obsdate, darkinfo, flatinfo, dark4mask, flat4mask,
+def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
                   instrument, suffix=None):
     """
     
@@ -387,6 +387,21 @@ def make_calfiles(obsdate, darkinfo, flatinfo, dark4mask, flat4mask,
     """
     print('Making supermask.fits')
     calib.makemask(dark4mask, flat4mask, 'supermask.fits', instrument=inst)
+
+    """
+    Make a sky frame
+    """
+    if skyinfo is not None:
+        """ Check for required information """
+        skykeys = ['obsfilt', 'inlist']
+        for key in skykeys:
+            if key not in skyinfo.keys():
+                raise KeyError
+
+        print('Making sky frame')
+        skyframes = inlist_to_framelist(skyinfo['inlist'], instrument, obsdate,
+                                        suffix=suffix)
+        sky.makesky(skyframes, obsdate, skyinfo['obsfilt'], instrument=inst)
 
 
 def plot_image(imagePath, flip=False):
