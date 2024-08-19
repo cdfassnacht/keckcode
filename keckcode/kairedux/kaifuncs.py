@@ -10,6 +10,8 @@
 
 """ Import basic modules """
 import warnings
+
+import numpy
 import numpy as np
 import os
 import sys
@@ -155,7 +157,9 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
     framelist = None
     if isinstance(inlist, (dict, int)):
         framelist = [inlist]
-    elif isinstance(inlist, (np.ndarray, tuple, range)):
+    elif isinstance(inlist, (tuple, range)):
+        framelist = inlist
+    elif isinstance(inlist, numpy.ndarray):
         framelist = inlist
     elif isinstance(inlist, list):
         el1 = inlist[0]
