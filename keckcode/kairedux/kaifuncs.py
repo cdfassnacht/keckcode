@@ -155,6 +155,8 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
     framelist = None
     if isinstance(inlist, (dict, int)):
         framelist = [inlist]
+    elif isinstance(inlist, (np.ndarray, tuple, range)):
+        framelist = inlist
     elif isinstance(inlist, list):
         el1 = inlist[0]
         if inst == osiris and isinstance(el1, dict):
@@ -164,8 +166,6 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
             framelist = inlist
         else:
             is_error = True
-    elif isinstance(inlist, (np.ndarray, tuple, range)):
-        framelist = inlist
     else:
         is_error = True
     if is_error:
@@ -271,6 +271,7 @@ def make_flat(onlist, offlist, obsdate, outfile, instrument, suffix=None):
 
     """ Create the framelist in the proper format """
     onframes = inlist_to_framelist(onlist, instrument, obsdate, suffix=suffix)
+    print(type(offlist))
     offframes = inlist_to_framelist(offlist, instrument, obsdate, suffix=suffix)
 
     """ Make the dark file """
