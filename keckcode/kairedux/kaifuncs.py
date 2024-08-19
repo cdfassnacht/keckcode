@@ -157,9 +157,9 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
     framelist = None
     if isinstance(inlist, (dict, int)):
         framelist = [inlist]
-    elif isinstance(inlist, (tuple, range)):
+    elif isinstance(inlist, range):
         framelist = inlist
-    elif isinstance(inlist, numpy.ndarray):
+    elif isinstance(inlist, (tuple, numpy.ndarray)):
         framelist = inlist
     elif isinstance(inlist, list):
         el1 = inlist[0]
