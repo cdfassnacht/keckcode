@@ -154,29 +154,30 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
 
     """ Convert the input list into a frame list"""
     is_error = False
-    framelist = None
+    tmplist = None
     if isinstance(inlist, (dict, int)):
-        framelist = [inlist]
+        tmplist = [inlist]
     # NOTE: in python 3, "range" is a type, but in python 2, which this
     #       code runs in, the range function produces a list output
     # elif isinstance(inlist, range):
     #    framelist = inlist
-    elif isinstance(inlist, (tuple, numpy.ndarray)):
-        framelist = inlist
-    elif isinstance(inlist, list):
-        if len(inlist) == 0:
+    elif isinstance(inlist, (tuple, numpy.ndarray, list)):
+        tmplist = inlist
+        else:
+        is_error = True
+
+    if is_error is not True:
+        if len(tmplist) == 0:
             framelist = range(0,0)
         else:
-            el1 = inlist[0]
+            el1 = tmplist[0]
             if inst == osiris and isinstance(el1, dict):
                 frameroot = 'i%s_a' % obsdate[2:]
-                framelist = assn_to_framelist(inlist, frameroot, suffix=suffix)
+                framelist = assn_to_framelist(tmplist, frameroot, suffix=suffix)
             elif inst == nirc2 and isinstance(el1, int):
-                framelist = inlist
+                framelist = tmplist
             else:
                 is_error = True
-    else:
-        is_error = True
     if is_error:
         print('')
         print('ERROR: Input frame(s) [inlist parameter] must be one of the '
@@ -385,7 +386,9 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     Note: the code assumes that the input files are found in calib/darks
      and calib/flats
     """
+    print('')
     print('Making supermask.fits')
+    print('---------------------')
     calib.makemask(dark4mask, flat4mask, 'supermask.fits', instrument=inst)
 
     """
@@ -398,7 +401,9 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
             if key not in skyinfo.keys():
                 raise KeyError
 
+        print('')
         print('Making sky frame')
+        print('----------------')
         skyframes = inlist_to_framelist(skyinfo['inlist'], instrument, obsdate,
                                         suffix=suffix)
         sky.makesky(skyframes, obsdate, skyinfo['obsfilt'], instrument=inst)
@@ -560,12 +565,21 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
     outsci = '%s.fits' % outroot
     outwht = '%s_wht.fits' % outroot
 
-    """ Make the list of science frames from the input assn list"""
+    """ Make the list of science frames from the input file information """
     sci_frames = inlist_to_framelist(inlist, instrument, obsdate, suffix=suffix)
 
     """ Read in the science and "sig" files """
     sciin = WcsHDU(scifile)
     whtin = WcsHDU(sigfile)
+
+    """ Set up the instrument, for getting plate scale, etc. """
+    try:
+        inst = get_instrument(instrument)
+    except ValueError:
+        print('')
+        print('ERROR: Invalid choice of instrument parameter')
+        print('')
+        return
 
     """
     Get some information from the drizzle output and put it into SHARP
@@ -573,14 +587,17 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
     """
     hdr = sciin.header
     if 'ITIME' in hdr.keys():
-        tottime = hdr['itime'] / 1000.
+        if inst == osiris:
+            tottime = hdr['itime'] / 1000.
+        else:
+            tottime = hdr['itime']
         hdr['elaptime'] = tottime
         hdr['exptime'] = tottime
         avgtime = tottime / len(sci_frames)
     else:
         avgtime = 1.
-    if 'FILTER' not in hdr.keys() and 'IFILTER' in hdr.keys():
-        hdr['filter'] = hdr['ifilter']
+    if 'FILTER' not in hdr.keys():
+        hdr['filter'] = inst.get_filter_name(hdr)
     if 'NDRIZIM' in hdr.keys():
         hdr['ncombine'] = hdr['ndrizim']
     for i, f in enumerate(sci_frames):
@@ -588,10 +605,10 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
 
     """
     Use the WcsHDR functionality to:
-      1. Set the pixel scale to 0.01 arcsec
+      1. Set the pixel scale to the appropriate value for the instrument an mode
       2. Convert the pixel units to e-/sec
     """
-    pixscale = 0.01
+    pixscale = inst.get_plate_scale(hdr)
     if 'SYSGAIN' in hdr.keys():
         gain = hdr['sysgain']
     else:
