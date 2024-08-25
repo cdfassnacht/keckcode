@@ -163,7 +163,7 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
     #    framelist = inlist
     elif isinstance(inlist, (tuple, numpy.ndarray, list)):
         tmplist = inlist
-    3else:
+    else:
         is_error = True
 
     if is_error is not True:
