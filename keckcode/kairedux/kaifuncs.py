@@ -384,7 +384,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     """ Create the dark(s) as long as darkinfo is not None"""
     if darkinfo is not None:
         """ Check the darkinfo format """
-        dkeys = basekeys.copy()
+        dkeys = list(basekeys)
         darklist = check_callist(darkinfo, dkeys)
 
         """ Create the dark(s) """
@@ -395,7 +395,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     """ Create the flat(s) as long as flatinfo is not None"""
     if flatinfo is not None:
         """ Check the flatinfo format """
-        fkeys = basekeys.copy()
+        fkeys = list(basekeys)
         fkeys.append('obsfilt')
         flatlist = check_callist(flatinfo, fkeys)
 
