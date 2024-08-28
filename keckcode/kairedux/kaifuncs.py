@@ -287,6 +287,7 @@ def make_dark(darklist, obsdate, instrument, suffix=None):
     """ Create the framelist in the proper format """
     darkframes = inlist_to_framelist(darklist, instrument, obsdate,
                                      suffix=suffix)
+    print(darkframes)
 
     """ Make the dark file """
     outfile = '%s.fits' % darklist['name']
@@ -326,6 +327,9 @@ def make_flat(flatlist, obsdate, instrument, suffix=None):
         tmpdict = {'assn': flatlist['assn'], 'frames': flatlist['offframes']}
         offframes = inlist_to_framelist(tmpdict, instrument, obsdate,
                                         suffix=suffix)
+    print('flat frames')
+    print(onframes)
+    print(offframes)
 
     """ Make the flat-field file """
     outfile = '%s_%s.fits' % (flatlist['name'], flatlist['obsfilt'])
