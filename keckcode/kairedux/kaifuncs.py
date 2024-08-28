@@ -231,8 +231,46 @@ def makelog_and_prep_images(year, instrument, rawdir='../raw'):
 
     return
 
+# --------------------------------------------------------------------------
 
-def make_dark(darklist, obsdate, outfile, instrument, suffix=None):
+
+def check_callist(callist, dictkeys):
+    """
+
+    Checks the type and dictionary keys of the lists of calibratioin files
+
+    """
+
+    """ Check callist type and modify if necessary """
+    if isinstance(callist, dict):
+        newlist = [callist]
+    elif isinstance(callist, list):
+        newlist = callist.copy()
+    elif isinstance(callist, (tuple, np.ndarray)):
+        newlist = list(callist)
+    else:
+        raise TypeError('\nCalibration list must be one of the following:\n'
+                        'dict, list, numpy array, or tuple\n\n')
+
+    """
+    Make sure each element is a dict and that the dict contains the expected
+    keys
+    """
+
+    for assndict in newlist:
+        if isinstance(assndict, dict):
+            for k in dictkeys:
+                if k not in assndict.keys():
+                    raise KeyError('\nCalibration list is missing expected '
+                                   '%s key.\n\n' % k)
+        else:
+            raise TypeError('\nCalibration list must contain dict objects'
+                            '\n\n')
+
+    return newlist
+
+
+def make_dark(darklist, obsdate, instrument, suffix=None):
     """
 
     Makes a dark frame given either an input list of integer frame numbers
@@ -251,11 +289,12 @@ def make_dark(darklist, obsdate, outfile, instrument, suffix=None):
                                      suffix=suffix)
 
     """ Make the dark file """
+    outfile = '%s.fits' % darklist['name']
     print('Creating the dark file: %s' % outfile)
     calib.makedark(darkframes, outfile, instrument=inst)
 
 
-def make_flat(onlist, offlist, obsdate, outfile, instrument, suffix=None):
+def make_flat(flatlist, obsdate, instrument, suffix=None):
     """
 
     Makes a flat-field file
@@ -280,11 +319,16 @@ def make_flat(onlist, offlist, obsdate, outfile, instrument, suffix=None):
         return
 
     """ Create the framelist in the proper format """
-    onframes = inlist_to_framelist(onlist, instrument, obsdate, suffix=suffix)
-    print(type(offlist))
-    offframes = inlist_to_framelist(offlist, instrument, obsdate, suffix=suffix)
+    onframes = inlist_to_framelist(flatlist, instrument, obsdate, suffix=suffix)
+    if 'offframes' not in flatlist.keys():
+        offframes = range(0, 0)
+    else:
+        tmpdict = {'assn': flatlist['assn'], 'frames': flatlist['offframes']}
+        offframes = inlist_to_framelist(tmpdict, instrument, obsdate,
+                                        suffix=suffix)
 
-    """ Make the dark file """
+    """ Make the flat-field file """
+    outfile = '%s_%s.fits' % (flatlist['name'], flatlist['obsfilt'])
     print('Creating the flat-field file: %s' % outfile)
     calib.makeflat(onframes, offframes, outfile, instrument=inst)
 
@@ -332,53 +376,32 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     except ValueError:
         return
 
+    """ Set up the base keys that should be in all of the input dicts """
+    basekeys = ['name', 'frames']
+    if inst == osiris:
+        basekeys.append('assn')
+
     """ Create the dark(s) as long as darkinfo is not None"""
     if darkinfo is not None:
         """ Check the darkinfo format """
-        if isinstance(darkinfo, dict):
-            darklist = [darkinfo]
-        elif isinstance(darkinfo, list):
-            if isinstance(darkinfo[0], dict):
-                darklist = darkinfo
-            else:
-                raise TypeError
-        else:
-            raise TypeError
+        dkeys = basekeys.copy()
+        darklist = check_callist(darkinfo, dkeys)
 
         """ Create the dark(s) """
-        darkkeys = ['inlist', 'outfile']
         for info in darklist:
-            for key in darkkeys:
-                if key not in info.keys():
-                    raise KeyError
-            make_dark(info['inlist'], obsdate, info['outfile'], instrument,
-                      suffix=suffix)
+            make_dark(info, obsdate, instrument, suffix=suffix)
+        del dkeys
 
     """ Create the flat(s) as long as flatinfo is not None"""
     if flatinfo is not None:
         """ Check the flatinfo format """
-        if isinstance(flatinfo, dict):
-            flatlist = [flatinfo]
-        elif isinstance(flatinfo, list):
-            if isinstance(flatinfo[0], dict):
-                flatlist = flatinfo
-            else:
-                raise TypeError
-        else:
-            raise TypeError
+        fkeys = basekeys.copy()
+        fkeys.append('obsfilt')
+        flatlist = check_callist(flatinfo, fkeys)
 
         """ Create the flat(s) """
-        flatkeys = ['onlist', 'outfile']
         for info in flatlist:
-            for key in flatkeys:
-                if key not in info.keys():
-                    raise KeyError
-            if 'offlist' not in info.keys():
-                offlist = range(0, 0)
-            else:
-                offlist = info['offlist']
-            make_flat(info['onlist'], offlist, obsdate, info['outfile'],
-                      instrument, suffix=suffix)
+            make_flat(info, obsdate, instrument, suffix=suffix)
 
     """
     Make the 'supermask' from a dark and a flat.
