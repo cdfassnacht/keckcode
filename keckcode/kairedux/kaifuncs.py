@@ -244,9 +244,7 @@ def check_callist(callist, dictkeys):
     """ Check callist type and modify if necessary """
     if isinstance(callist, dict):
         newlist = [callist]
-    elif isinstance(callist, list):
-        newlist = callist.copy()
-    elif isinstance(callist, (tuple, np.ndarray)):
+    elif isinstance(callist, (list, tuple, np.ndarray)):
         newlist = list(callist)
     else:
         raise TypeError('\nCalibration list must be one of the following:\n'
