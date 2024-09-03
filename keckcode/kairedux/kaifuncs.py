@@ -171,9 +171,15 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
             framelist = range(0,0)
         else:
             el1 = tmplist[0]
-            if inst == osiris and isinstance(el1, dict):
-                frameroot = 'i%s_a' % obsdate[2:]
-                framelist = assn_to_framelist(tmplist, frameroot, suffix=suffix)
+            if isinstance(el1, dict):
+                if inst == osiris:
+                    frameroot = 'i%s_a' % obsdate[2:]
+                    framelist = assn_to_framelist(tmplist, frameroot,
+                                                  suffix=suffix)
+                elif inst == nirc2:
+                    framelist = list(tmplist['frames'])
+                else:
+                    is_error = True
             elif inst == nirc2 and isinstance(el1, int):
                 framelist = tmplist
             else:
