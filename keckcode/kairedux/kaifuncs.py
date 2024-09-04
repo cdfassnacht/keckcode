@@ -426,7 +426,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     """
     if skyinfo is not None:
         """ Check for required information """
-        skykeys = ['obsfilt', 'inlist']
+        skykeys = ['obsfilt', 'frames']
         for key in skykeys:
             if key not in skyinfo.keys():
                 raise KeyError
@@ -434,7 +434,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         print('')
         print('Making sky frame')
         print('----------------')
-        skyframes = inlist_to_framelist(skyinfo['inlist'], instrument, obsdate,
+        skyframes = inlist_to_framelist(skyinfo, instrument, obsdate,
                                         suffix=suffix)
         sky.makesky(skyframes, obsdate, skyinfo['obsfilt'], instrument=inst)
 
