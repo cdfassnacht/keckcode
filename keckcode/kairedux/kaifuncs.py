@@ -1,14 +1,10 @@
-# #
-# General Notes:
-# -- If you need help on the individual function calls,
-#    then in the pyraf prompt, import the module and
-#    then print the documentation for that function:
-#    --> print kai.kailog.__doc__
-#    --> print range.__doc__
-#
-##################################################
+""" Import basic modules
 
-""" Import basic modules """
+The matplotlib.use('Agg') line prevents any display functionality by
+matplotlib, which is necessary when running the code in a Docker container.
+It must come before any import statement that will also lead to an
+import of matplotlib, which it needs to be before the specim and kai imports
+"""
 import warnings
 
 import numpy
@@ -17,12 +13,6 @@ import os
 import sys
 import glob
 
-"""
-The matplotlib.use('Agg') line prevents any display functionality by 
-matplotlib, which is necessary when running the code in a Docker container.
-It must come before any import statement that will also lead to an
-import of matplotlib, which it needs to be before the specim and kai imports
-"""
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib.colors import LogNorm
@@ -35,7 +25,6 @@ from specim.imfuncs.wcshdu import WcsHDU
 from kai.reduce import calib
 from kai.reduce import sky
 from kai.reduce import data
-from kai.reduce import util
 from kai.reduce import dar
 from kai.reduce import kai_util
 from kai import instruments
@@ -178,16 +167,16 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
 
     if is_error is not True:
         if len(tmplist) == 0:
-            framelist = range(0,0)
+            framelist = range(0, 0)
         else:
             el1 = tmplist[0]
             if isinstance(el1, dict):
                 if inst == osiris:
                     frameroot = 'i%s_a' % obsdate[2:]
-                    framelist = assn_to_framelist(tmplist, inst, frameroot,
+                    framelist = dict_to_framelist(tmplist, inst, frameroot,
                                                   suffix=suffix)
                 elif inst == nirc2:
-                    framelist = list(tmplist['frames'])
+                    framelist = dict_to_framelist(tmplist, inst)
                 else:
                     is_error = True
             elif inst == nirc2 and isinstance(el1, int):
