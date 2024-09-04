@@ -64,7 +64,7 @@ def get_instrument(instrument):
                          '"osiris" or "nirc2"\n')
 
 
-def assn_to_framelist(assnlist, rootname, suffix=None):
+def dict_to_framelist(inlist, inst, rootname=None, suffix=None):
     """
 
     Utility function to make a list of frame numbers from a list of
@@ -88,42 +88,52 @@ def assn_to_framelist(assnlist, rootname, suffix=None):
 
     """ First check the assnlist data type """
     iserror = False
-    inlist = []
-    if assnlist is not None:
-        if isinstance(assnlist, dict):
-            inlist = [assnlist]
-        elif isinstance(assnlist, list):
-            if isinstance(assnlist[0], dict):
-                inlist = assnlist
+    dictlist = []
+    if inlist is not None:
+        if isinstance(inlist, dict):
+            dictlist = [inlist]
+        elif isinstance(inlist, list):
+            if isinstance(inlist[0], dict):
+                dictlist = inlist
             else:
                 print('ERROR: first element of assnlist is not a dict')
                 iserror = True
         else:
-            print('ERROR: assnlist is not either a dict or a list')
+            print('ERROR: inlist is not either a dict or a list')
             iserror = True
     else:
-        print('ERROR: assnlist is None')
+        print('ERROR: inlist is None')
         iserror = True
     if iserror:
-        raise TypeError('\nassn_to_framelist: assnlist must be a dict or a '
+        raise TypeError('\ndict_to_framelist: inlist must be a dict or a '
                         'list of dicts.\n')
 
     """ Create the framelist """
     framelist = []
-    for i in inlist:
+    for i in dictlist:
         """ Check the passed parameters """
-        for k in ['assn', 'frames']:
+        if inst == osiris:
+            keylist = ['assn', 'frames']
+            assn = i['assn']
+        elif inst == nirc2:
+            keylist = ['frames']
+            assn = None
+        else:
+            raise ValueError('Instrument must be osiris or nirc2')
+        for k in keylist:
             if k not in i.keys():
-                raise KeyError('\nassn_to framelist: dict must contain both'
-                               '"assn" and "frames" keys\n\n')
+                raise KeyError('\ndict_to framelist: dict is missing the '
+                               '%s key\n\n' % k)
         """
         Loop through association and frame numbers to create file list
         """
-        assn = i['assn']
         for j in i['frames']:
-            framename = '%s%03d%03d' % (rootname, assn, j)
-            if suffix is not None:
-                framename = '%s_%s' % (framename, suffix)
+            if inst == osiris:
+                framename = '%s%03d%03d' % (rootname, assn, j)
+                if suffix is not None:
+                    framename = '%s_%s' % (framename, suffix)
+            else:
+                framename = j
             framelist.append(framename)
 
     return framelist
@@ -174,7 +184,7 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
             if isinstance(el1, dict):
                 if inst == osiris:
                     frameroot = 'i%s_a' % obsdate[2:]
-                    framelist = assn_to_framelist(tmplist, frameroot,
+                    framelist = assn_to_framelist(tmplist, inst, frameroot,
                                                   suffix=suffix)
                 elif inst == nirc2:
                     framelist = list(tmplist['frames'])
