@@ -340,6 +340,31 @@ def make_flat(flatlist, obsdate, instrument, suffix=None):
     calib.makeflat(onframes, offframes, outfile, instrument=inst)
 
 
+def make_sky(skylist, obsdate, instrument, suffix=None):
+    """
+
+    Makes a dark frame given either an input list of integer frame numbers
+    (for NIRC2) or a dict or list of dicts containing 'assn' and 'frames'
+    keywords (for OSIRIS)
+
+    """
+
+    try:
+        inst = get_instrument(instrument)
+    except ValueError:
+        return
+
+    """ Create the framelist in the proper format """
+    skyframes = inlist_to_framelist(skylist, instrument, obsdate,
+                                    suffix=suffix)
+    print(skyframes)
+
+    """ Make the sky file """
+    outfile = '%s.fits' % skylist['name']
+    print('Creating the sky file: %s' % outfile)
+    sky.makesky(skyframes, obsdate, skylist['obsfilt'], instrument=inst)
+
+
 def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
                   instrument, suffix=None):
     """
@@ -425,18 +450,15 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     Make a sky frame
     """
     if skyinfo is not None:
-        """ Check for required information """
-        skykeys = ['obsfilt', 'frames']
-        for key in skykeys:
-            if key not in skyinfo.keys():
-                raise KeyError
+        """ Check the skyinfo format """
+        skeys = list(basekeys)
+        skeys.append('obsfilt')
+        skeys.append('type')
+        skylist = check_callist(skyinfo, skeys)
 
-        print('')
-        print('Making sky frame')
-        print('----------------')
-        skyframes = inlist_to_framelist(skyinfo, instrument, obsdate,
-                                        suffix=suffix)
-        sky.makesky(skyframes, obsdate, skyinfo['obsfilt'], instrument=inst)
+        """ Create the flat(s) """
+        for info in skylist:
+            make_sky(info, obsdate, instrument, suffix=suffix)
 
 
 def plot_image(imagePath, flip=False):
