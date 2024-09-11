@@ -593,7 +593,7 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
 
 
 def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
-             suffix=None):
+             combdir='default', suffix=None):
     """
     Get the combined drizzled image into its final format.
     Inputs:
@@ -609,7 +609,10 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
     """
 
     """ Start by setting up the relevant filenames """
-    combdir = '%s/combo' % os.getcwd()
+    if combdir is None:
+        combdir = '.'
+    elif combdir == 'default':
+        combdir = '%s/combo' % os.getcwd()
     combroot = os.path.join(combdir, 'mag%s_%s_%s' % (obsdate, target, obsfilt))
     scifile = '%s.fits' % combroot
     sigfile = '%s_sig.fits' % combroot
@@ -661,10 +664,7 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
       2. Convert the pixel units to e-/sec
     """
     pixscale = inst.get_plate_scale(hdr)
-    if 'SYSGAIN' in hdr.keys():
-        gain = hdr['sysgain']
-    else:
-        gain = -1.
+    gain = inst.get_gain(hdr)
     if avgtime > 1.:
         texp = avgtime
     else:
