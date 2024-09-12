@@ -703,7 +703,7 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
         newwht.crval = refradec
 
     """ Save the updated file with a new name """
-    keeplist = ['object', 'telescope', 'instrume', 'filter', 'date-obs',
+    keeplist = ['object', 'telescop', 'instrume', 'filter', 'date-obs',
                 'bunit', 'binfo_1', 'binfo_2', 'gain', 'ogain', 'exptime',
                 'semester', 'progpi', 'progid', 'elaptime', 'ncombine']
     for i in range(len(sci_frames)):
