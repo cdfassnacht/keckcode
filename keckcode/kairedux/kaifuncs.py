@@ -335,13 +335,12 @@ def make_flat(flatlist, obsdate, instrument, suffix=None):
             tmpdict = {'frames': flatlist['offframes']}
         offframes = inlist_to_framelist(tmpdict, instrument, obsdate,
                                         suffix=suffix)
-    print('flat frames')
-    print(onframes)
-    print(offframes)
 
     """ Make the flat-field file """
     outfile = '%s_%s.fits' % (flatlist['name'], flatlist['obsfilt'])
+    print('')
     print('Creating the flat-field file: %s' % outfile)
+    print('--------------------------------------------')
     calib.makeflat(onframes, offframes, outfile, instrument=inst)
 
 
