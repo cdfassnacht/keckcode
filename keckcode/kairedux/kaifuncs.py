@@ -15,13 +15,10 @@ import glob
 
 import matplotlib
 matplotlib.use('Agg')
-from matplotlib.colors import LogNorm
 
-""" Import additional helper modules """
 from astropy.io import ascii
 from specim.imfuncs.wcshdu import WcsHDU
 
-""" Import KAI modules """
 from kai.reduce import calib
 from kai.reduce import sky
 from kai.reduce import data
@@ -237,8 +234,6 @@ def makelog_and_prep_images(year, instrument, rawdir='../raw'):
 
     return
 
-# --------------------------------------------------------------------------
-
 
 def check_callist(callist, dictkeys):
     """
@@ -429,6 +424,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         del dkeys
 
     """ Create the flat(s) as long as flatinfo is not None"""
+    allflats1 = []
     if flatinfo is not None:
         """ Check the flatinfo format """
         fkeys = list(basekeys)
@@ -438,6 +434,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         """ Create the flat(s) """
         for info in flatlist:
             make_flat(info, obsdate, instrument, suffix=suffix)
+            allflats1.append('%s.fits' % info['name'])
 
     """
     Make the 'supermask' from a dark and a flat.
@@ -453,6 +450,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     """
     Make a sky frame
     """
+    allflats2 = []
     if skyinfo is not None:
         """ Check the skyinfo format """
         skeys = list(basekeys)
@@ -460,48 +458,14 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         skeys.append('type')
         skylist = check_callist(skyinfo, skeys)
 
+        """ First create the sky flat file(s) """
+        for info in skylist:
+            make_flat(info, obsdate, instrument, suffix=suffix)
+            allflats2.append('%s.fits' % info['name'])
+
         """ Create the flat(s) """
         for info in skylist:
             make_sky(info, obsdate, instrument, suffix=suffix)
-
-
-def plot_image(imagePath, flip=False):
-
-    # Initializing the Image
-    img = fits.getdata(imagePath)
-   
-    # Get image dimensions and make relative to reference
-    x_axis = np.arange(img.shape[0], dtype=float)
-    y_axis = np.arange(img.shape[1], dtype=float)
-
-    # Extent of image to be plotted in imshow
-    extent = [x_axis[0], x_axis[-1], y_axis[0], y_axis[-1]]
-    
-    # Flips image in case it's backwards
-    if flip:
-        x_axis *= -1
-        img = np.flip(img, axis=1)
-        extent = [x_axis[-1], x_axis[0], y_axis[0], y_axis[-1]]
-    
-    # Plotting prerequisites
-    vmin = 10
-    vmax = 1e5
-    norm = LogNorm(vmin, vmax)
-       
-    # Plot the image
-    plt.figure(figsize=(10, 8))
-
-    plt.imshow(img, cmap='gist_heat_r', norm=norm, extent=extent,
-               origin="lower")
-    
-    # Plot titles, etc.
-    plt.colorbar(label='Starlist Magnitude (mag)')
-    plt.xlabel('Pixel Coordinates (pixel)')
-    plt.ylabel('Pixel Coordinates (pixel)')
-    plt.axis('equal')
-    plt.title(imagePath.split("/")[-1])
-
-    return
 
 
 def name_checker(a, b):
