@@ -154,6 +154,7 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
     """ Convert the input list into a frame list"""
     is_error = False
     tmplist = None
+    framelist = None
     if isinstance(inlist, (dict, int)):
         tmplist = [inlist]
     # NOTE: in python 3, "range" is a type, but in python 2, which this
@@ -194,8 +195,8 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
         print('   5. A range, i.e., range(151,157) - (NIRC2)')
         print('')
         raise TypeError()
-
-    return framelist
+    else:
+        return framelist
 
 
 def makelog_and_prep_images(year, instrument, rawdir='../raw'):
@@ -327,7 +328,11 @@ def make_flat(flatlist, obsdate, instrument, suffix=None):
     if 'offframes' not in flatlist.keys():
         offframes = range(0, 0)
     else:
-        tmpdict = {'assn': flatlist['assn'], 'frames': flatlist['offframes']}
+        if inst == osiris:
+            tmpdict = {'assn': flatlist['assn'],
+                       'frames': flatlist['offframes']}
+        else:
+            tmpdict = {'frames': flatlist['offframes']}
         offframes = inlist_to_framelist(tmpdict, instrument, obsdate,
                                         suffix=suffix)
     print('flat frames')
