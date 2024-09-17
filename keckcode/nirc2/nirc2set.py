@@ -26,8 +26,8 @@ class NIRC2Set(CCDSet):
     add-ons that are specific to the Keck OSIRIS imager
     """
 
-    def __init__(self, inlist, wcstype='koa', is_sci=True, texpkey='truitime',
-                 gainkey='sysgain', indir=None, obsdate=None, **kwargs):
+    def __init__(self, inlist, wcstype='koa', is_sci=True, texpkey='elaptime',
+                 gainkey='gain', indir=None, obsdate=None, **kwargs):
 
         """ Make sure that inlist is in the correct format """
         if isinstance(inlist, (list, tuple, dict)):
@@ -58,14 +58,17 @@ class NIRC2Set(CCDSet):
                              indir=indir, **kwargs)
 
         """
-        Copy some osiris-specific keywords into the more standard versions
+        Copy some Keck-specific keywords into the more standard versions
         """
         for hdu in self:
             hdr = hdu.header
             if texpkey.upper() in hdr.keys():
                 hdr['exptime'] = hdr[texpkey]
-
-        """ Set up some default values """
+            elif 'ITIME' in hdr.keys():
+                hdr['exptime'] = hdr['itime']
+            else:
+                print('WARNING: Could not find header keywords %s '
+                      'or ITIME' % texpkey)
 
         """
         Fix the WCS header info if necessary.
@@ -114,7 +117,8 @@ class NIRC2Set(CCDSet):
 
     #  ------------------------------------------------------------------------
 
-    def make_filelist(self, assnlist, obsdate, indir='auto'):
+    @staticmethod
+    def make_filelist(inlist, obsdate, indir='auto'):
         """
 
         Makes a list of file names based on an input directory and an OSIRIS
@@ -141,13 +145,13 @@ class NIRC2Set(CCDSet):
 
         """ Create a filelist from the inputs """
         filelist = []
-        print(indir)
-        for i in assnlist:
+        print('Input directory: %s' % indir)
+        for i in inlist:
             """ Check the passed parameters """
             for k in ['frames']:
                 if k not in i.keys():
-                    raise KeyError('\nmake_filelist: dict must contain both'
-                                   '"frames" keys\n\n')
+                    raise KeyError('\nmake_filelist: dict must contain a'
+                                   '"frames" key\n\n')
             """
             Loop through frame numbers to create file list
             """
