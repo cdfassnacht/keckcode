@@ -179,6 +179,22 @@ class OsImSet(CCDSet):
 
     #  ------------------------------------------------------------------------
 
+    def make_kai_log(self, outfile, outdir=None):
+        """
+
+        Makes a text file containing observing log information derived from
+        the headers of the fits files.  The format of the log is that used
+        by the KAI data reduction pipeline.
+
+        Inputs:
+          outfile - Name of output text file
+          outdir  - Location for output text file.  The default (None) will
+                    save the text file in the current working directory
+
+        """
+
+    #  ------------------------------------------------------------------------
+
     def make_var_and_bpm(self, flatfile, inpref, bpmglobfile=None, caldir=None,
                          bpmpref='bpm', texppref='texp', onespref='ones',
                          nsig=10., outdir=None, verbose=True):
