@@ -27,7 +27,8 @@ class OsImSet(CCDSet):
     """
 
     def __init__(self, inlist, wcstype='koa', is_sci=True, texpkey='truitime',
-                 gainkey='sysgain', indir=None, obsdate=None, **kwargs):
+                 gainkey='sysgain', indir=None, obsdate=None, gzip=False,
+                 **kwargs):
 
         """ Make sure that inlist is in the correct format """
         if isinstance(inlist, (list, tuple, dict)):
@@ -38,9 +39,11 @@ class OsImSet(CCDSet):
 
         """ Create the input filelist from the passed parameters """
         if isinstance(inlist, dict):
-            filelist = self.make_filelist([inlist], obsdate, indir=indir)
+            filelist = self.make_filelist([inlist], obsdate, indir=indir,
+                                          gzip=gzip)
         elif isinstance(inlist[0], dict):
-            filelist = self.make_filelist(inlist, obsdate, indir=indir)
+            filelist = self.make_filelist(inlist, obsdate, indir=indir,
+                                          gzip=gzip)
         else:
             """
             For any other data types, let CCDSet (called through the "super"
@@ -113,7 +116,7 @@ class OsImSet(CCDSet):
 
     #  ------------------------------------------------------------------------
 
-    def make_filelist(self, assnlist, obsdate, indir='auto'):
+    def make_filelist(self, assnlist, obsdate, indir='auto', gzip=False):
         """
 
         Makes a list of file names based on an input directory and an OSIRIS
@@ -138,6 +141,12 @@ class OsImSet(CCDSet):
         else:
             pass
 
+        """ Set the file extension """
+        if gzip:
+            suff = 'fits.gz'
+        else:
+            suff = 'fits'
+
         """ Create a filelist from the inputs """
         filelist = []
         print(indir)
@@ -153,7 +162,7 @@ class OsImSet(CCDSet):
             assn = i['assn']
             for j in i['frames']:
                 filebase = 'i%s_a%03d%03d' % (obsdate[2:], assn, j)
-                filelist.append(os.path.join(indir, '%s.fits' % filebase))
+                filelist.append(os.path.join(indir, '%s.%s' % (filebase, suff)))
 
         return filelist
 
