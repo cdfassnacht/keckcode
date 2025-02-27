@@ -429,6 +429,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         for info in darklist:
             make_dark(info, obsdate, instrument, suffix=suffix)
         del dkeys
+    return
 
     """ Create the flat(s) as long as flatinfo is not None"""
     allflats1 = []

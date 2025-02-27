@@ -1,10 +1,13 @@
 import os
+import sys
 from ccdredux.ccdset import CCDSet
 from kai import instruments
 
 """ Define global variables for the two possible instruments """
 osiris = instruments.OSIRIS()
 nirc2 = instruments.NIRC2()
+
+pyversion = sys.version_info.major
 
 
 class KaiSet(CCDSet):
@@ -71,9 +74,13 @@ class KaiSet(CCDSet):
         if verbose:
             print('Reading files from %s' % indir)
 
-        """ Set up the empty CCDSet container by calling the superclass """
-        super().__init__(filelist, texpkey=texpkey, gainkey=gainkey,
-                         indir=indir, **kwargs)
+        """ Set up the KaiSet container by calling the superclass """
+        if pyversion == 2:
+            super(KaiSet, self).__init__(filelist, texpkey=texpkey,
+                                         gainkey=gainkey, indir=indir, **kwargs)
+        else:
+            super().__init__(filelist, texpkey=texpkey, gainkey=gainkey,
+                             indir=indir, **kwargs)
 
     #  ------------------------------------------------------------------------
 
