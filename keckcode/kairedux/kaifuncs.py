@@ -271,7 +271,7 @@ def check_callist(callist, dictkeys):
     return newlist
 
 
-def make_dark(darklist, obsdate, instrument, suffix=None):
+def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
     """
 
     Makes a dark frame given either an input list of integer frame numbers
@@ -297,7 +297,7 @@ def make_dark(darklist, obsdate, instrument, suffix=None):
 
     """ Make the dark file """
     # calib.makedark(darkframes, outfile, instrument=inst)
-    darkset = kaiset.KaiSet(darklist, instrument, obsdate)
+    darkset = kaiset.KaiSet(darklist, instrument, obsdate, indir=rawdir)
     darkset.create_dark(outfile)
 
 
