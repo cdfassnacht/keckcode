@@ -28,5 +28,5 @@ setuptools.setup(
         'specim',
         'ccdredux'
     ],
-    package_data = {'keckcode.esiredux' : ['data/*']}
+    package_data={'keckcode.esiredux' : ['data/*']}
 )

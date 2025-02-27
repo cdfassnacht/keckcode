@@ -26,6 +26,8 @@ from kai.reduce import dar
 from kai.reduce import kai_util
 from kai import instruments
 
+from . import kaiset
+
 """ Turn off header deprecation warnings """
 warnings.filterwarnings('ignore', category=UserWarning, append=True)
 
@@ -278,20 +280,25 @@ def make_dark(darklist, obsdate, instrument, suffix=None):
 
     """
 
-    try:
-        inst = get_instrument(instrument)
-    except ValueError:
-        return
-
-    """ Create the framelist in the proper format """
-    darkframes = inlist_to_framelist(darklist, instrument, obsdate,
-                                     suffix=suffix)
-    print(darkframes)
-
-    """ Make the dark file """
+    """ Get the output file name """
     outfile = '%s.fits' % darklist['name']
     print('Creating the dark file: %s' % outfile)
-    calib.makedark(darkframes, outfile, instrument=inst)
+
+    # try:
+    #     inst = get_instrument(instrument)
+    # except ValueError:
+    #     return
+
+    # """ Create the framelist in the proper format """
+    # darkframes = inlist_to_framelist(darklist, instrument, obsdate,
+    #                                suffix=suffix)
+    # print('Frames for dark: %s' % darklist['name'])
+    # print(darkframes)
+
+    """ Make the dark file """
+    # calib.makedark(darkframes, outfile, instrument=inst)
+    darkset = kaiset.KaiSet(darklist, instrument, obsdate)
+    darkset.create_dark(outfile)
 
 
 def make_flat(flatlist, obsdate, instrument, suffix=None):
