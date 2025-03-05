@@ -284,11 +284,6 @@ def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
     outfile = '%s.fits' % darklist['name']
     print('Creating the dark file: %s' % outfile)
 
-    # try:
-    #     inst = get_instrument(instrument)
-    # except ValueError:
-    #     return
-
     # """ Create the framelist in the proper format """
     # darkframes = inlist_to_framelist(darklist, instrument, obsdate,
     #                                suffix=suffix)
@@ -301,7 +296,7 @@ def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
     darkset.create_dark(outfile)
 
 
-def make_flat(flatlist, obsdate, instrument, suffix=None):
+def make_flat(flatlist, obsdate, instrument, rawdir='../raw', suffix=None):
     """
 
     Makes a flat-field file
@@ -320,30 +315,40 @@ def make_flat(flatlist, obsdate, instrument, suffix=None):
 
     """
 
-    try:
-        inst = get_instrument(instrument)
-    except ValueError:
-        return
+    """ Make a KaiSet holder for the lamps-on frames """
+    flats_on = kaiset.KaiSet(flatlist, instrument, obsdate, indir=rawdir)
 
-    """ Create the framelist in the proper format """
-    onframes = inlist_to_framelist(flatlist, instrument, obsdate, suffix=suffix)
+    """ Make a lamps-off holder if requested """
     if 'offframes' not in flatlist.keys():
-        offframes = range(0, 0)
+        flats_off = None
     else:
         if inst == osiris:
             tmpdict = {'assn': flatlist['assn'],
                        'frames': flatlist['offframes']}
         else:
             tmpdict = {'frames': flatlist['offframes']}
-        offframes = inlist_to_framelist(tmpdict, instrument, obsdate,
-                                        suffix=suffix)
+        flats_off = kaiset.KaiSet(tmpdict, instrument, obsdate, indir=rawdir)
+
+    """ Create the framelist in the proper format """
+    # onframes = inlist_to_framelist(flatlist, instrument, obsdate, suffix=suffix)
+    # if 'offframes' not in flatlist.keys():
+    #     offframes = range(0, 0)
+    # else:
+    #     if inst == osiris:
+    #         tmpdict = {'assn': flatlist['assn'],
+    #                    'frames': flatlist['offframes']}
+    #     else:
+    #         tmpdict = {'frames': flatlist['offframes']}
+    #     offframes = inlist_to_framelist(tmpdict, instrument, obsdate,
+    #                                     suffix=suffix)
 
     """ Make the flat-field file """
     outfile = '%s_%s.fits' % (flatlist['name'], flatlist['obsfilt'])
     print('')
     print('Creating the flat-field file: %s' % outfile)
     print('--------------------------------------------')
-    calib.makeflat(onframes, offframes, outfile, instrument=inst)
+    # calib.makeflat(onframes, offframes, outfile, instrument=inst)
+    flats_on.create_flat(outfile, lamps_off=flats_off, normalize='sigclip')
 
 
 def make_sky(skylist, obsdate, instrument, suffix=None):
@@ -429,7 +434,6 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         for info in darklist:
             make_dark(info, obsdate, instrument, suffix=suffix)
         del dkeys
-    return
 
     """ Create the flat(s) as long as flatinfo is not None"""
     allflats1 = []
@@ -443,6 +447,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         for info in flatlist:
             make_flat(info, obsdate, instrument, suffix=suffix)
             allflats1.append('%s.fits' % info['name'])
+    return
 
     """
     Make the 'supermask' from a dark and a flat.

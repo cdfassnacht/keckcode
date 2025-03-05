@@ -201,7 +201,7 @@ class KaiSet(CCDSet):
             os.makedirs(darkdir)
 
         """ Get the output filenames """
-        if outname[:-4] != 'fits':
+        if outname[-4:] != 'fits':
             outfile = os.path.join(darkdir, '%s.fits' % outname)
         else:
             outfile = os.path.join(darkdir, outname)
@@ -209,3 +209,90 @@ class KaiSet(CCDSet):
 
         """ """
         self.make_bias(outfile=outfile, reject=reject, nlow=nlow, nhigh=nhigh)
+
+    #  ------------------------------------------------------------------------
+
+    def create_flat(self, outname, lamps_off=None, normalize=None,
+                    reject='sigclip', nlow=1, nhigh=1):
+        """
+
+        Creates a flat-field frame following the KAI recipe.  This approach
+        uses frames taken with the flat-field lamps on (which are part of this
+        KaiSet instance, and possibly frames taken with the flat-field lamps
+        off, which are provided via the lamps_off parameter.  The lamps_off
+        data should also be a KaiSet instance if it is not None.
+
+        """
+
+        """ Check validity of input """
+        if lamps_off is not None:
+            if not isinstance(lamps_off, KaiSet):
+                raise ValueError('\nThe lamps_off parameter must be a KaiSet\n')
+            if len(lamps_off) != len(self):
+                raise IndexError('\nDifferent number of files in lamps_off and'
+                                 ' lamps_on\n')
+
+        """ Set up directory names """
+        pwd = os.getcwd()
+        caldir = os.path.join(pwd, 'calib')
+        flatdir = os.path.join(caldir, 'flats')
+        if not os.path.isdir(caldir):
+            os.makedirs(caldir)
+        if not os.path.isdir(flatdir):
+            os.makedirs(flatdir)
+
+        """ Get the output filenames """
+        if outname[-4:] != 'fits':
+            outfile = os.path.join(flatdir, '%s.fits' % outname)
+        else:
+            outfile = os.path.join(flatdir, outname)
+        onfits = os.path.join(flatdir, 'lampsOn.fits')
+        offfits = os.path.join(flatdir, 'lampsOff.fits')
+        normfits = os.path.join(flatdir, 'flatNotNorm.fits')
+        onlist = os.path.join(flatdir, 'on.lis')
+        offlist = os.path.join(flatdir, 'off.lis')
+        normlist = os.path.join(flatdir, 'onNorm.lis')
+
+        """
+        Make the flat, using the lamps-off frames if provided, but otherwise
+        using just the lamps-on frames
+        """
+        if lamps_off is not None:
+            """ First make the combined lamps-off and lamps-on frames """
+            lamps_off.make_flat(outfile=offfits, normalize=normalize,
+                                reject=reject, nlow=nlow, nhigh=nhigh)
+            self.make_flat(outfile=onfits, normalize=normalize,
+                           reject=reject, nlow=nlow, nhigh=nhigh)
+
+            """ Now loop through paired on/off exposures, taking differences """
+            nfile = open(onlist, 'w')
+            ffile = open(offlist, 'w')
+            count = 0
+            for n, f in zip(self, lamps_off):
+                """ Add the filenames to the onlist and offlist"""
+                if 'basename' in self.datainfo.keys():
+                    nfile.write('%s\n' % self.datainfo['basename'][count])
+                if 'basename' in lamps_off.datainfo.keys():
+                    ffile.write('%s\n' % lamps_off.datainfo['basename'][count])
+                count += 1
+
+                """ Replace the lamps-on data with the difference data """
+                n.data = n.data - f.data
+            nfile.close()
+            ffile.close()
+
+            """ Make the final flat """
+            self.make_flat(outfile=outfile, normalize=normalize, reject=reject,
+                           nlow=nlow, nhigh=nhigh)
+
+        else:
+            """ Put the filenames into the onlist """
+            if 'basename' in self.datainfo.keys():
+                nfile = open(onlist, 'w')
+                for info in self.datainfo:
+                    nfile.write('%s\n' % info['basename'])
+
+            """ Make the final flat """
+            self.make_flat(outfile=outfile, normalize=normalize, reject=reject,
+                           nlow=nlow, nhigh=nhigh)
+
