@@ -323,7 +323,7 @@ def make_flat(flatlist, obsdate, instrument, rawdir='../raw', inflat=None,
     if 'offframes' not in flatlist.keys():
         flats_off = None
     else:
-        if inst == osiris:
+        if flats_on.instrument == osiris:
             tmpdict = {'assn': flatlist['assn'],
                        'frames': flatlist['offframes']}
         else:
