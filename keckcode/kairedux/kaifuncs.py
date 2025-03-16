@@ -296,7 +296,8 @@ def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
     darkset.create_dark(outfile)
 
 
-def make_flat(flatlist, obsdate, instrument, rawdir='../raw', suffix=None):
+def make_flat(flatlist, obsdate, instrument, rawdir='../raw', inflat=None,
+              suffix=None):
     """
 
     Makes a flat-field file
@@ -348,7 +349,8 @@ def make_flat(flatlist, obsdate, instrument, rawdir='../raw', suffix=None):
     print('Creating the flat-field file: %s' % outfile)
     print('--------------------------------------------')
     # calib.makeflat(onframes, offframes, outfile, instrument=inst)
-    flats_on.create_flat(outfile, lamps_off=flats_off, normalize='sigclip')
+    flats_on.create_flat(outfile, lamps_off=flats_off, normalize='sigclip',
+                         inflat=inflat)
 
 
 def make_sky(skylist, obsdate, instrument, suffix=None):
@@ -377,7 +379,7 @@ def make_sky(skylist, obsdate, instrument, suffix=None):
 
 
 def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
-                  instrument, suffix=None):
+                  instrument, root4sky=None, suffix=None):
     """
     
     Makes all of the calibration files
@@ -447,18 +449,6 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         for info in flatlist:
             make_flat(info, obsdate, instrument, suffix=suffix)
             allflats1.append('%s.fits' % info['name'])
-    return
-
-    """
-    Make the 'supermask' from a dark and a flat.
-    Use a long-exposure dark (>20 sec) for this.
-    Note: the code assumes that the input files are found in calib/darks
-     and calib/flats
-    """
-    print('')
-    print('Making supermask.fits')
-    print('---------------------')
-    calib.makemask(dark4mask, flat4mask, 'supermask.fits', instrument=inst)
 
     """
     Make a sky frame
@@ -471,14 +461,37 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         skeys.append('type')
         skylist = check_callist(skyinfo, skeys)
 
-        """ First create the sky flat file(s) """
+        """ Create the sky flat file(s) and then the final combined flat """
         for info in skylist:
-            make_flat(info, obsdate, instrument, suffix=suffix)
+            if root4sky is not None:
+                inflat = '%s_%s.fits' % (root4sky, info['obsfilt'])
+            else:
+                inflat = None
+            make_flat(info, obsdate, instrument, inflat=inflat, suffix=suffix)
             allflats2.append('%s.fits' % info['name'])
 
-        """ Create the flat(s) """
+            """ Create the final flat"""
+            if root4sky is not None:
+                flat1 = WcsHDU(root4sky)
+                flat2 = WcsHDU(info['name'])
+                finalflat = flat1 * flat2
+                finalflat.writeto('flat_%s.fits' % info['obsfilt'])
+
+        """ Create the sky """
         for info in skylist:
             make_sky(info, obsdate, instrument, suffix=suffix)
+
+    """
+    Make the bad pixel mask, which KAI calls the 'supermask' from a dark and
+     a flat.
+    Use a long-exposure dark (>20 sec) for this.
+    Note: the code assumes that the input files are found in calib/darks
+     and calib/flats
+    """
+    print('')
+    print('Making supermask.fits')
+    print('---------------------')
+    calib.makemask(dark4mask, flat4mask, 'supermask.fits', instrument=inst)
 
 
 def name_checker(a, b):

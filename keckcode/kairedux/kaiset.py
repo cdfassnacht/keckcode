@@ -47,6 +47,7 @@ class KaiSet(CCDSet):
 
         """ Make the date string from the provided obsdate """
         if obsdate is not None:
+            self.obsdate = obsdate
             datestr = '%s_%s_%s' % (obsdate[:4], obsdate[4:6], obsdate[6:8])
         else:
             raise TypeError('\n an obsdate that is not None '
@@ -213,7 +214,7 @@ class KaiSet(CCDSet):
     #  ------------------------------------------------------------------------
 
     def create_flat(self, outname, lamps_off=None, normalize=None,
-                    reject='sigclip', nlow=1, nhigh=1):
+                    inflat=None, reject='sigclip', nlow=1, nhigh=1):
         """
 
         Creates a flat-field frame following the KAI recipe.  This approach
@@ -260,8 +261,9 @@ class KaiSet(CCDSet):
         if lamps_off is not None:
             """ First make the combined lamps-off and lamps-on frames """
             lamps_off.make_flat(outfile=offfits, normalize=normalize,
+                                flatfile=inflat,
                                 reject=reject, nlow=nlow, nhigh=nhigh)
-            self.make_flat(outfile=onfits, normalize=normalize,
+            self.make_flat(outfile=onfits, normalize=normalize, flatfile=inflat,
                            reject=reject, nlow=nlow, nhigh=nhigh)
 
             """ Now loop through paired on/off exposures, taking differences """
@@ -293,6 +295,32 @@ class KaiSet(CCDSet):
                     nfile.write('%s\n' % info['basename'])
 
             """ Make the final flat """
-            self.make_flat(outfile=outfile, normalize=normalize, reject=reject,
-                           nlow=nlow, nhigh=nhigh)
+            self.make_flat(outfile=outfile, normalize=normalize,
+                           flatfile=inflat, reject=reject, nlow=nlow,
+                           nhigh=nhigh)
 
+    #  ------------------------------------------------------------------------
+
+    def create_sky(self, outname, obsfilt, skyscale=True,
+                   inflat=None, reject='sigclip', nlow=1, nhigh=1):
+        """
+
+        Makes a sky file, broadly following the KAI algorithm, but with the
+         possibility of applying the flat-field file to the sky frames
+         before combining them.
+        """
+
+        """ Set up directory names """
+        pwd = os.getcwd()
+        caldir = os.path.join(pwd, 'calib')
+        flatdir = os.path.join(caldir, 'flats')
+        skydir = os.path.join(caldir, obsfilt, 'sky')
+        # skydir = os.path.join(caldir, 'sky_%s' % self.obsdate)
+        if not os.path.isdir(caldir):
+            os.makedirs(caldir)
+        if not os.path.isdir(skydir):
+            os.makedirs(skydir)
+
+        """ Get full path to inflat if it is not None """
+        if inflat is not None:
+            flatfile = os.path.join(flatdir, 'flat_')
