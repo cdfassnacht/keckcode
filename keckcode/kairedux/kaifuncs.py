@@ -292,7 +292,8 @@ def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
 
     """ Make the dark file """
     # calib.makedark(darkframes, outfile, instrument=inst)
-    darkset = kaiset.KaiSet(darklist, instrument, obsdate, indir=rawdir)
+    darkset = kaiset.KaiSet(darklist, instrument, obsdate, indir=rawdir,
+                            wcsverb=False)
     darkset.create_dark(outfile)
 
 
@@ -317,7 +318,8 @@ def make_flat(flatlist, obsdate, instrument, rawdir='../raw', inflat=None,
     """
 
     """ Make a KaiSet holder for the lamps-on frames """
-    flats_on = kaiset.KaiSet(flatlist, instrument, obsdate, indir=rawdir)
+    flats_on = kaiset.KaiSet(flatlist, instrument, obsdate, indir=rawdir,
+                             wcsverb=False)
 
     """ Make a lamps-off holder if requested """
     if 'offframes' not in flatlist.keys():
@@ -464,7 +466,8 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         """ Create the sky flat file(s) and then the final combined flat """
         for info in skylist:
             if root4sky is not None:
-                inflat = '%s_%s.fits' % (root4sky, info['obsfilt'])
+                inflatfile = '%s_%s.fits' % (root4sky, info['obsfilt'])
+                inflat = os.path.join('calib', 'flats', inflatfile)
             else:
                 inflat = None
             make_flat(info, obsdate, instrument, inflat=inflat, suffix=suffix)
@@ -472,8 +475,10 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
 
             """ Create the final flat"""
             if root4sky is not None:
-                flat1 = WcsHDU(root4sky)
-                flat2 = WcsHDU(info['name'])
+                flat1 = WcsHDU(inflat, wcsverb=False)
+                flat2file = '%s_%s.fits' % (info['name'], info['obsfilt'])
+                flat2path = os.path.join('calib', 'flats', flat2file)
+                flat2 = WcsHDU(flat2path, wcsverb=False)
                 finalflat = flat1 * flat2
                 finalflat.writeto('flat_%s.fits' % info['obsfilt'])
 
