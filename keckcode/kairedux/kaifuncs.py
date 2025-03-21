@@ -480,7 +480,9 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
                 flat2path = os.path.join('calib', 'flats', flat2file)
                 flat2 = WcsHDU(flat2path, wcsverb=False)
                 finalflat = flat1 * flat2
-                finalflat.writeto('flat_%s.fits' % info['obsfilt'])
+                outfile = os.path.join('calib', 'flats', 'flat_%s.fits' %
+                                       info['obsfilt'])
+                finalflat.writeto(outfile)
 
         """ Create the sky """
         for info in skylist:
