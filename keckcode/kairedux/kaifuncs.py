@@ -27,6 +27,8 @@ from kai.reduce import kai_util
 from kai import instruments
 
 from . import kaiset
+from ..ao_img.aoset import AOSet
+from ..ao_img import aofuncs as aofn
 
 """ Turn off header deprecation warnings """
 warnings.filterwarnings('ignore', category=UserWarning, append=True)
@@ -284,16 +286,8 @@ def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
     outfile = '%s.fits' % darklist['name']
     print('Creating the dark file: %s' % outfile)
 
-    # """ Create the framelist in the proper format """
-    # darkframes = inlist_to_framelist(darklist, instrument, obsdate,
-    #                                suffix=suffix)
-    # print('Frames for dark: %s' % darklist['name'])
-    # print(darkframes)
-
     """ Make the dark file """
-    # calib.makedark(darkframes, outfile, instrument=inst)
-    darkset = kaiset.KaiSet(darklist, instrument, obsdate, indir=rawdir,
-                            wcsverb=False)
+    darkset = AOSet(darklist, instrument, obsdate, indir=rawdir, wcsverb=False)
     darkset.create_dark(outfile)
 
 
@@ -318,39 +312,24 @@ def make_flat(flatlist, obsdate, instrument, rawdir='../raw', inflat=None,
     """
 
     """ Make a KaiSet holder for the lamps-on frames """
-    flats_on = kaiset.KaiSet(flatlist, instrument, obsdate, indir=rawdir,
-                             wcsverb=False)
+    flats_on = AOSet(flatlist, instrument, obsdate, indir=rawdir, wcsverb=False)
 
     """ Make a lamps-off holder if requested """
     if 'offframes' not in flatlist.keys():
         flats_off = None
     else:
-        if flats_on.instrument == osiris:
+        if instrument == 'osiris':
             tmpdict = {'assn': flatlist['assn'],
                        'frames': flatlist['offframes']}
         else:
             tmpdict = {'frames': flatlist['offframes']}
-        flats_off = kaiset.KaiSet(tmpdict, instrument, obsdate, indir=rawdir)
-
-    """ Create the framelist in the proper format """
-    # onframes = inlist_to_framelist(flatlist, instrument, obsdate, suffix=suffix)
-    # if 'offframes' not in flatlist.keys():
-    #     offframes = range(0, 0)
-    # else:
-    #     if inst == osiris:
-    #         tmpdict = {'assn': flatlist['assn'],
-    #                    'frames': flatlist['offframes']}
-    #     else:
-    #         tmpdict = {'frames': flatlist['offframes']}
-    #     offframes = inlist_to_framelist(tmpdict, instrument, obsdate,
-    #                                     suffix=suffix)
+        flats_off = AOSet(tmpdict, instrument, obsdate, indir=rawdir)
 
     """ Make the flat-field file """
     outfile = '%s_%s.fits' % (flatlist['name'], flatlist['obsfilt'])
     print('')
     print('Creating the flat-field file: %s' % outfile)
     print('--------------------------------------------')
-    # calib.makeflat(onframes, offframes, outfile, instrument=inst)
     flats_on.create_flat(outfile, lamps_off=flats_off, normalize='sigclip',
                          inflat=inflat)
 
@@ -428,29 +407,9 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     if inst == osiris:
         basekeys.append('assn')
 
-    """ Create the dark(s) as long as darkinfo is not None"""
-    if darkinfo is not None:
-        """ Check the darkinfo format """
-        dkeys = list(basekeys)
-        darklist = check_callist(darkinfo, dkeys)
-
-        """ Create the dark(s) """
-        for info in darklist:
-            make_dark(info, obsdate, instrument, suffix=suffix)
-        del dkeys
-
-    """ Create the flat(s) as long as flatinfo is not None"""
-    allflats1 = []
-    if flatinfo is not None:
-        """ Check the flatinfo format """
-        fkeys = list(basekeys)
-        fkeys.append('obsfilt')
-        flatlist = check_callist(flatinfo, fkeys)
-
-        """ Create the flat(s) """
-        for info in flatlist:
-            make_flat(info, obsdate, instrument, suffix=suffix)
-            allflats1.append('%s.fits' % info['name'])
+    """ Make darks and flats via a call to ao_funcs """
+    aofn.make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask,
+                       flat4mask, instrument, root4sky=root4sky, suffix=suffix)
 
     """
     Make a sky frame
@@ -463,26 +422,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         skeys.append('type')
         skylist = check_callist(skyinfo, skeys)
 
-        """ Create the sky flat file(s) and then the final combined flat """
-        for info in skylist:
-            if root4sky is not None:
-                inflatfile = '%s_%s.fits' % (root4sky, info['obsfilt'])
-                inflat = os.path.join('calib', 'flats', inflatfile)
-            else:
-                inflat = None
-            make_flat(info, obsdate, instrument, inflat=inflat, suffix=suffix)
-            allflats2.append('%s.fits' % info['name'])
-
-            """ Create the final flat"""
-            if root4sky is not None:
-                flat1 = WcsHDU(inflat, wcsverb=False)
-                flat2file = '%s_%s.fits' % (info['name'], info['obsfilt'])
-                flat2path = os.path.join('calib', 'flats', flat2file)
-                flat2 = WcsHDU(flat2path, wcsverb=False)
-                finalflat = flat1 * flat2
-                outfile = os.path.join('calib', 'flats', 'flat_%s.fits' %
-                                       info['obsfilt'])
-                finalflat.writeto(outfile)
+        """ NOTE: the skyflat is created in the call to ao_funcs above """
 
         """ Create the sky """
         for info in skylist:
