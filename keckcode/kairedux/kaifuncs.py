@@ -26,9 +26,8 @@ from kai.reduce import dar
 from kai.reduce import kai_util
 from kai import instruments
 
-from . import kaiset
-from keckcode.ao_img.aoset import AOSet
-from keckcode.ao_img import aofuncs as aofn
+from ..ao_img.aoset import AOSet
+from ..ao_img import aofuncs as aofn
 
 """ Turn off header deprecation warnings """
 warnings.filterwarnings('ignore', category=UserWarning, append=True)
