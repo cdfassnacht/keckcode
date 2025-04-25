@@ -2,7 +2,7 @@ import os
 import sys
 from ccdredux.ccdset import CCDSet
 from kai import instruments
-from ..ao_img.aoset import AOSet
+from keckcode.ao_img.aoset import AOSet
 
 """ Define global variables for the two possible instruments """
 osiris = instruments.OSIRIS()
