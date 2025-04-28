@@ -12,18 +12,23 @@ import numpy as np
 import os
 import sys
 import glob
+from datetime import datetime
 
 import matplotlib
 matplotlib.use('Agg')
 
 from astropy.io import ascii
+from astropy.io import fits
+from pyraf import iraf as ir
 from specim.imfuncs.wcshdu import WcsHDU
 
 from kai.reduce import calib
 from kai.reduce import sky
+from kai.reduce import bfixpix
 from kai.reduce import data
 from kai.reduce import dar
 from kai.reduce import kai_util
+from kai.reduce import util
 from kai import instruments
 
 from ..ao_img.aoset import AOSet
@@ -449,6 +454,298 @@ def name_checker(a, b):
             sys.exit()
 
 
+def kaiclean(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
+             skyscale=False, skyfile=None, angOff=0.0, cent_box=12,
+             fixDAR=True, use_koa_weather=False,
+             raw_dir=None, clean_dir=None,
+             instrument=instruments.default_inst, check_ref_loc=True,
+             update_from_AO=True):
+    """
+    Clean near infrared NIRC2 or OSIRIS images.
+
+    This program should be run from the reduce/ directory.
+    Example directory structure is:
+    calib/
+        flats/
+        flat_kp.fits
+        flat.fits (optional)
+        masks/
+        supermask.fits
+    kp/
+        sci_nite1/
+        sky_nite1/
+        sky.fits
+
+    All output files will be put into clean_dir (if specified, otherwise
+    ../clean/) in the following structure:
+    kp/
+        c*.fits
+        distort/
+        cd*.fits
+        weight/
+        wgt*.fits
+
+    The clean directory may be optionally modified to be named
+    <field_><wave> instead of just <wave>. So for instance, for Arches
+    field #1 data reduction, you might call clean with: field='arch_f1'.
+
+    Parameters
+    ----------
+    files : list of int
+        Integer list of the files. Does not require padded zeros.
+    nite : str
+        Name for night of observation (e.g.: "nite1"), used as suffix
+        inside the reduce sub-directories.
+    wave : str
+        Name for the observation passband (e.g.: "kp"), used as
+        a wavelength suffix
+    field : str, default=None
+        Optional prefix for clean directory and final
+        combining. All clean files will be put into <field_><wave>. You
+        should also pass the same into combine(). If set to None (default)
+        then only wavelength is used.
+    skyscale : bool, default=False
+        Whether or not to scale the sky files to the common median.
+        Turn on for scaling skies before subtraction.
+    skyfile : str, default=''
+        An optional file containing image/sky matches.
+    angOff : float, default = 0
+        An optional absolute offset in the rotator
+        mirror angle for cases (wave='lp') when sky subtraction is done with
+        skies taken at matching rotator mirror angles.
+    cent_box : int (def = 12)
+        the box to use for better centroiding the reference star
+    badColumns : int array, default = None
+        An array specifying the bad columns (zero-based).
+        Assumes a repeating pattern every 8 columns.
+    fixDAR : boolean, default = True
+        Whether or not to calculate DAR correction coefficients.
+    use_koa_weather : boolean, default = False
+        If calculating DAR correction, this keyword specifies if the atmosphere
+        conditions should be downloaded from the KOA weather data. If False,
+        atmosphere conditions are downloaded from the MKWC CFHT data.
+    raw_dir : str, optional
+        Directory where raw files are stored. By default,
+        assumes that raw files are stored in '../raw'
+    clean_dir : str, optional
+        Directory where clean files will be stored. By default,
+        assumes that clean files will be stored in '../clean'
+    instrument : instruments object, optional
+        Instrument of data. Default is `instruments.default_inst`
+    """
+
+    # Make sure directory for current passband exists and switch into it
+    util.mkdir(wave)
+    os.chdir(wave)
+
+    # Determine directory locatons
+    waveDir = os.getcwd() + '/'
+    redDir = util.trimdir(os.path.abspath(waveDir + '../') + '/')
+    rootDir = util.trimdir(os.path.abspath(redDir + '../') + '/')
+
+    sciDir = waveDir + '/sci_' + nite + '/'
+    util.mkdir(sciDir)
+    ir.cd(sciDir)
+
+    # Set location of raw data
+    rawDir = rootDir + 'raw/'
+
+    # Check if user has specified a specific raw directory
+    if raw_dir is not None:
+        rawDir = util.trimdir(os.path.abspath(raw_dir) + '/')
+
+    # Setup the clean directory
+    cleanRoot = rootDir + 'clean/'
+
+    # Check if user has specified a specific clean directory
+    if clean_dir is not None:
+        cleanRoot = util.trimdir(os.path.abspath(clean_dir) + '/')
+
+    if field is not None:
+        clean = cleanRoot + field + '_' + wave + '/'
+    else:
+        clean = cleanRoot + wave + '/'
+
+    distort = clean + 'distort/'
+    weight = clean + 'weight/'
+    masks = clean + 'masks/'
+
+    util.mkdir(cleanRoot)
+    util.mkdir(clean)
+    util.mkdir(distort)
+    util.mkdir(weight)
+    util.mkdir(masks)
+
+    # Open a text file to document sources of data files
+    data_sources_file = open(clean + 'data_sources.txt', 'a')
+
+    try:
+        # Setup flat. Try wavelength specific, but if it doesn't
+        # exist, then use a global one.
+        flatDir = redDir + 'calib/flats/'
+        flat = flatDir + 'flat_' + wave + '.fits'
+        if not os.access(flat, os.F_OK):
+            flat = flatDir + 'flat.fits'
+
+        # Bad pixel mask
+        _supermask = redDir + 'calib/masks/supermask.fits'
+
+        # Determine the reference coordinates for the first image.
+        # This is the image for which refSrc is relevant.
+        firstFile = instrument.make_filenames([files[0]], rootDir=rawDir)[0]
+        hdr1 = fits.getheader(firstFile, ignore_missing_end=True)
+        radecRef = [float(hdr1['RA']), float(hdr1['DEC'])]
+        aotsxyRef = kai_util.getAotsxy(hdr1)
+
+        # Setup a Sky object that will figure out the sky subtraction
+        skyDir = waveDir + 'sky_' + nite + '/'
+        skyObj = data.Sky(sciDir, skyDir, wave, scale=skyscale,
+                          skyfile=skyfile, angleOffset=angOff,
+                          instrument=instrument)
+
+        # Prep drizzle stuff
+        # Get image size from header - this is just in case the image
+        # isn't 1024x1024 (e.g., NIRC2 sub-arrays). Also, if it's
+        # rectangular, choose the larger dimension and make it square
+        imgsizeX = float(hdr1['NAXIS1'])
+        imgsizeY = float(hdr1['NAXIS2'])
+
+        distXgeoim, distYgeoim = instrument.get_distortion_maps(hdr1)
+        if imgsizeX >= imgsizeY:
+            imgsize = imgsizeX
+        else:
+            imgsize = imgsizeY
+        data.setup_drizzle(imgsize)
+
+        ##########
+        # Loop through the list of images
+        ##########
+        for f in files:
+            # Define filenames
+            _raw = instrument.make_filenames([f], rootDir=rawDir)[0]
+            _cp = instrument.make_filenames([f])[0]
+            _ss = instrument.make_filenames([f], prefix='ss')[0]
+            _ff = instrument.make_filenames([f], prefix='ff')[0]
+            _ff_f = _ff.replace('.fits', '_f.fits')
+            _ff_s = _ff.replace('.fits', '_s.fits')
+            _bp = instrument.make_filenames([f], prefix='bp')[0]
+            _cd = instrument.make_filenames([f], prefix='cd')[0]
+            _ce = instrument.make_filenames([f], prefix='ce')[0]
+            _cc = instrument.make_filenames([f], prefix='c')[0]
+            _wgt = instrument.make_filenames([f], prefix='wgt')[0]
+            _statmask = instrument.make_filenames([f], prefix='stat_mask')[0]
+            _crmask = instrument.make_filenames([f], prefix='crmask')[0]
+            _mask = instrument.make_filenames([f], prefix='mask')[0]
+            _pers = instrument.make_filenames([f], prefix='pers')[0]
+            _max = _cc.replace('.fits', '.max')
+            _coo = _cc.replace('.fits', '.coo')
+            _rcoo = _cc.replace('.fits', '.rcoo')
+            _dlog_tmp = instrument.make_filenames([f], prefix='driz')[0]
+            _dlog = _dlog_tmp.replace('.fits', '.log')
+
+            out_line = '{0} from {1} ({2})\n'.format(_cc, _raw,
+                                                     datetime.now())
+            data_sources_file.write(out_line)
+
+            # Clean up if these files previously existed
+            util.rmall([_cp, _ss, _ff, _ff_f, _ff_s, _bp, _cd, _ce, _cc,
+                        _wgt, _statmask, _crmask, _mask, _pers, _max, _coo,
+                        _rcoo, _dlog])
+
+            # Copy the raw file to local directory ###
+            ir.imcopy(_raw, _cp, verbose='no')
+
+            # Make persistance mask ###
+            # - Checked images, this doesn't appear to be a large effect.
+            # clean_persistance(_cp, _pers, instrument=instrument)
+
+            # Sky subtract ###
+            # Get the proper sky for this science frame.
+            # It might be scaled or there might be a specific one for L'.
+            sky = skyObj.getSky(_cp)
+
+            ir.imarith(_cp, '-', sky, _ss)
+
+            # Flat field ###
+            ir.imarith(_ss, '/', flat, _ff)
+
+            # Make a static bad pixel mask ###
+            # _statmask = supermask + bad columns
+            data.clean_get_supermask(_statmask, _supermask, badColumns)
+
+            # Fix bad pixels ###
+            # Produces _ff_f file
+            bfixpix.bfixpix(_ff, _statmask)
+            util.rmall([_ff_s])
+
+            # Fix cosmic rays and make cosmic ray mask. ###
+            data.clean_cosmicrays(_ff_f, _crmask, wave)
+
+            # Combine static and cosmic ray mask ###
+            # This will be used in combine later on.
+            # Results are stored in _mask, _mask_static is deleted.
+            data.clean_makemask(_mask, _crmask, _statmask, wave,
+                                instrument=instrument)
+
+            # Background Subtraction ###
+            bkg = data.clean_bkgsubtract(_ff_f, _bp)
+
+            # Drizzle individual file ###
+            data.clean_drizzle(distXgeoim, distYgeoim, _bp, _ce, _wgt, _dlog,
+                               fixDAR=fixDAR, instrument=instrument,
+                               use_koa_weather=use_koa_weather)
+
+            # Make .max file ###
+            # Determine the non-linearity level. Raw data level of
+            # non-linearity is 12,000 but we subtracted
+            # off a sky which changed this level. The sky is
+            # scaled, so the level will be slightly different
+            # for every frame.
+            nonlinSky = skyObj.getNonlinearCorrection(sky)
+
+            coadds = fits.getval(_ss, instrument.hdr_keys['coadds'])
+            satLevel = (coadds * instrument.get_saturation_level()) - nonlinSky - bkg
+            file(_max, 'w').write(str(satLevel))
+
+            # Rename and clean up files ###
+            ir.imrename(_bp, _cd)
+            # util.rmall([_cp, _ss, _ff, _ff_f])
+
+            # Make the *.coo file and update headers ###
+            # First check if PA is not zero
+            hdr = fits.getheader(_raw, ignore_missing_end=True)
+            phi = instrument.get_position_angle(hdr)
+
+            data.clean_makecoo(_ce, _cc, refSrc, strSrc, aotsxyRef, radecRef,
+                               instrument=instrument, check_loc=check_ref_loc,
+                               cent_box=cent_box, update_from_AO=update_from_AO)
+
+            # Move to the clean directory ###
+            util.rmall([clean + _cc, clean + _coo, clean + _rcoo,
+                        distort + _cd, weight + _wgt,
+                        clean + _ce, clean + _max,
+                        masks + _mask, _ce])
+
+            os.rename(_cc, clean + _cc)
+            os.rename(_cd, distort + _cd)
+            os.rename(_wgt, weight + _wgt)
+            os.rename(_mask, masks + _mask)
+            os.rename(_max, clean + _max)
+            os.rename(_coo, clean + _coo)
+            os.rename(_rcoo, clean + _rcoo)
+
+            # This just closes out any sky logging files.
+            # skyObj.close()
+        data_sources_file.close()
+    finally:
+        # Move back up to the original directory
+        # skyObj.close()
+        ir.cd('../')
+
+    # Change back to original directory
+    os.chdir('../')
+
+
 def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
            skyscale=False, usestrehl=False, dockerun=False):
     """
@@ -516,8 +813,8 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     # sky.makesky(sky_frames, obsdate, obsfilt, instrument=osiris)
     print('Calibrating and cleaning the input files')
     print('----------------------------------------')
-    data.clean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
-               instrument=inst, skyscale=skyscale)
+    kaiclean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
+             instrument=inst, skyscale=skyscale)
     if usestrehl:
         data.calcStrehl(sci_frames, obsfilt, field=target, instrument=inst)
         combwht = 'strehl'
