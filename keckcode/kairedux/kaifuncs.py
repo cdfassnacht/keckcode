@@ -607,8 +607,8 @@ def kaiclean(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
         # Get image size from header - this is just in case the image
         # isn't 1024x1024 (e.g., NIRC2 sub-arrays). Also, if it's
         # rectangular, choose the larger dimension and make it square
-        imgsizeX = float(hdr1['NAXIS1'])
-        imgsizeY = float(hdr1['NAXIS2'])
+        imgsizeX = int(hdr1['NAXIS1'])
+        imgsizeY = int(hdr1['NAXIS2'])
 
         distXgeoim, distYgeoim = instrument.get_distortion_maps(hdr1)
         if imgsizeX >= imgsizeY:
