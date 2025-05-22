@@ -234,6 +234,7 @@ def makelog_and_prep_images(year, instrument, rawdir='../raw'):
     if inst == osiris:
         print('Flipping data (needed for OSIRIS images)')
         raw_files = glob.glob('%s/i*.fits' % rawdir)
+        raw_files.sort()
         print(raw_files)
         osiris.flip_images(raw_files)
 
