@@ -279,67 +279,6 @@ def check_callist(callist, dictkeys):
     return newlist
 
 
-def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
-    """
-
-    Makes a dark frame given either an input list of integer frame numbers
-    (for NIRC2) or a dict or list of dicts containing 'assn' and 'frames'
-    keywords (for OSIRIS)
-
-    """
-
-    """ Get the output file name """
-    outfile = '%s.fits' % darklist['name']
-    print('Creating the dark file: %s' % outfile)
-
-    """ Make the dark file """
-    darkset = AOSet(darklist, instrument, obsdate, indir=rawdir, wcsverb=False)
-    darkset.create_dark(outfile)
-
-
-def make_flat(flatlist, obsdate, instrument, rawdir='../raw', inflat=None,
-              suffix=None):
-    """
-
-    Makes a flat-field file
-
-    Inputs:
-     onlist     - A list of integers (for NIRC2) or dicts (for OSIRIS)
-                   designating the frames associated with the exposures taken
-                   when the dome lamp was on.  If twilight or sky exposures are
-                   being used instead, then they should be designated here.
-     offlist    - The list that designates the frames for which the dome lamp
-                   was turned off.  If no dome flats were taken and, thus, the
-                   onlist parameter contains twilight flats or sky frames, then
-                   just set this offlist parameter to None or to range(0, 0)
-     outfile    - Output file name
-     instrument - Either 'nirc2' or 'osiris'
-
-    """
-
-    """ Make a KaiSet holder for the lamps-on frames """
-    flats_on = AOSet(flatlist, instrument, obsdate, indir=rawdir, wcsverb=False)
-
-    """ Make a lamps-off holder if requested """
-    if 'offframes' not in flatlist.keys():
-        flats_off = None
-    else:
-        if instrument == 'osiris':
-            tmpdict = {'assn': flatlist['assn'],
-                       'frames': flatlist['offframes']}
-        else:
-            tmpdict = {'frames': flatlist['offframes']}
-        flats_off = AOSet(tmpdict, instrument, obsdate, indir=rawdir)
-
-    """ Make the flat-field file """
-    outfile = '%s_%s.fits' % (flatlist['name'], flatlist['obsfilt'])
-    print('')
-    print('Creating the flat-field file: %s' % outfile)
-    print('--------------------------------------------')
-    flats_on.create_flat(outfile, lamps_off=flats_off, normalize='sigclip',
-                         inflat=inflat)
-
-
 def make_sky(skylist, obsdate, instrument, suffix=None):
     """
 
@@ -454,6 +393,9 @@ def name_checker(a, b):
             print("Check your ABCs, length is " + str(length))
             print("(Length should be 25 or below 21)")
             sys.exit()
+
+def calib():
+    print('foo')
 
 
 def kaiclean(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
