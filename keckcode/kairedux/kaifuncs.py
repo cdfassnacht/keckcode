@@ -394,7 +394,7 @@ def name_checker(a, b):
             print("(Length should be 25 or below 21)")
             sys.exit()
 
-def calib():
+def apply_calib():
     print('foo')
 
 
