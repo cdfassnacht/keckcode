@@ -248,6 +248,8 @@ def make_flat(flatlist, obsdate, instrument, rawdir='../raw', inflat=None,
             tmpdict = {'frames': flatlist['offframes']}
         flats_off = AOSet(tmpdict, instrument, obsdate, indir=rawdir)
 
+    """ Make object masks if requested """
+
     """ Make the flat-field file """
     outfile = '%s_%s.fits' % (flatlist['name'], flatlist['obsfilt'])
     print('')
@@ -258,7 +260,7 @@ def make_flat(flatlist, obsdate, instrument, rawdir='../raw', inflat=None,
 
 
 def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
-                  instrument, root4sky=None, suffix=None):
+                  instrument, root4sky=None, suffix=None, **kwargs):
     """
     
     Makes all of the calibration files

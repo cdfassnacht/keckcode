@@ -15,14 +15,14 @@ class AOSet(CCDSet):
 
     """
 
-    def __init__(self, inlist, inst, obsdate, indir=None, gzip=False,
+    def __init__(self, inlist, inst, obsdate=None, indir=None, gzip=False,
                  verbose=True, **kwargs):
 
         """ Make sure that inlist is in the correct format """
         if isinstance(inlist, (list, tuple, dict)):
             pass
         else:
-            raise TypeError('\nKaiSet: inlist must be either a list, a'
+            raise TypeError('\nAOSet: inlist must be either a list, a'
                             ' tuple, or a dict')
 
         """ Set instrument-specific parameters."""
@@ -40,8 +40,8 @@ class AOSet(CCDSet):
             self.obsdate = obsdate
             datestr = '%s_%s_%s' % (obsdate[:4], obsdate[4:6], obsdate[6:8])
         else:
-            raise TypeError('\n an obsdate that is not None '
-                            'must be provided\n\n')
+            self.obsdate = None
+            datestr = None
 
         """ Create the input filelist from the passed parameters """
         if isinstance(inlist, dict):
@@ -61,13 +61,17 @@ class AOSet(CCDSet):
         if indir is None:
             indir = '.'
         elif indir == 'auto':
-            indir = os.path.join(os.getenv('sharpdat'), 'Raw', datestr)
+            if datestr is not None:
+                indir = os.path.join(os.getenv('sharpdat'), 'Raw', datestr)
+            else:
+                raise ValueError('If choosing "auto" for indir then obdate '
+                                 'must be provided')
         else:
             pass
         if verbose:
             print('Reading files from %s' % indir)
 
-        """ Set up the KaiSet container by calling the superclass """
+        """ Set up the AOSet container by calling the superclass """
         if pyversion == 2:
             super(AOSet, self).__init__(filelist, texpkey=texpkey,
                                         gainkey=gainkey, indir=indir, **kwargs)
@@ -105,7 +109,7 @@ class AOSet(CCDSet):
             for j in i['frames']:
                 filebase = 'i%s_a%03d%03d' % (obsdate[2:], assn, j)
                 filelist.append('%s.%s' % (filebase, suff))
-
+        # print(filelist)
         return filelist
 
     #  ------------------------------------------------------------------------
@@ -189,7 +193,7 @@ class AOSet(CCDSet):
     #  ------------------------------------------------------------------------
 
     def create_flat(self, outname, lamps_off=None, normalize=None,
-                    inflat=None, reject='sigclip', nlow=1, nhigh=1):
+                    inflat=None, reject='sigclip', nlow=1, nhigh=1, **kwargs):
         """
 
         Creates a flat-field frame following the KAI recipe.  This approach
@@ -237,9 +241,9 @@ class AOSet(CCDSet):
             """ First make the combined lamps-off and lamps-on frames """
             lamps_off.make_flat(outfile=offfits, normalize=normalize,
                                 flatfile=inflat,
-                                reject=reject, nlow=nlow, nhigh=nhigh)
+                                reject=reject, nlow=nlow, nhigh=nhigh, **kwargs)
             self.make_flat(outfile=onfits, normalize=normalize, flatfile=inflat,
-                           reject=reject, nlow=nlow, nhigh=nhigh)
+                           reject=reject, nlow=nlow, nhigh=nhigh, **kwargs)
 
             """ Now loop through paired on/off exposures, taking differences """
             nfile = open(onlist, 'w')
@@ -260,7 +264,7 @@ class AOSet(CCDSet):
 
             """ Make the final flat """
             self.make_flat(outfile=outfile, normalize=normalize, reject=reject,
-                           nlow=nlow, nhigh=nhigh)
+                           nlow=nlow, nhigh=nhigh, **kwargs)
 
         else:
             """ Put the filenames into the onlist """
@@ -272,7 +276,7 @@ class AOSet(CCDSet):
             """ Make the final flat """
             self.make_flat(outfile=outfile, normalize=normalize,
                            flatfile=inflat, reject=reject, nlow=nlow,
-                           nhigh=nhigh)
+                           nhigh=nhigh, **kwargs)
 
     #  ------------------------------------------------------------------------
 

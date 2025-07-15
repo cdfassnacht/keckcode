@@ -13,14 +13,17 @@ from math import sqrt
 
 from cdfutils import coords
 from specim.imfuncs.wcshdu import WcsHDU
-from ccdredux.ccdset import CCDSet
+# from ccdredux.ccdset import CCDSet
+from ..ao_img.aoset import AOSet
 
 pyversion = sys.version_info.major
 
 # ---------------------------------------------------------------------------
 
 
-class OsImSet(CCDSet):
+# class OsImSet(CCDSet):
+class OsImSet(AOSet):
+
     """
     Specialized version of the generic CCDSet class, with a few specific
     add-ons that are specific to the Keck OSIRIS imager
@@ -37,27 +40,14 @@ class OsImSet(CCDSet):
             raise TypeError('\nOsImSet: inlist must be either a list, a'
                             ' tuple, or a dict')
 
-        """ Create the input filelist from the passed parameters """
-        if isinstance(inlist, dict):
-            filelist = self.make_filelist([inlist], obsdate, indir=indir,
-                                          gzip=gzip)
-        elif isinstance(inlist[0], dict):
-            filelist = self.make_filelist(inlist, obsdate, indir=indir,
-                                          gzip=gzip)
-        else:
-            """
-            For any other data types, let CCDSet (called through the "super"
-            calls below) do the type checking.
-            """
-            filelist = inlist
-
-        """ Set up the empty CCDSet container by calling the superclass """
+        """ Set up the empty OsImSet container by calling the superclass """
+        inst = 'osiris'
         if pyversion == 2:
-            super(OsImSet, self).__init__(filelist, texpkey=texpkey,
-                                         gainkey=gainkey, indir=indir, **kwargs)
+            super(OsImSet, self).__init__(inlist, inst, obsdate=obsdate,
+                                          indir=indir, **kwargs)
         else:
-            super().__init__(filelist, texpkey=texpkey, gainkey=gainkey,
-                             indir=indir, **kwargs)
+            super().__init__(inlist, inst, obsdate=obsdate, indir=indir,
+                             **kwargs)
 
         """
         Copy some osiris-specific keywords into the more standard versions
@@ -101,6 +91,7 @@ class OsImSet(CCDSet):
                 hdu.crpix = (np.array(hdu.data.shape)[::-1]) / 2. + 0.5
         elif wcstype == 'koa' and is_sci:
             for hdu in self:
+                hdr = hdu.header
                 hdu.pixscale = 0.01
                 if 'PA_IMAG' in hdr.keys():
                     hdu.pc = coords.rot_to_pcmatrix(-1. * hdr['pa_imag'],
@@ -109,62 +100,11 @@ class OsImSet(CCDSet):
                 hdu.crpix = (np.array(hdu.data.shape)[::-1]) / 2. + 0.5
         elif is_sci:
             for hdu in self:
+                hdr = hdu.header
                 hdu.pixscale = 0.01
                 if 'PA_IMAG' in hdr.keys():
                     hdu.pc = coords.rot_to_pcmatrix(-1. * hdr['pa_imag'],
                                                     verbose=False)
-
-    #  ------------------------------------------------------------------------
-
-    def make_filelist(self, assnlist, obsdate, indir='auto', gzip=False):
-        """
-
-        Makes a list of file names based on an input directory and an OSIRIS
-         association number.
-        If the frames parameter is None (the default), then the filelist will
-         contain all exposures in the association.  If, however, it is set to
-         be a list, tuple, or ndarray, then the output filelist will only
-         contain the desired frame numbers.
-
-        """
-
-        """ Make the date string from the provided obsdate """
-        if obsdate is not None:
-            datestr = '%s_%s_%s' % (obsdate[:4], obsdate[4:6], obsdate[6:8])
-        else:
-            raise TypeError('\nmake_filelist: an obsdate that is not None '
-                            'must be provided\n\n')
-        if indir is None:
-            indir = '.'
-        elif indir == 'auto':
-            indir = os.path.join(os.getenv('sharpdat'), 'Raw', datestr)
-        else:
-            pass
-
-        """ Set the file extension """
-        if gzip:
-            suff = 'fits.gz'
-        else:
-            suff = 'fits'
-
-        """ Create a filelist from the inputs """
-        filelist = []
-        print(indir)
-        for i in assnlist:
-            """ Check the passed parameters """
-            for k in ['assn', 'frames']:
-                if k not in i.keys():
-                    raise KeyError('\nmake_filelist: dict must contain both'
-                                   '"assn" and "frames" keys\n\n')
-            """
-            Loop through association and frame numbers to create file list
-            """
-            assn = i['assn']
-            for j in i['frames']:
-                filebase = 'i%s_a%03d%03d' % (obsdate[2:], assn, j)
-                filelist.append(os.path.join(indir, '%s.%s' % (filebase, suff)))
-
-        return filelist
 
     #  ------------------------------------------------------------------------
 
