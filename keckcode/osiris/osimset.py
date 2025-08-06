@@ -165,6 +165,8 @@ class OsImSet(AOSet):
         bpmfiles = self.make_outlist(inpref, bpmpref, outdir=outdir)
         if texppref is not None:
             texpfiles = self.make_outlist(inpref, texppref, outdir=outdir)
+        else:
+            texpfiles = None
         if onespref is not None:
             onesfiles = self.make_outlist(inpref, onespref, outdir=outdir)
 
