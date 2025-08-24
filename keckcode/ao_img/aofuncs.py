@@ -211,11 +211,11 @@ def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
 
     """ Make the dark file """
     darkset = AOSet(darklist, instrument, obsdate, indir=rawdir, wcsverb=False)
-    darkset.create_dark(outfile)
+    darkset.create_dark(outfile, outdir='kai')
 
 
-def make_flat(flatlist, obsdate, instrument, rawdir='../raw', inflat=None,
-              suffix=None):
+def make_flat(flatlist, obsdate, instrument, rawdir='../raw', indark=None,
+              inflat=None, suffix=None):
     """
 
     Makes a flat-field file
@@ -256,11 +256,12 @@ def make_flat(flatlist, obsdate, instrument, rawdir='../raw', inflat=None,
     print('Creating the flat-field file: %s' % outfile)
     print('--------------------------------------------')
     flats_on.create_flat(outfile, lamps_off=flats_off, normalize='sigclip',
-                         inflat=inflat)
+                         indark=indark, inflat=inflat)
 
 
 def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
-                  instrument, root4sky=None, suffix=None, **kwargs):
+                  instrument, dark4flat=None, root4sky=None, suffix=None,
+                  **kwargs):
     """
     
     Makes all of the calibration files
@@ -309,6 +310,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
 
         """ Create the dark(s) """
         for info in darklist:
+            print('')
             make_dark(info, obsdate, instrument, suffix=suffix)
         del dkeys
 
@@ -322,7 +324,9 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
 
         """ Create the flat(s) """
         for info in flatlist:
-            make_flat(info, obsdate, instrument, suffix=suffix)
+            print('')
+            make_flat(info, obsdate, instrument, suffix=suffix,
+                      indark=dark4flat)
             allflats1.append('%s.fits' % info['name'])
 
     """
@@ -343,6 +347,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
                 inflat = os.path.join('calib', 'flats', inflatfile)
             else:
                 inflat = None
+            print('')
             make_flat(info, obsdate, instrument, inflat=inflat, suffix=suffix)
             allflats2.append('%s.fits' % info['name'])
 

@@ -108,26 +108,6 @@ class OsImSet(AOSet):
 
     #  ------------------------------------------------------------------------
 
-    def make_outlist(self, intext, outtext, outdir=None):
-        """
-        Makes an output filelist from the input filelist (if one exists) by
-        replacing the appropriate part of each input filename with the
-        desired output file designator.
-        For example, for an input list of ff*fits this method could produce
-        corresponding bgsub*fits or ff*_wht.fits.
-        """
-
-        outfiles = []
-        for f in self.datainfo['basename']:
-            if outdir is not None:
-                outf = os.path.join(outdir, f.replace(intext, outtext))
-            else:
-                outf = f.replace(intext, outtext)
-            outfiles.append(outf)
-        return outfiles
-
-    #  ------------------------------------------------------------------------
-
     def make_kai_log(self, outfile, outdir=None):
         """
 

@@ -29,11 +29,11 @@ class AOSet(CCDSet):
         if inst == 'osiris' or inst == 'osim':
             texpkey = 'truitime'
             gainkey = 'sysgain'
-            instrument = 'osiris'
+            self.instrument = 'osiris'
         else:
             texpkey = 'elaptime'
             gainkey = 'gain'
-            instrument = 'nirc2'
+            self.instrument = 'nirc2'
 
         """ Make the date string from the provided obsdate """
         if obsdate is not None:
@@ -45,11 +45,9 @@ class AOSet(CCDSet):
 
         """ Create the input filelist from the passed parameters """
         if isinstance(inlist, dict):
-            filelist = self.make_filelist([inlist], obsdate, instrument,
-                                          gzip=gzip)
+            filelist = self.make_filelist([inlist], obsdate, gzip=gzip)
         elif isinstance(inlist[0], dict):
-            filelist = self.make_filelist(inlist, obsdate, instrument,
-                                          gzip=gzip)
+            filelist = self.make_filelist(inlist, obsdate, gzip=gzip)
         else:
             """
             For any other data types, let CCDSet (called through the "super"
@@ -78,6 +76,12 @@ class AOSet(CCDSet):
         else:
             super().__init__(filelist, texpkey=texpkey, gainkey=gainkey,
                              indir=indir, **kwargs)
+
+        """ Set some default values """
+        self.caldir = None
+        self.darkdir = None
+        self.flatdir = None
+        self.maskdir = None
 
     #  ------------------------------------------------------------------------
 
@@ -136,7 +140,7 @@ class AOSet(CCDSet):
 
     #  ------------------------------------------------------------------------
 
-    def make_filelist(self, inlist, obsdate, instrument, gzip=False):
+    def make_filelist(self, inlist, obsdate, gzip=False):
         """
 
         Makes a list of file names based on an input directory and an OSIRIS
@@ -155,7 +159,7 @@ class AOSet(CCDSet):
             suff = 'fits'
 
         """ Get the filelist, which depends on the instrument being used """
-        if instrument == 'osiris':
+        if self.instrument == 'osiris':
             filelist = self.make_filelist_osim(inlist, obsdate, suff)
         else:
             filelist = self.make_filelist_nirc2(inlist, suff)
@@ -164,21 +168,47 @@ class AOSet(CCDSet):
 
     #  ------------------------------------------------------------------------
 
-    def create_dark(self, outname, reject='sigclip', nlow=1, nhigh=1):
+    def set_kai_dirs(self):
+        """
+
+        Sets names of directories in the KAI data reduction pipeline standard
+        directory structure
+
+        """
+
+        """ Set up directory names """
+        pwd = os.getcwd()
+        self.caldir = os.path.join(pwd, 'calib')
+        self.darkdir = os.path.join(self.caldir, 'darks')
+        self.flatdir = os.path.join(self.caldir, 'flats')
+        self.maskdir = os.path.join(self.caldir, 'masks')
+
+        for d in [self.caldir, self.darkdir, self.flatdir, self.maskdir]:
+            if not os.path.isdir(d):
+                os.makedirs(d)
+
+    #  ------------------------------------------------------------------------
+
+    def create_dark(self, outname, outdir=None, reject='sigclip', nlow=1,
+                    nhigh=1):
         """
 
         Creates a dark-frame using the ccdredux make_dark functionality
 
         """
 
-        """ Set up directory names """
-        pwd = os.getcwd()
-        caldir = os.path.join(pwd, 'calib')
-        darkdir = os.path.join(caldir, 'darks')
-        if not os.path.isdir(caldir):
-            os.makedirs(caldir)
-        if not os.path.isdir(darkdir):
-            os.makedirs(darkdir)
+        """ Set up output directory """
+        if outdir is not None:
+            if outdir == 'kai':
+                if self.darkdir is not None:
+                    darkdir = self.darkdir
+                else:
+                    self.set_kai_dirs()
+                    darkdir = self.darkdir
+            else:
+                darkdir = outdir
+        else:
+            darkdir = '.'
 
         """ Get the output filenames """
         if outname[-4:] != 'fits':
@@ -192,46 +222,45 @@ class AOSet(CCDSet):
 
     #  ------------------------------------------------------------------------
 
-    def create_flat(self, outname, lamps_off=None, normalize=None,
-                    inflat=None, reject='sigclip', nlow=1, nhigh=1, **kwargs):
+    def create_flat(self, outname, lamps_off=None, normalize=None, indark=None,
+                    inflat=None, reject='minmax', nlow=1, nhigh=1, **kwargs):
         """
 
         Creates a flat-field frame following the KAI recipe.  This approach
-        uses frames taken with the flat-field lamps on (which are part of this
-        KaiSet instance, and possibly frames taken with the flat-field lamps
+        uses frames taken with the flat-field lamps on, which are part of this
+        AOSet instance, and possibly frames taken with the flat-field lamps
         off, which are provided via the lamps_off parameter.  The lamps_off
-        data should also be a KaiSet instance if it is not None.
+        data should also be a AOSet instance if it is not None.
 
         """
 
         """ Check validity of input """
         if lamps_off is not None:
             if not isinstance(lamps_off, AOSet):
-                raise ValueError('\nThe lamps_off parameter must be a KaiSet\n')
+                raise ValueError('\nThe lamps_off parameter must be an AOSet\n')
             if len(lamps_off) != len(self):
                 raise IndexError('\nDifferent number of files in lamps_off and'
                                  ' lamps_on\n')
 
         """ Set up directory names """
-        pwd = os.getcwd()
-        caldir = os.path.join(pwd, 'calib')
-        flatdir = os.path.join(caldir, 'flats')
-        if not os.path.isdir(caldir):
-            os.makedirs(caldir)
-        if not os.path.isdir(flatdir):
-            os.makedirs(flatdir)
+        if self.flatdir is None:
+            self.set_kai_dirs()
+        if indark is not None:
+            dark = os.path.join(self.darkdir, indark)
+        else:
+            dark = None
 
         """ Get the output filenames """
         if outname[-4:] != 'fits':
-            outfile = os.path.join(flatdir, '%s.fits' % outname)
+            outfile = os.path.join(self.flatdir, '%s.fits' % outname)
         else:
-            outfile = os.path.join(flatdir, outname)
-        onfits = os.path.join(flatdir, 'lampsOn.fits')
-        offfits = os.path.join(flatdir, 'lampsOff.fits')
-        normfits = os.path.join(flatdir, 'flatNotNorm.fits')
-        onlist = os.path.join(flatdir, 'on.lis')
-        offlist = os.path.join(flatdir, 'off.lis')
-        normlist = os.path.join(flatdir, 'onNorm.lis')
+            outfile = os.path.join(self.flatdir, outname)
+        onfits = os.path.join(self.flatdir, 'lampsOn.fits')
+        offfits = os.path.join(self.flatdir, 'lampsOff.fits')
+        normfits = os.path.join(self.flatdir, 'flatNotNorm.fits')
+        onlist = os.path.join(self.flatdir, 'on.lis')
+        offlist = os.path.join(self.flatdir, 'off.lis')
+        normlist = os.path.join(self.flatdir, 'onNorm.lis')
 
         """
         Make the flat, using the lamps-off frames if provided, but otherwise
@@ -240,10 +269,11 @@ class AOSet(CCDSet):
         if lamps_off is not None:
             """ First make the combined lamps-off and lamps-on frames """
             lamps_off.make_flat(outfile=offfits, normalize=normalize,
-                                flatfile=inflat,
+                                bias=dark, flat=inflat,
                                 reject=reject, nlow=nlow, nhigh=nhigh, **kwargs)
-            self.make_flat(outfile=onfits, normalize=normalize, flatfile=inflat,
-                           reject=reject, nlow=nlow, nhigh=nhigh, **kwargs)
+            self.make_flat(outfile=onfits, normalize=normalize, bias=dark,
+                           flat=inflat, reject=reject, nlow=nlow,
+                           nhigh=nhigh, **kwargs)
 
             """ Now loop through paired on/off exposures, taking differences """
             nfile = open(onlist, 'w')
@@ -275,8 +305,8 @@ class AOSet(CCDSet):
 
             """ Make the final flat """
             self.make_flat(outfile=outfile, normalize=normalize,
-                           flatfile=inflat, reject=reject, nlow=nlow,
-                           nhigh=nhigh, **kwargs)
+                           bias=dark, flat=inflat, reject=reject,
+                           nlow=nlow, nhigh=nhigh, **kwargs)
 
     #  ------------------------------------------------------------------------
 
