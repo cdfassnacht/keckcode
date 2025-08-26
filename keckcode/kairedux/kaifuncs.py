@@ -400,9 +400,8 @@ def apply_calib():
 
 
 def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
-              skyscale=False, skyfile=None, angOff=0.0, cent_box=12,
-              fixDAR=True, use_koa_weather=False,
-              raw_dir=None, clean_dir=None,
+              angOff=0.0, cent_box=12,
+              fixDAR=True, use_koa_weather=False, clean_dir=None,
               instrument=instruments.default_inst, check_ref_loc=True,
               update_from_AO=True):
     """
@@ -471,9 +470,6 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
         If calculating DAR correction, this keyword specifies if the atmosphere
         conditions should be downloaded from the KOA weather data. If False,
         atmosphere conditions are downloaded from the MKWC CFHT data.
-    raw_dir : str, optional
-        Directory where raw files are stored. By default,
-        assumes that raw files are stored in '../raw'
     clean_dir : str, optional
         Directory where clean files will be stored. By default,
         assumes that clean files will be stored in '../clean'
@@ -485,7 +481,7 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
     util.mkdir(wave)
     os.chdir(wave)
 
-    # Determine directory locatons
+    # Determine directory locations
     waveDir = os.getcwd() + '/'
     redDir = util.trimdir(os.path.abspath(waveDir + '../') + '/')
     rootDir = util.trimdir(os.path.abspath(redDir + '../') + '/')
@@ -493,13 +489,6 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
     sciDir = waveDir + '/sci_' + nite + '/'
     util.mkdir(sciDir)
     ir.cd(sciDir)
-
-    # Set location of raw data
-    rawDir = rootDir + 'raw/'
-
-    # Check if user has specified a specific raw directory
-    if raw_dir is not None:
-        rawDir = util.trimdir(os.path.abspath(raw_dir) + '/')
 
     # Setup the clean directory
     cleanRoot = rootDir + 'clean/'
@@ -527,28 +516,15 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
     data_sources_file = open(clean + 'data_sources.txt', 'a')
 
     try:
-        # Setup flat. Try wavelength specific, but if it doesn't
-        # exist, then use a global one.
-        flatDir = redDir + 'calib/flats/'
-        flat = flatDir + 'flat_' + wave + '.fits'
-        if not os.access(flat, os.F_OK):
-            flat = flatDir + 'flat.fits'
-
         # Bad pixel mask
         _supermask = redDir + 'calib/masks/supermask.fits'
 
         # Determine the reference coordinates for the first image.
         # This is the image for which refSrc is relevant.
-        firstFile = instrument.make_filenames([files[0]], rootDir=rawDir)[0]
+        firstFile = instrument.make_filenames([files[0]], prefix='bp')[0]
         hdr1 = fits.getheader(firstFile, ignore_missing_end=True)
         radecRef = [float(hdr1['RA']), float(hdr1['DEC'])]
         aotsxyRef = kai_util.getAotsxy(hdr1)
-
-        # Setup a Sky object that will figure out the sky subtraction
-        skyDir = waveDir + 'sky_' + nite + '/'
-        skyObj = data.Sky(sciDir, skyDir, wave, scale=skyscale,
-                          skyfile=skyfile, angleOffset=angOff,
-                          instrument=instrument)
 
         # Prep drizzle stuff
         # Get image size from header - this is just in case the image
@@ -569,7 +545,6 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
         ##########
         for f in files:
             # Define filenames
-            _raw = instrument.make_filenames([f], rootDir=rawDir)[0]
             _bp = instrument.make_filenames([f], prefix='bp')[0]
             _cd = instrument.make_filenames([f], prefix='cd')[0]
             _ce = instrument.make_filenames([f], prefix='ce')[0]
@@ -585,7 +560,7 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
             _dlog_tmp = instrument.make_filenames([f], prefix='driz')[0]
             _dlog = _dlog_tmp.replace('.fits', '.log')
 
-            out_line = '{0} from {1} ({2})\n'.format(_cc, _raw,
+            out_line = '{0} from {1} ({2})\n'.format(_cc, _bp,
                                                      datetime.now())
             data_sources_file.write(out_line)
 
@@ -618,9 +593,11 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
             # off a sky which changed this level. The sky is
             # scaled, so the level will be slightly different
             # for every frame.
-            sky = skyObj.getSky(_raw)
-            nonlinSky = skyObj.getNonlinearCorrection(sky)
-
+            hdr = fits.getheader(_bp, ignore_missing_end=True)
+            try:
+                nonlinSky = hdr['skylev']
+            except KeyError:
+                nonlinSky = 0.
             coadds = fits.getval(_bp, instrument.hdr_keys['coadds'])
             satLevel = (coadds * instrument.get_saturation_level()) - nonlinSky
             file(_max, 'w').write(str(satLevel))
@@ -630,7 +607,6 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
 
             # Make the *.coo file and update headers ###
             # First check if PA is not zero
-            hdr = fits.getheader(_raw, ignore_missing_end=True)
             phi = instrument.get_position_angle(hdr)
 
             data.clean_makecoo(_ce, _cc, refSrc, strSrc, aotsxyRef, radecRef,
@@ -651,16 +627,14 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
             os.rename(_coo, clean + _coo)
             os.rename(_rcoo, clean + _rcoo)
 
-            # This just closes out any sky logging files.
-            # skyObj.close()
         data_sources_file.close()
     finally:
         # Move back up to the original directory
-        # skyObj.close()
         ir.cd('../')
 
     # Change back to original directory
     os.chdir('../')
+
 
 def kaiclean(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
              skyscale=False, skyfile=None, angOff=0.0, cent_box=12,
