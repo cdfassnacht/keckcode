@@ -399,8 +399,8 @@ def apply_calib():
     print('foo')
 
 
-def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
-              angOff=0.0, cent_box=12,
+def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
+              field=None, angOff=0.0, cent_box=12,
               fixDAR=True, use_koa_weather=False, clean_dir=None,
               instrument=instruments.default_inst, check_ref_loc=True,
               update_from_AO=True):
@@ -413,23 +413,23 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
     Example directory structure is:
     calib/
         flats/
-        flat_kp.fits
-        flat.fits (optional)
+          flat_kp.fits
+          flat.fits (optional)
         masks/
-        supermask.fits
-    kp/
-        sci_nite1/
-        sky_nite1/
-        sky.fits
+          supermask.fits
+        kp/
+          sci_nite1/
+          sky_nite1/
+            sky.fits
 
     All output files will be put into clean_dir (if specified, otherwise
     ../clean/) in the following structure:
     kp/
         c*.fits
         distort/
-        cd*.fits
+          cd*.fits
         weight/
-        wgt*.fits
+          wgt*.fits
 
     The clean directory may be optionally modified to be named
     <field_><wave> instead of just <wave>. So for instance, for Arches
@@ -437,24 +437,28 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
 
     Parameters
     ----------
-    files : list of int
-        Integer list of the files. Does not require padded zeros.
+    inlist : list of dicts, dict, list of ints, tuple of ints, or
+             np.ndarray of ints
+        Designation of the file(s) to be processed.
+        For nirc2 this can be one of the following: list of ints, tuple of ints
+         or numpy.ndarray of ints, where the ints are the frame numbers.  The
+         padded zeros are not need in the integers.
+        For osiris this should be a dict or a list of dicts, where each dict
+         contains at a minimum values associated with 'assn' and 'frames' keys
     nite : str
         Name for night of observation (e.g.: "nite1"), used as suffix
         inside the reduce sub-directories.
     wave : str
         Name for the observation passband (e.g.: "kp"), used as
         a wavelength suffix
+    inst : str
+        Which instrument is being used.  The only allowed options are 'nirc2'
+        or 'osiris'
     field : str, default=None
         Optional prefix for clean directory and final
         combining. All clean files will be put into <field_><wave>. You
         should also pass the same into combine(). If set to None (default)
         then only wavelength is used.
-    skyscale : bool, default=False
-        Whether or not to scale the sky files to the common median.
-        Turn on for scaling skies before subtraction.
-    skyfile : str, default=''
-        An optional file containing image/sky matches.
     angOff : float, default = 0
         An optional absolute offset in the rotator
         mirror angle for cases (wave='lp') when sky subtraction is done with
@@ -518,6 +522,9 @@ def kaiclean2(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
     try:
         # Bad pixel mask
         _supermask = redDir + 'calib/masks/supermask.fits'
+
+        """ Set up the base list of frame numbers """
+        files = aofn.inlist_to_framelist(inlist, inst, nite, frameroot=None)
 
         # Determine the reference coordinates for the first image.
         # This is the image for which refSrc is relevant.
@@ -995,8 +1002,10 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     # sky.makesky(sky_frames, obsdate, obsfilt, instrument=osiris)
     print('Calibrating and cleaning the input files')
     print('----------------------------------------')
-    kaiclean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
-             instrument=inst, skyscale=skyscale)
+    # kaiclean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
+    #          instrument=inst, skyscale=skyscale)
+    kaiclean2(inlist, obsdate, obsfilt, instrument, refSrc, refSrc,
+              field=target)
     if usestrehl:
         data.calcStrehl(sci_frames, obsfilt, field=target, instrument=inst)
         combwht = 'strehl'

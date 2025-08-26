@@ -87,7 +87,10 @@ def dict_to_framelist(inlist, inst, rootname=None, suffix=None):
         """
         for j in i['frames']:
             if inst == 'osiris' or inst == 'osim':
-                framename = '%s%03d%03d' % (rootname, assn, j)
+                if rootname is not None:
+                    framename = '%s%03d%03d' % (rootname, assn, j)
+                else:
+                    framename = '%03d%03d' % (assn, j)
                 if suffix is not None:
                     framename = '%s_%s' % (framename, suffix)
             else:
@@ -97,7 +100,8 @@ def dict_to_framelist(inlist, inst, rootname=None, suffix=None):
     return framelist
 
 
-def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
+def inlist_to_framelist(inlist, instrument, obsdate, frameroot='default',
+                        suffix=None):
     """
 
     Takes an input list that is either a list of integers (for NIRC2) or
@@ -136,7 +140,8 @@ def inlist_to_framelist(inlist, instrument, obsdate, suffix=None):
             el1 = tmplist[0]
             if isinstance(el1, dict):
                 if instrument == 'osiris' or instrument == 'osim':
-                    frameroot = 'i%s_a' % obsdate[2:]
+                    if frameroot == 'default':
+                        frameroot = 'i%s_a' % obsdate[2:]
                     framelist = dict_to_framelist(tmplist, instrument,
                                                   frameroot, suffix=suffix)
                 elif instrument == 'nirc2':
@@ -377,3 +382,27 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     # print('Making a bad pixel mask (what KAI calls a supermask)')
     # print('---------------------')
     # calib.makemask(dark4mask, flat4mask, 'supermask.fits', instrument=inst)
+
+# ---------------------------------------------------------------------------
+
+
+def reduce(inlist, obsdate, inst, outroot, caldir, dark, flat, rawdir='auto',
+           inpref='default', outdir=None, bpm=None, badval=1,
+           darkdir=None, flatdir=None, bpmdir=None, localsky=False,
+           skytype='clipmean'):
+    """
+
+    Code that applies calibration to the raw input files
+
+    """
+
+    """ Read in the raw data file """
+    raw = AOSet(inlist, inst, obsdate=obsdate, indir=rawdir)
+
+    """ Set up the full path names to the calibration files """
+
+    """
+    Apply the calibration to the raw data to produce files that have been
+    dark-subtracted and had the global flat-field file applied
+    """
+    ff = raw.apply_calib(bias=dark, flat=flat, bpm=bpm, badval=badval)
