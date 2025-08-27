@@ -983,8 +983,10 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     #    -- If you use the OSIRIS image, you must include the full filename
     #    in the list.
 
-    """ Get the input framelist """
-    sci_frames = inlist_to_framelist(inlist, instrument, obsdate, suffix=suffix)
+    """ Set up the base list of frame numbers """
+    sci_frames = aofn.inlist_to_framelist(inlist, inst, nite, frameroot=None)
+    # """ Get the input framelist """
+    # sci_frames = inlist_to_framelist(inlist, instrument, obsdate, suffix=suffix)
 
     """ 
     Download weather data that will be used in later steps.
@@ -1017,8 +1019,6 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
         print('')
         return
 
-    """ For this target, use the sky created for 2022_06_05 """
-    # sky.makesky(sky_frames, obsdate, obsfilt, instrument=osiris)
     print('Calibrating and cleaning the input files')
     print('----------------------------------------')
     # kaiclean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
