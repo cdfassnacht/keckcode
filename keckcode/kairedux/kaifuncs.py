@@ -983,8 +983,18 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     #    -- If you use the OSIRIS image, you must include the full filename
     #    in the list.
 
+    """ Get the appropriate instrument class """
+    try:
+        inst = get_instrument(instrument)
+    except ValueError:
+        print('')
+        print('ERROR: Invalid choice of instrument parameter')
+        print('')
+        return
+
     """ Set up the base list of frame numbers """
-    sci_frames = aofn.inlist_to_framelist(inlist, inst, nite, frameroot=None)
+    sci_frames = aofn.inlist_to_framelist(inlist, instrument, obsdate,
+                                          frameroot=None)
     # """ Get the input framelist """
     # sci_frames = inlist_to_framelist(inlist, instrument, obsdate, suffix=suffix)
 
@@ -1000,7 +1010,6 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
         dar.get_atm_conditions(obsyear)
 
     """ Make the list of science frames from the input assn list"""
-    #  name_checker(epoch,target) - don't need this anymore
     print('')
     print('Science frames to be cleaned and combined')
     print('-----------------------------------------')
@@ -1009,15 +1018,6 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     print('')
     print(os.getcwd())
     print('')
-
-    """ Check the instrument """
-    try:
-        inst = get_instrument(instrument)
-    except ValueError:
-        print('')
-        print('ERROR: Invalid choice of instrument parameter')
-        print('')
-        return
 
     print('Calibrating and cleaning the input files')
     print('----------------------------------------')
