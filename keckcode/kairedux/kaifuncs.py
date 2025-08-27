@@ -519,6 +519,16 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
     # Open a text file to document sources of data files
     data_sources_file = open(clean + 'data_sources.txt', 'a')
 
+    """ Get the instrument """
+    try:
+        instrument = get_instrument(inst)
+    except ValueError:
+        print('')
+        print('ERROR: Invalid choice of instrument parameter')
+        print('')
+        return
+
+
     try:
         # Bad pixel mask
         _supermask = redDir + 'calib/masks/supermask.fits'
@@ -575,6 +585,15 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
             util.rmall([_cd, _ce, _cc,
                         _wgt, _statmask, _crmask, _mask, _pers, _max, _coo,
                         _rcoo, _dlog])
+
+            """ Put necessary keywords in the _bp file """
+            bphdu = fits.open(_bp, mode='update')
+            hdr00 = bphdu[0].header
+            defwave = instrument.get_central_wavelength(hdr00)
+            hdr00['effwave'] = defwave
+            hdr00['cenwave'] = defwave
+            hdr00['camname'] = 'narrow'
+            bphdu.flush()
 
             # Make a static bad pixel mask ###
             # _statmask = supermask + bad columns
