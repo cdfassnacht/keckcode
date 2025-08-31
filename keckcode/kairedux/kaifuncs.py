@@ -395,19 +395,22 @@ def name_checker(a, b):
             print("(Length should be 25 or below 21)")
             sys.exit()
 
+
 def apply_calib():
     print('foo')
 
 
-def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
-              field=None, angOff=0.0, cent_box=12,
-              fixDAR=True, use_koa_weather=False, clean_dir=None,
-              instrument=instruments.default_inst, check_ref_loc=True,
-              update_from_AO=True):
+def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
+             field=None, angOff=0.0, cent_box=12,
+             fixDAR=True, use_koa_weather=False, clean_dir=None,
+             instrument=instruments.default_inst, check_ref_loc=True,
+             update_from_AO=True):
     """
-    This is the second part of the original KAI clean function.  The
-    functionality of the first part has been replaced by various methods in
-    the AOSet class.
+    This is the second part of the original KAI clean function.
+    The functionality of the first part, which was applying the calibration
+     (darks, flats, etc.) to the data, has been replaced by various methods in
+     the AOSet class.
+    This second part does the preparation for the coaddition (comb) step in KAI
 
     This program should be run from the reduce/ directory.
     Example directory structure is:
@@ -432,7 +435,7 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
           wgt*.fits
 
     The clean directory may be optionally modified to be named
-    <field_><wave> instead of just <wave>. So for instance, for Arches
+    <field_><obsfilt> instead of just <obsfilt>. So for instance, for Arches
     field #1 data reduction, you might call clean with: field='arch_f1'.
 
     Parameters
@@ -448,7 +451,7 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
     nite : str
         Name for night of observation (e.g.: "nite1"), used as suffix
         inside the reduce sub-directories.
-    wave : str
+    obsfilt : str
         Name for the observation passband (e.g.: "kp"), used as
         a wavelength suffix
     inst : str
@@ -456,12 +459,12 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
         or 'osiris'
     field : str, default=None
         Optional prefix for clean directory and final
-        combining. All clean files will be put into <field_><wave>. You
+        combining. All clean files will be put into <field_><obsfilt>. You
         should also pass the same into combine(). If set to None (default)
         then only wavelength is used.
     angOff : float, default = 0
         An optional absolute offset in the rotator
-        mirror angle for cases (wave='lp') when sky subtraction is done with
+        mirror angle for cases (obsfilt='lp') when sky subtraction is done with
         skies taken at matching rotator mirror angles.
     cent_box : int (def = 12)
         the box to use for better centroiding the reference star
@@ -481,11 +484,15 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
         Instrument of data. Default is `instruments.default_inst`
     """
 
-    # Make sure directory for current passband exists and switch into it
-    util.mkdir(wave)
-    os.chdir(wave)
+    print('')
+    print('Preparing calibrated data files for coaddition')
+    print('==============================================')
 
-    # Determine directory locations
+    """ Make sure directory for current passband exists and switch into it """
+    util.mkdir(obsfilt)
+    os.chdir(obsfilt)
+
+    """ Determine directory locations """
     waveDir = os.getcwd() + '/'
     redDir = util.trimdir(os.path.abspath(waveDir + '../') + '/')
     rootDir = util.trimdir(os.path.abspath(redDir + '../') + '/')
@@ -494,17 +501,17 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
     util.mkdir(sciDir)
     ir.cd(sciDir)
 
-    # Setup the clean directory
+    """ Set up the clean directory """
     cleanRoot = rootDir + 'clean/'
 
-    # Check if user has specified a specific clean directory
+    """ Check if user has specified a specific clean directory """
     if clean_dir is not None:
         cleanRoot = util.trimdir(os.path.abspath(clean_dir) + '/')
 
     if field is not None:
-        clean = cleanRoot + field + '_' + wave + '/'
+        clean = cleanRoot + field + '_' + obsfilt + '/'
     else:
-        clean = cleanRoot + wave + '/'
+        clean = cleanRoot + obsfilt + '/'
 
     distort = clean + 'distort/'
     weight = clean + 'weight/'
@@ -528,9 +535,8 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
         print('')
         return
 
-
     try:
-        # Bad pixel mask
+        """ Set the location of the bad pixel mask """
         _supermask = redDir + 'calib/masks/supermask.fits'
 
         """ Set up the base list of frame numbers """
@@ -543,13 +549,14 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
         radecRef = [float(hdr1['RA']), float(hdr1['DEC'])]
         aotsxyRef = kai_util.getAotsxy(hdr1)
 
-        # Prep drizzle stuff
-        # Get image size from header - this is just in case the image
-        # isn't 1024x1024 (e.g., NIRC2 sub-arrays). Also, if it's
-        # rectangular, choose the larger dimension and make it square
+        """
+        Prep drizzle stuff
+        Get image size from header - this is just in case the image
+         isn't 1024x1024 (e.g., NIRC2 sub-arrays). Also, if it's
+         rectangular, choose the larger dimension and make it square
+        """
         imgsizeX = int(hdr1['NAXIS1'])
         imgsizeY = int(hdr1['NAXIS2'])
-
         distXgeoim, distYgeoim = instrument.get_distortion_maps(hdr1)
         if imgsizeX >= imgsizeY:
             imgsize = imgsizeX
@@ -581,12 +588,13 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
                                                      datetime.now())
             data_sources_file.write(out_line)
 
-            # Clean up if these files previously existed
+            """ Clean up if these files previously existed """
             util.rmall([_cd, _ce, _cc,
                         _wgt, _statmask, _crmask, _mask, _pers, _max, _coo,
                         _rcoo, _dlog])
 
             """ Put necessary keywords in the _bp file """
+            print('File: %s' % _bp)
             bphdu = fits.open(_bp, mode='update')
             hdr00 = bphdu[0].header
             defwave = instrument.get_central_wavelength(hdr00)
@@ -600,15 +608,17 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
             data.clean_get_supermask(_statmask, _supermask, badColumns)
 
             # Fix cosmic rays and make cosmic ray mask. ###
-            data.clean_cosmicrays(_bp, _crmask, wave)
+            print('Cleaning cosmic rays')
+            data.clean_cosmicrays(_bp, _crmask, obsfilt)
 
             # Combine static and cosmic ray mask ###
             # This will be used in combine later on.
             # Results are stored in _mask, _mask_static is deleted.
-            data.clean_makemask(_mask, _crmask, _statmask, wave,
+            data.clean_makemask(_mask, _crmask, _statmask, obsfilt,
                                 instrument=instrument)
 
             # Drizzle individual file ###
+            print('Drizzing individual file: %s --> %s' % (_bp, _ce))
             data.clean_drizzle(distXgeoim, distYgeoim, _bp, _ce, _wgt, _dlog,
                                fixDAR=fixDAR, instrument=instrument,
                                use_koa_weather=use_koa_weather)
@@ -635,6 +645,7 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
             # First check if PA is not zero
             phi = instrument.get_position_angle(hdr)
 
+            print('Making the *coo file: %s' % _cc)
             data.clean_makecoo(_ce, _cc, refSrc, strSrc, aotsxyRef, radecRef,
                                instrument=instrument, check_loc=check_ref_loc,
                                cent_box=cent_box, update_from_AO=update_from_AO)
@@ -652,6 +663,7 @@ def kaiclean2(inlist, nite, wave, inst, refSrc, strSrc, badColumns=None,
             os.rename(_max, clean + _max)
             os.rename(_coo, clean + _coo)
             os.rename(_rcoo, clean + _rcoo)
+            print('')
 
         data_sources_file.close()
     finally:
@@ -954,10 +966,11 @@ def kaiclean(files, nite, wave, refSrc, strSrc, badColumns=None, field=None,
     os.chdir('../')
 
 
-def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
-           skyscale=False, usestrehl=False, dockerun=False):
+def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
+            skyscale=False, usestrehl=False, dockerun=False):
     """
-    Do the full data reduction.
+    Combine the data files that have already been reduced using the calibration
+    files.
 
     Inputs:
       target     - root name of the target object
@@ -995,9 +1008,6 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     """ Set up the base list of frame numbers """
     sci_frames = aofn.inlist_to_framelist(inlist, instrument, obsdate,
                                           frameroot=None)
-    # """ Get the input framelist """
-    # sci_frames = inlist_to_framelist(inlist, instrument, obsdate, suffix=suffix)
-
     """ 
     Download weather data that will be used in later steps.
     NOTE: This step is only needed if running the code within docker, and not 
@@ -1011,7 +1021,7 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
 
     """ Make the list of science frames from the input assn list"""
     print('')
-    print('Science frames to be cleaned and combined')
+    print('Science frames to be combined')
     print('-----------------------------------------')
     for frame in sci_frames:
         print('%s' % frame)
@@ -1023,8 +1033,8 @@ def reduce(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     print('----------------------------------------')
     # kaiclean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
     #          instrument=inst, skyscale=skyscale)
-    kaiclean2(inlist, obsdate, obsfilt, instrument, refSrc, refSrc,
-              field=target)
+    combprep(inlist, obsdate, obsfilt, instrument, refSrc, refSrc,
+             field=target)
     if usestrehl:
         data.calcStrehl(sci_frames, obsfilt, field=target, instrument=inst)
         combwht = 'strehl'

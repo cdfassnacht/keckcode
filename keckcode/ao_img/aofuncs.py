@@ -215,7 +215,8 @@ def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
     print('Creating the dark file: %s' % outfile)
 
     """ Make the dark file """
-    darkset = AOSet(darklist, instrument, obsdate, indir=rawdir, wcsverb=False)
+    darkset = AOSet(darklist, instrument, obsdate, indir=rawdir, is_sci=False,
+                    wcsverb=False)
     darkset.create_dark(outfile, outdir='kai')
 
 
@@ -240,7 +241,8 @@ def make_flat(flatlist, obsdate, instrument, rawdir='../raw', indark=None,
     """
 
     """ Make a KaiSet holder for the lamps-on frames """
-    flats_on = AOSet(flatlist, instrument, obsdate, indir=rawdir, wcsverb=False)
+    flats_on = AOSet(flatlist, instrument, obsdate, indir=rawdir, is_sci=False,
+                     wcsverb=False)
 
     """ Make a lamps-off holder if requested """
     if 'offframes' not in flatlist.keys():
@@ -251,7 +253,8 @@ def make_flat(flatlist, obsdate, instrument, rawdir='../raw', indark=None,
                        'frames': flatlist['offframes']}
         else:
             tmpdict = {'frames': flatlist['offframes']}
-        flats_off = AOSet(tmpdict, instrument, obsdate, indir=rawdir)
+        flats_off = AOSet(tmpdict, instrument, obsdate, indir=rawdir,
+                          is_sci=False, wcsverb=False)
 
     """ Make object masks if requested """
 
@@ -386,10 +389,10 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
 # ---------------------------------------------------------------------------
 
 
-def reduce(inlist, obsdate, inst, outroot, caldir, dark, flat, rawdir='auto',
-           inpref='default', outdir=None, bpm=None, badval=1,
-           darkdir=None, flatdir=None, bpmdir=None, localsky=False,
-           skytype='clipmean'):
+def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
+           badval=1, darkskylist=None, dsroot='darksky', skytype='clipmean',
+           rawdir='auto', wcstype='koa', inpref='default', obsfilt=None,
+           outdir=None, outpref='bgsub', **kwargs):
     """
 
     Code that applies calibration to the raw input files
@@ -397,12 +400,46 @@ def reduce(inlist, obsdate, inst, outroot, caldir, dark, flat, rawdir='auto',
     """
 
     """ Read in the raw data file """
-    raw = AOSet(inlist, inst, obsdate=obsdate, indir=rawdir)
-
-    """ Set up the full path names to the calibration files """
+    raw = AOSet(inlist, inst, obsdate=obsdate, indir=rawdir, wcstype=wcstype)
 
     """
-    Apply the calibration to the raw data to produce files that have been
-    dark-subtracted and had the global flat-field file applied
+    Set up the full path names to the calibration files.
+    NOTE: setting the caldir parameter to 'kaidefault' will set up the directory
+     structure that the KAI data reduction pipeline expects
     """
-    ff = raw.apply_calib(bias=dark, flat=flat, bpm=bpm, badval=badval)
+    raw.set_caldirs(caldir=caldir, obsfilt=obsfilt)
+    caldirs = {'darkdir': raw.darkdir, 'flatdir': raw.flatdir,
+               'maskdir': raw.maskdir}
+
+    """
+    If requested, process the frames for the local dark-sky flat and then make
+     the dark-sky flat for later steps
+    """
+    if darkskylist is not None:
+        dsky = AOSet(darkskylist, inst, obsdate=obsdate, indir=rawdir)
+        dsky.set_caldirs(caldir=caldir, obsfilt=obsfilt)
+        caldirs = {'darkdir': raw.darkdir, 'flatdir': raw.flatdir,
+                   'maskdir': raw.maskdir}
+        dsff = dsky.apply_calib(bias=dark, flat=flat, bpm=bpm, caldir=caldirs,
+                                badval=badval)
+        dsff.make_skyflat(outroot=dsroot, outdir=raw.flatdir, **kwargs)
+        dsfile = '%s_%s.fits' % (dsroot, skytype)
+    else:
+        dsfile = None
+
+    """ Set up output filenames """
+    if inpref == 'default':
+        if raw.instrument == 'osiris':
+            inpref = 'i%s_a' % obsdate[2:]
+        elif raw.instrument == 'nirc2':
+            inpref = 'n'
+        else:
+            raise ValueError('Instrument must be osiris or nirc2')
+    if outdir == 'kaidefault':
+        outdir = raw.reduxdir
+    outfiles = raw.make_outlist(inpref, outpref, outdir=outdir)
+
+    """ Process the raw data to produce calibrated data """
+    raw.apply_calib(bias=dark, flat=flat, bpm=bpm, darksky=dsfile,
+                    zerosky='sigclip', flip='y', outfiles=outfiles,
+                    caldir=caldirs, badval=badval)
