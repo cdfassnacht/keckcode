@@ -435,11 +435,20 @@ def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
             inpref = 'n'
         else:
             raise ValueError('Instrument must be osiris or nirc2')
-    if outdir == 'kaidefault':
-        outdir = raw.reduxdir
+    if outdir is not None:
+        if outdir == 'kaidefault':
+            outdir = raw.reduxdir
+        else:
+            if not os.path.isdir(outdir):
+                os.makedirs(outdir)
+
     outfiles = raw.make_outlist(inpref, outpref, outdir=outdir)
 
     """ Process the raw data to produce calibrated data """
+    flip = 'y'
+    # flip = None
+    skysub = 'sigclip'
+    # skysub = None
     raw.apply_calib(bias=dark, flat=flat, bpm=bpm, darksky=dsfile,
-                    zerosky='sigclip', flip='y', outfiles=outfiles,
+                    zerosky=skysub, flip=flip, outfiles=outfiles,
                     caldir=caldirs, badval=badval)
