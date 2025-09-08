@@ -539,6 +539,11 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
         """ Set the location of the bad pixel mask """
         _supermask = redDir + 'calib/masks/supermask.fits'
 
+        """
+        Make a static pixel mask, which is the supermask plus bad columns
+        """
+        data.clean_get_supermask(_statmask, _supermask, badColumns)
+
         """ Set up the base list of frame numbers """
         files = aofn.inlist_to_framelist(inlist, inst, nite, frameroot=None)
 
@@ -574,7 +579,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
             _ce = instrument.make_filenames([f], prefix='ce')[0]
             _cc = instrument.make_filenames([f], prefix='c')[0]
             _wgt = instrument.make_filenames([f], prefix='wgt')[0]
-            _statmask = instrument.make_filenames([f], prefix='stat_mask')[0]
+            # _statmask = instrument.make_filenames([f], prefix='stat_mask')[0]
             _crmask = instrument.make_filenames([f], prefix='crmask')[0]
             _mask = instrument.make_filenames([f], prefix='mask')[0]
             _pers = instrument.make_filenames([f], prefix='pers')[0]
@@ -589,8 +594,9 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
             data_sources_file.write(out_line)
 
             """ Clean up if these files previously existed """
-            util.rmall([_cd, _ce, _cc,
-                        _wgt, _statmask, _crmask, _mask, _pers, _max, _coo,
+            util.rmall([_cd, _ce, _cc, _wgt,
+                        # _statmask,
+                        _crmask, _mask, _pers, _max, _coo,
                         _rcoo, _dlog])
 
             """ Put necessary keywords in the _bp file """
@@ -605,7 +611,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
 
             # Make a static bad pixel mask ###
             # _statmask = supermask + bad columns
-            data.clean_get_supermask(_statmask, _supermask, badColumns)
+            # data.clean_get_supermask(_statmask, _supermask, badColumns)
 
             # Fix cosmic rays and make cosmic ray mask. ###
             print('Cleaning cosmic rays')
