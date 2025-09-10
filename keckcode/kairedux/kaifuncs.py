@@ -14,8 +14,8 @@ import sys
 import glob
 from datetime import datetime
 
-import matplotlib
-matplotlib.use('Agg')
+# import matplotlib
+# matplotlib.use('Agg')
 
 from astropy.io import ascii
 from astropy.io import fits
@@ -24,15 +24,14 @@ from specim.imfuncs.wcshdu import WcsHDU
 
 from kai.reduce import calib
 from kai.reduce import sky
-from kai.reduce import bfixpix
 from kai.reduce import data
 from kai.reduce import dar
 from kai.reduce import kai_util
 from kai.reduce import util
 from kai import instruments
 
-from ..ao_img.aoset import AOSet
 from ..ao_img import aofuncs as aofn
+from .kaiset import KaiSet
 
 """ Turn off header deprecation warnings """
 warnings.filterwarnings('ignore', category=UserWarning, append=True)
@@ -536,12 +535,11 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
         return
 
     try:
-        """ Set the location of the bad pixel mask """
-        _supermask = redDir + 'calib/masks/supermask.fits'
-
         """
         Make a static pixel mask, which is the supermask plus bad columns
         """
+        _supermask = redDir + 'calib/masks/supermask.fits'
+        _statmask = 'static_mask.fits'
         data.clean_get_supermask(_statmask, _supermask, badColumns)
 
         """ Set up the base list of frame numbers """
@@ -569,6 +567,19 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
             imgsize = imgsizeY
         data.setup_drizzle(imgsize)
 
+        """
+        Add the necessary header cards to the calibrated, background-subtracted
+         files
+        """
+        bpfiles = KaiSet(inlist, inst, obsdate=nite, frameroot='bp')
+        bpfiles.add_def_hdrinfo()
+        for hdu, f in zip(bpfiles, bpfiles.datainfo['basename']):
+            hdu.save(f)
+
+        """ Clean the cosmic rays """
+        crlist = bpfiles.make_outlist('bp', 'crmask')
+        bpfiles.clean_cosmicrays(obsfilt, crlist)
+
         ##########
         # Loop through the list of images
         ##########
@@ -595,27 +606,17 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
 
             """ Clean up if these files previously existed """
             util.rmall([_cd, _ce, _cc, _wgt,
-                        # _statmask,
-                        _crmask, _mask, _pers, _max, _coo,
+                        # _statmask, _crmask,
+                        _mask, _pers, _max, _coo,
                         _rcoo, _dlog])
-
-            """ Put necessary keywords in the _bp file """
-            print('File: %s' % _bp)
-            bphdu = fits.open(_bp, mode='update')
-            hdr00 = bphdu[0].header
-            defwave = instrument.get_central_wavelength(hdr00)
-            hdr00['effwave'] = defwave
-            hdr00['cenwave'] = defwave
-            hdr00['camname'] = 'narrow'
-            bphdu.flush()
 
             # Make a static bad pixel mask ###
             # _statmask = supermask + bad columns
             # data.clean_get_supermask(_statmask, _supermask, badColumns)
 
             # Fix cosmic rays and make cosmic ray mask. ###
-            print('Cleaning cosmic rays')
-            data.clean_cosmicrays(_bp, _crmask, obsfilt)
+            # print('Cleaning cosmic rays')
+            # data.clean_cosmicrays(_bp, _crmask, obsfilt.lower())
 
             # Combine static and cosmic ray mask ###
             # This will be used in combine later on.
@@ -642,7 +643,8 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
                 nonlinSky = 0.
             coadds = fits.getval(_bp, instrument.hdr_keys['coadds'])
             satLevel = (coadds * instrument.get_saturation_level()) - nonlinSky
-            file(_max, 'w').write(str(satLevel))
+            with open(_max, 'w') as f:
+                f.write(str(satLevel))
 
             # Rename and clean up files ###
             ir.imrename(_bp, _cd)

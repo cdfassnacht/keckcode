@@ -1,7 +1,7 @@
-import os
 import sys
-from ccdredux.ccdset import CCDSet
+import os
 from kai import instruments
+from kai.reduce import data
 from ..ao_img.aoset import AOSet
 
 """ Define global variables for the two possible instruments """
@@ -65,3 +65,71 @@ class KaiSet(AOSet):
             raise ValueError('get_instrument: instrument must be '
                              '"osiris" or "nirc2"\n')
 
+    #  ------------------------------------------------------------------------
+
+    def add_def_hdrinfo(self):
+        """
+
+        Adds keywords that are needed for later procrssing to the headers of
+         the images
+
+        """
+
+        """ Loop through the images """
+        for hdu in self:
+
+            """ Get the central wavelength of the filter being used """
+            hdr = hdu.header
+            defwave = self.instrument.get_central_wavelength(hdr)
+
+            """ Add the new header cards """
+            hdr['effwave'] = defwave
+            hdr['cenwave'] = defwave
+            hdr['camname'] = 'narrow'
+
+    #  ------------------------------------------------------------------------
+
+    def clean_cosmicrays(self, obsfilt, outlist, filelist=None, verbose=True):
+        """
+
+        Cleans cosmic rays from the images by (eventually) calling the iraf
+        task noao.imred.crutils.cosmicrays.  The wrapper for that call is
+        the clean_cosmicrays function in the KAI data.py code.
+
+        Inputs:
+         obsfilt  - Filter used for the observations, e.g., 'Kp'
+         outlist  - List of output files to store the cosmic ray masks
+         filelist - The default behavior, which is executed if filelist is None,
+                     is to call the data.py code with the filenames stored
+                     in this object's datainfo['basename'] column.  However,
+                     the user can provide a list of filenames to use instead.
+                     In that case, filelist should be a list object containing
+                     strings that are the input filenames.
+        """
+
+        """ Check that outlist has the proper length """
+        if len(outlist) != self.nfiles:
+            raise IndexError('clean_cosmicrays: outlist length does not match'
+                             ' number of input files')
+
+        """ Set the list of input filenames """
+        if filelist is not None:
+            if len(filelist) != len(outlist):
+                raise IndexError(
+                    'clean_cosmicrays: input list length does not match'
+                    ' number of output files')
+            inlist = filelist
+        else:
+            inlist = self.datainfo['basename']
+
+        """ Loop through the files, creating cosmic ray masks """
+        if verbose:
+            print('')
+            print('Creating cosmic ray masks')
+            print('-------------------------')
+        for i, j in zip(inlist, outlist):
+            if verbose:
+                print('%s ---> %s' % (i, j))
+            if os.path.isfile(j):
+                os.remove(j)
+            data.clean_cosmicrays(i, j, obsfilt.lower())

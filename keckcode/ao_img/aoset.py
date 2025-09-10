@@ -18,7 +18,8 @@ class AOSet(CCDSet):
     """
 
     def __init__(self, inlist, inst, obsdate=None, indir=None, gzip=False,
-                 wcstype=None, is_sci=True, verbose=True, **kwargs):
+                 frameroot='default', wcstype=None, is_sci=True, verbose=True,
+                 **kwargs):
 
         """ Make sure that inlist is in the correct format """
         if isinstance(inlist, (list, tuple, dict)):
@@ -47,9 +48,11 @@ class AOSet(CCDSet):
 
         """ Create the input filelist from the passed parameters """
         if isinstance(inlist, dict):
-            filelist = self.make_filelist([inlist], obsdate, gzip=gzip)
+            filelist = self.make_filelist([inlist], obsdate,
+                                          frameroot=frameroot, gzip=gzip)
         elif isinstance(inlist[0], dict):
-            filelist = self.make_filelist(inlist, obsdate, gzip=gzip)
+            filelist = self.make_filelist(inlist, obsdate, frameroot=frameroot,
+                                          gzip=gzip)
         else:
             """
             For any other data types, let CCDSet (called through the "super"
@@ -144,7 +147,7 @@ class AOSet(CCDSet):
     #  ------------------------------------------------------------------------
 
     @staticmethod
-    def make_filelist_osim(assnlist, obsdate, suff='fits'):
+    def make_filelist_osim(assnlist, obsdate, frameroot='default', suff='fits'):
         """
 
         Makes a list of file names based on an input directory and an OSIRIS
@@ -169,7 +172,13 @@ class AOSet(CCDSet):
             """
             assn = i['assn']
             for j in i['frames']:
-                filebase = 'i%s_a%03d%03d' % (obsdate[2:], assn, j)
+                if frameroot is not None:
+                    if frameroot == 'default':
+                        filebase = 'i%s_a%03d%03d' % (obsdate[2:], assn, j)
+                    else:
+                        filebase = '%s%03d%03d' % (frameroot, assn, j)
+                else:
+                    filebase = '%03d%03d' % (assn, j)
                 filelist.append('%s.%s' % (filebase, suff))
         # print(filelist)
         return filelist
@@ -177,7 +186,7 @@ class AOSet(CCDSet):
     #  ------------------------------------------------------------------------
 
     @staticmethod
-    def make_filelist_nirc2(inlist, suff='fits'):
+    def make_filelist_nirc2(inlist, frameroot='default', suff='fits'):
 
         """ Create a filelist from the inputs """
         filelist = []
@@ -198,7 +207,7 @@ class AOSet(CCDSet):
 
     #  ------------------------------------------------------------------------
 
-    def make_filelist(self, inlist, obsdate, gzip=False):
+    def make_filelist(self, inlist, obsdate, frameroot='default', gzip=False):
         """
 
         Makes a list of file names based on an input directory and an OSIRIS
@@ -218,9 +227,11 @@ class AOSet(CCDSet):
 
         """ Get the filelist, which depends on the instrument being used """
         if self.instrument == 'osiris':
-            filelist = self.make_filelist_osim(inlist, obsdate, suff)
+            filelist = self.make_filelist_osim(inlist, obsdate, suff=suff,
+                                               frameroot=frameroot)
         else:
-            filelist = self.make_filelist_nirc2(inlist, suff)
+            filelist = self.make_filelist_nirc2(inlist, frameroot=frameroot,
+                                                suff=suff)
 
         return filelist
 
