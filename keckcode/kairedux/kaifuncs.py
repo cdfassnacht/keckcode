@@ -540,6 +540,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
         """
         _supermask = redDir + 'calib/masks/supermask.fits'
         _statmask = 'static_mask.fits'
+        util.rmall([_statmask])
         data.clean_get_supermask(_statmask, _supermask, badColumns)
 
         """ Set up the base list of frame numbers """
@@ -723,8 +724,6 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
         return
 
     """ Set up the base list of frame numbers """
-    sci_frames = aofn.inlist_to_framelist(inlist, instrument, obsdate,
-                                          frameroot=None)
     """ 
     Download weather data that will be used in later steps.
     NOTE: This step is only needed if running the code within docker, and not 
@@ -736,22 +735,14 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
         print('Downloading weather data for year %s' % obsyear)
         dar.get_atm_conditions(obsyear)
 
-    """ Make the list of science frames from the input assn list"""
+    """ Prepare the calibrated files for coaddition """
     print('')
-    print('Science frames to be combined')
-    print('-----------------------------------------')
-    for frame in sci_frames:
-        print('%s' % frame)
+    print('Current directory: %s' % os.getcwd())
     print('')
-    print(os.getcwd())
-    print('')
-
-    print('Calibrating and cleaning the input files')
-    print('----------------------------------------')
-    # kaiclean(sci_frames, obsdate, obsfilt, refSrc, refSrc, field=target,
-    #          instrument=inst, skyscale=skyscale)
     combprep(inlist, obsdate, obsfilt, instrument, refSrc, refSrc,
              field=target)
+
+    """ Calculate Strehl-based weights if requested """
     if usestrehl:
         data.calcStrehl(sci_frames, obsfilt, field=target, instrument=inst)
         combwht = 'strehl'
@@ -759,9 +750,13 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     else:
         combwht = None
         submaps = 0
+
+    """ Coadd the frames """
     print('')
     print('Combining the calibrated files')
     print('------------------------------')
+    sci_frames = aofn.inlist_to_framelist(inlist, instrument, obsdate,
+                                          frameroot=None)
     data.combine(sci_frames, obsfilt, obsdate, field=target,
                  trim=0, weight=combwht, submaps=submaps, instrument=inst)
 

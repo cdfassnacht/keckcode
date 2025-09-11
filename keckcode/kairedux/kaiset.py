@@ -2,6 +2,7 @@ import sys
 import os
 from kai import instruments
 from kai.reduce import data
+from kai.reduce import kai_util
 from ..ao_img.aoset import AOSet
 
 """ Define global variables for the two possible instruments """
@@ -145,3 +146,85 @@ class KaiSet(AOSet):
             if os.path.isfile(j):
                 os.remove(j)
             data.clean_cosmicrays(i, j, obsfilt.lower())
+
+    #  ------------------------------------------------------------------------
+
+    def make_coo(self, refSrc, strSrc, aotsxyRef, radecRef, check_loc=True,
+                 update_fits=True, cent_box=12, update_from_AO=None):
+
+        for hdu in self:
+            hdr = hdu.header
+
+            radec = [float(hdr['RA']), float(hdr['DEC'])]
+            aotsxy = kai_util.getAotsxy(hdr)
+
+            """ Determine the image's PA and plate scale """
+            phi = self.inst.get_position_angle(hdr)
+            scale = self.inst.get_plate_scale(hdr)
+
+            """ Determine the instrument angle w.r.t. the AO bench. """
+            inst_angle = self.inst.get_instrument_angle(hdr)
+
+            # Calculate the pixel offsets from the reference image
+            # d_xy = kai_util.radec2pix(radec, phi, scale, radecRef)
+            if update_from_AO:
+                d_xy = kai_util.aotsxy2pix(aotsxy, scale, aotsxyRef,
+                                           inst_angle=inst_angle)
+            else:
+                d_xy = [0, 0]
+
+            """ In the new image, find the REF and STRL coords """
+            xref = refSrc[0] + d_xy[0]
+            yref = refSrc[1] + d_xy[1]
+            xstr = strSrc[0] + d_xy[0]
+            ystr = strSrc[1] + d_xy[1]
+            # print('makecoo: xref, yref start = {0:.2f} {1:.2f}'.format(xref, yref))
+            print('%.2f  %.2f %.2f  %.2f %.2f' %
+                  (inst_angle, d_xy[0], d_xy[1], xref, yref))
+
+    #  ------------------------------------------------------------------------
+
+    def foo(self):
+
+        for hdu in self:
+            # re-center stars to get exact coordinates
+            if check_loc:
+                # text = ir.imcntr(_ce, xref, yref, cbox=cent_box, Stdout=1)
+                values = text[0].split()
+                xref = float(values[2])
+                yref = float(values[4])
+
+                # text = ir.imcntr(_ce, xstr, ystr, cbox=cent_box, Stdout=1)
+                values = text[0].split()
+                xstr = float(values[2])
+                ystr = float(values[4])
+                print(
+                    'clean_makecoo: xref, yref final = {0:.2f} {1:.2f}'.format(xref,
+                                                                           yref))
+
+            # write reference star x,y to fits header
+            if update_fits:
+                fits_f = fits.open(_ce)
+                fits_f[0].header.set('XREF', "%.3f" % xref,
+                                 'Cross Corr Reference Src x')
+                fits_f[0].header.set('YREF', "%.3f" % yref,
+                                 'Cross Corr Reference Src y')
+                fits_f[0].header.set('XSTREHL', "%.3f" % xstr,
+                                 'Strehl Reference Src x')
+                fits_f[0].header.set('YSTREHL', "%.3f" % ystr,
+                                 'Strehl Reference Src y')
+                fits_f[0].writeto(_cc, output_verify=outputVerify)
+
+            file(_cc.replace('.fits', '.coo'), 'w').write('%7.2f  %7.2f\n' % (xref, yref))
+
+            # Make a temporary rotated coo file, in case there are any data sets
+            # with various PAs; needed for xregister; remove later
+            xyRef_rot = kai_util.rotate_coo(xref, yref, phi)
+            xref_r = xyRef_rot[0]
+            yref_r = xyRef_rot[1]
+
+            xyStr_rot = kai_util.rotate_coo(xstr, ystr, phi)
+            xstr_r = xyStr_rot[0]
+            ystr_r = xyStr_rot[1]
+
+            file(_cc.replace('.fits', '.rcoo'), 'w').write('%7.2f  %7.2f\n' % (xref_r, yref_r))
