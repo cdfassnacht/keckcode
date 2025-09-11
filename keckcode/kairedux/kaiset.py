@@ -30,16 +30,6 @@ class KaiSet(AOSet):
             raise TypeError('\nKaiSet: inlist must be either a list, a'
                             ' tuple, or a dict')
 
-        """ Get the instrument in KAI format """
-        self.instrument = None
-        try:
-            self.get_instrument(inst)
-        except ValueError:
-            print('')
-            print('Could not create kaiset object')
-            print('')
-            return
-
         """ Set up the KaiSet container by calling the superclass """
         if pyversion == 2:
             super(KaiSet, self).__init__(inlist, inst, obsdate, indir=indir,
@@ -47,6 +37,16 @@ class KaiSet(AOSet):
         else:
             super().__init__(inlist, inst, obsdate, indir=indir, gzip=gzip,
                              verbose=verbose, **kwargs)
+
+        """ Get the instrument in KAI format """
+        self.inst = None
+        try:
+            self.get_instrument(inst)
+        except ValueError:
+            print('')
+            print('Could not create kaiset object')
+            print('')
+            return
 
     #  ------------------------------------------------------------------------
 
@@ -57,9 +57,9 @@ class KaiSet(AOSet):
 
         """
         if instrument.lower() == 'osiris' or instrument.lower() == 'osim':
-            self.instrument = osiris
+            self.inst = osiris
         elif instrument.lower() == 'nirc2':
-            self.instrument = nirc2
+            self.inst = nirc2
         else:
             print('')
             raise ValueError('get_instrument: instrument must be '
@@ -80,7 +80,7 @@ class KaiSet(AOSet):
 
             """ Get the central wavelength of the filter being used """
             hdr = hdu.header
-            defwave = self.instrument.get_central_wavelength(hdr)
+            defwave = self.inst.get_central_wavelength(hdr)
 
             """ Add the new wavelength header cards """
             hdr['effwave'] = defwave
@@ -91,12 +91,12 @@ class KaiSet(AOSet):
                 nonlinSky = hdr['skylev']
             except KeyError:
                 nonlinSky = 0.
-            coaddkey = self.instrument.hdr_keys['coadds']
+            coaddkey = self.inst.hdr_keys['coadds']
             try:
                 coadds = hdr[coaddkey]
             except:
                 coadds = 1
-            satLevel = (coadds * instrument.get_saturation_level()) - nonlinSky
+            satLevel = (coadds * self.inst.get_saturation_level()) - nonlinSky
             hdr['satlevel'] = satLevel
 
     #  ------------------------------------------------------------------------
