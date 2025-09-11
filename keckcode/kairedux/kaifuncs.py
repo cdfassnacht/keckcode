@@ -637,14 +637,15 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
             # scaled, so the level will be slightly different
             # for every frame.
             hdr = fits.getheader(_bp, ignore_missing_end=True)
-            try:
-                nonlinSky = hdr['skylev']
-            except KeyError:
-                nonlinSky = 0.
-            coadds = fits.getval(_bp, instrument.hdr_keys['coadds'])
-            satLevel = (coadds * instrument.get_saturation_level()) - nonlinSky
+            # try:
+            #     nonlinSky = hdr['skylev']
+            # except KeyError:
+            #     nonlinSky = 0.
+            # coadds = fits.getval(_bp, instrument.hdr_keys['coadds'])
+            # satLevel = (coadds * instrument.get_saturation_level()) - nonlinSky
+            print('Non-linear sky level: %f' % hdr['satlevel'])
             with open(_max, 'w') as f:
-                f.write(str(satLevel))
+                f.write(str(hdr['satlevel']))
 
             # Rename and clean up files ###
             ir.imrename(_bp, _cd)

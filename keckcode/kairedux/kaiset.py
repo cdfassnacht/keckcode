@@ -82,10 +82,22 @@ class KaiSet(AOSet):
             hdr = hdu.header
             defwave = self.instrument.get_central_wavelength(hdr)
 
-            """ Add the new header cards """
+            """ Add the new wavelength header cards """
             hdr['effwave'] = defwave
             hdr['cenwave'] = defwave
             hdr['camname'] = 'narrow'
+
+            try:
+                nonlinSky = hdr['skylev']
+            except KeyError:
+                nonlinSky = 0.
+            coaddkey = self.instrument.hdr_keys['coadds']
+            try:
+                coadds = hdr[coaddkey]
+            except:
+                coadds = 1
+            satLevel = (coadds * instrument.get_saturation_level()) - nonlinSky
+            hdr['satlevel'] = satLevel
 
     #  ------------------------------------------------------------------------
 
