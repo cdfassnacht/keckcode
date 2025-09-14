@@ -403,7 +403,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
              field=None, angOff=0.0, cent_box=12,
              fixDAR=True, use_koa_weather=False, clean_dir=None,
              instrument=instruments.default_inst, check_ref_loc=True,
-             update_from_AO=True):
+             coo_update='aots'):
     """
     This is the second part of the original KAI clean function.
     The functionality of the first part, which was applying the calibration
@@ -581,6 +581,8 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
         crlist = bpfiles.make_outlist('bp', 'crmask')
         bpfiles.clean_cosmicrays(obsfilt, crlist)
 
+        """ Dewarp the images through drizzle """
+
         ##########
         # Loop through the list of images
         ##########
@@ -645,8 +647,8 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
             # coadds = fits.getval(_bp, instrument.hdr_keys['coadds'])
             # satLevel = (coadds * instrument.get_saturation_level()) - nonlinSky
             print('Non-linear sky level: %f' % hdr['satlevel'])
-            with open(_max, 'w') as f:
-                f.write(str(hdr['satlevel']))
+            with open(_max, 'w') as ff:
+                ff.write(str(hdr['satlevel']))
 
             # Rename and clean up files ###
             ir.imrename(_bp, _cd)
@@ -723,7 +725,6 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
         print('')
         return
 
-    """ Set up the base list of frame numbers """
     """ 
     Download weather data that will be used in later steps.
     NOTE: This step is only needed if running the code within docker, and not 
@@ -743,6 +744,8 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
              field=target)
 
     """ Calculate Strehl-based weights if requested """
+    sci_frames = aofn.inlist_to_framelist(inlist, instrument, obsdate,
+                                          frameroot=None)
     if usestrehl:
         data.calcStrehl(sci_frames, obsfilt, field=target, instrument=inst)
         combwht = 'strehl'

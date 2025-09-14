@@ -11,8 +11,8 @@ import numpy
 import numpy as np
 import os
 
-import matplotlib
-matplotlib.use('Agg')
+# import matplotlib
+# matplotlib.use('Agg')
 
 from specim.imfuncs.wcshdu import WcsHDU
 
@@ -217,7 +217,7 @@ def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
     """ Make the dark file """
     darkset = AOSet(darklist, instrument, obsdate, indir=rawdir, is_sci=False,
                     wcsverb=False)
-    darkset.create_dark(outfile, outdir='kai')
+    darkset.create_dark(outfile, caldir='kaidefault')
 
 
 def make_flat(flatlist, obsdate, instrument, rawdir='../raw', indark=None,
