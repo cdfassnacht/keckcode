@@ -87,7 +87,7 @@ class KaiSet(AOSet):
         maxlist = self.make_outlist([inpref, '.fits'], [maxpref, '.max'])
 
         """ Loop through the images """
-        for hdu, f, m in zip(self, self.datainfo['filename'], maxlist):
+        for hdu, f, m in zip(self, self.datainfo['infile'], maxlist):
 
             """ Get the central wavelength of the filter being used """
             hdr = hdu.header
