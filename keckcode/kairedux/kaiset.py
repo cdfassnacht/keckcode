@@ -1,11 +1,14 @@
 import sys
 import os
+import numpy as np
+from astropy.io import fits as pf
 
 from pyraf import iraf as ir
 
 from kai import instruments
 from kai.reduce import data
 from kai.reduce import kai_util
+from kai.reduce import util
 from ..ao_img.aoset import AOSet
 
 """ Define global variables for the two possible instruments """
@@ -71,16 +74,20 @@ class KaiSet(AOSet):
 
     #  ------------------------------------------------------------------------
 
-    def add_def_hdrinfo(self):
+    def add_def_hdrinfo(self, inpref='bp', maxpref='c', verbose=True):
         """
 
         Adds keywords that are needed for later procrssing to the headers of
-         the images
+         the images.
+        Also write the non-linearity levels out to a set of *.max files
 
         """
 
+        """ Create a list of filenames for the output *.max files """
+        maxlist = self.make_outlist([inpref, '.fits'], [maxpref, '.max'])
+
         """ Loop through the images """
-        for hdu in self:
+        for hdu, f, m in zip(self, self.datainfo['filename'], maxlist):
 
             """ Get the central wavelength of the filter being used """
             hdr = hdu.header
@@ -91,6 +98,13 @@ class KaiSet(AOSet):
             hdr['cenwave'] = defwave
             hdr['camname'] = 'narrow'
 
+            """
+            Add a header card for the count level where the detector goes
+             non-linear
+            The raw data level for non-linearity is 12,000 but we subtracted
+             off a sky which changed this level. The sky level may have been
+             scaled, so the level could be slightly different for every frame.
+            """
             try:
                 nonlinSky = hdr['skylev']
             except KeyError:
@@ -103,12 +117,28 @@ class KaiSet(AOSet):
             satLevel = (coadds * self.inst.get_saturation_level()) - nonlinSky
             hdr['satlevel'] = satLevel
 
+            """ Save the updated information """
+            hdu.save(f)
+            with open(m, 'w') as maxout:
+                maxout.write(str(hdr['satlevel']))
+            if verbose:
+                print('Saved nonlinearity level to %s.  Value = %.2f' %
+                      (m, satLevel))
+
     #  ------------------------------------------------------------------------
 
-    def clean_cosmicrays(self, obsfilt, outlist, filelist=None, verbose=True):
+    def make_mask(self, obsfilt, inpref='bp', crpref='crmask', maskpref='mask',
+                  caldir='kaidefault', badColumns=None, verbose=True):
         """
 
-        Cleans cosmic rays from the images by (eventually) calling the iraf
+        Make an individual mask for each image.  This mask is the combination
+        of two separate masks:
+            1. The "static mask", which is in turn a combination of two inputs:
+                a. The "supermask" created from the dark and domeflat files
+                b. A list of bad columns
+            2. A cosmic ray mask, which is created by this make_mask method.
+
+        The cosmic ray mask is created  by (eventually) calling the iraf
         task noao.imred.crutils.cosmicrays.  The wrapper for that call is
         the clean_cosmicrays function in the KAI data.py code.
 
@@ -123,65 +153,147 @@ class KaiSet(AOSet):
                      strings that are the input filenames.
         """
 
-        """ Check that outlist has the proper length """
-        if len(outlist) != self.nfiles:
-            raise IndexError('clean_cosmicrays: outlist length does not match'
-                             ' number of input files')
+        """
+        Make a static pixel mask, which is the supermask plus bad columns
+        """
+        if self.maskdir is None:
+            self.set_caldirs(caldir=caldir)
+        _supermask = os.path.join(self.maskdir, 'supermask.fits')
+        _statmask = 'static_mask.fits'
+        util.rmall([_statmask])
+        data.clean_get_supermask(_statmask, _supermask, badColumns)
+        staticMask = pf.getdata(_statmask)
 
-        """ Set the list of input filenames """
-        if filelist is not None:
-            if len(filelist) != len(outlist):
-                raise IndexError(
-                    'clean_cosmicrays: input list length does not match'
-                    ' number of output files')
-            inlist = filelist
-        else:
-            inlist = self.datainfo['basename']
+        """ Make the input and output lists """
+        inlist = self.datainfo['basename']
+        crlist = self.make_outlist(inpref, crpref)
+        masklist = self.make_outlist(inpref, maskpref)
 
         """ Loop through the files, creating cosmic ray masks """
         if verbose:
             print('')
-            print('Creating cosmic ray masks')
+            print('Creating masks')
             print('-------------------------')
-        for i, j in zip(inlist, outlist):
+        for i, cr, msk in zip(inlist, crlist, masklist):
             if verbose:
-                print('%s ---> %s' % (i, j))
-            if os.path.isfile(j):
-                os.remove(j)
-            data.clean_cosmicrays(i, j, obsfilt.lower())
+                print('Making cosmic-ray mask: %s ---> %s' % (i, cr))
+            if os.path.isfile(cr):
+                os.remove(cr)
+            data.clean_cosmicrays(i, cr, obsfilt.lower())
+
+            """ Combine the new cosmic ray mask with the static mask """
+            if verbose:
+                print('Creating mask for drizzle step: %s')
+            cosmicMask = pf.getdata(cr)
+            mask = staticMask + cosmicMask
+
+            """ Add the mid-IR mask if appropriate """
+            if self.instrument == 'nirc2' and mask.shape[0] > 512 and \
+                    ('lp' in obsfilt or 'ms' in obsfilt):
+                module_dir = os.path.dirname(data.__file__)
+                _lpmask = module_dir + '/masks/nirc2_lp_edgemask.fits'
+                lpmask = pf.getdata(_lpmask)
+                mask += lpmask
+
+            """
+            Make the final mask. 
+            Note that drizzle expects bad pixels to have value 0 and good 
+             pixels to have value 1, which is the opposite of the masks that
+             have been made so far
+            """
+            outMask = np.zeros(mask.shape, dtype=int)
+            outMask[mask == 0] = 1
+
+            """
+            Trim 12 rows from top and bottom for NIRC2 b/c the distortion 
+            solution introduces a torque to the image.
+            """
+            if self.instrument == 'nirc2':
+                outMask[1012:1024, 0:1024] = 0
+                outMask[0:12, 0:1024] = 0
+
+            """ Save the output mask """
+            pf.PrimaryHDU(outMask).writeto(msk)
+            if verbose:
+                print('Created mask for drizzle: %s' % msk)
 
     #  ------------------------------------------------------------------------
 
-    def dewarp(self, xdistmap, ydistmap, inpref, outpref, whtpref, drizlog,
-               fixDAR=True, use_koa_weather=False):
+    def dewarp(self, inpref='bp', outpref='ce', whtpref='wgt', logpref='driz',
+               xdistmap=None, ydistmap=None, fixDAR=True,
+               use_koa_weather=False, verbose=True):
         """
 
         Corrects for the optical distortion of the files, i.e., "dewarps" them,
         by drizzling them using the provided distortion map.
 
         Inputs:
-        xdistmap - x distortions as a function of position
-        ydistmap - y distortions as a function of position
+        xdistmap - x distortions as a function of position.  The default value
+                   (None), means use the KAI instrument class to get the
+                   distortion map
+        ydistmap - y distortions as a function of position.  The default value
+                   (None), means use the KAI instrument class to get the
+                   distortion map
         inpref   - prefix in the input filenames to be replaced in the output
                    filenames
         outpref  - prefix to be used for the output files
         whtpref  - prefix to be used for the output weight files
-        drizlog  - name of the logfile to store the text generated by the
-                   drizzle process
+        logpref  - prefix to be used for the logfile that stores the text
+                   generated by the drizzle process
         fixDAR   - Fix differential atmospheric distortion? Default is True
         use_koa_weather - ?
 
         """
 
+        """
+        Prep drizzle stuff, using the image size from the first image.
+        The image size is needed just in case the image isn't 1024x1024
+         (e.g., NIRC2 sub-arrays).
+        Also, if it's rectangular, choose the larger dimension and make it
+         square
+        """
+        hdr1 = self[0].header
+        imgsizeX = int(hdr1['NAXIS1'])
+        imgsizeY = int(hdr1['NAXIS2'])
+        if imgsizeX >= imgsizeY:
+            imgsize = imgsizeX
+        else:
+            imgsize = imgsizeY
+        data.setup_drizzle(imgsize)
+
+        """ Set up the distortion maps"""
+        if xdistmap is not None and ydistmap is not None:
+            distXgeoim = xdistmap
+            distYgeoim = ydistmap
+        else:
+            distXgeoim, distYgeoim = self.inst.get_distortion_maps(hdr1)
+
+        """ Set up the output file lists """
+        inlist = self.datainfo['infile'].copy()
+        outlist = self.make_outlist(inpref, outpref)
+        whtlist = self.make_outlist(inpref, whtpref)
+        loglist = self.make_outlist([inpref, '.fits'], [logpref, '.log'])
+
+        """ Loop through the images, dewarping each one """
+        if verbose:
+            print('Dewarping images (using drizzle)')
+            print('--------------------------------')
+        for _bp, _ce, _wgt, _dlog in zip(inlist, outlist, whtlist, loglist):
+            if verbose:
+                print('Drizzing individual file: %s --> %s' % (_bp, _ce))
+            data.clean_drizzle(distXgeoim, distYgeoim, _bp, _ce, _wgt, _dlog,
+                               fixDAR=fixDAR, instrument=self.inst,
+                               use_koa_weather=use_koa_weather)
+
     #  ------------------------------------------------------------------------
 
     def make_coo(self, refSrc, strSrc, check_loc=True, inpref='ce', outpref='c',
-                 outdir=None, update_fits=True, cent_box=12,
-                 update_from_AO=True):
+                 outdir=None, cent_box=12, coo_update='aots'):
 
-        """ Get reference AO stage position from first image """
+        """ Get reference AO stage position and RA, Dec from first image """
         hdr0 = self[0].header
         aotsxyRef = [float(hdr0['aotsx']), float(hdr0['aotsy'])]
+        radecRef = [float(hdr0['RA']), float(hdr0['DEC'])]
 
         """ Set up table columns to store info """
         self.datainfo['scale'] = 0.0
@@ -217,10 +329,11 @@ class KaiSet(AOSet):
             info['inst_angle'] = inst_angle
 
             """ Calculate the pixel offsets from the reference image """
-            # d_xy = kai_util.radec2pix(radec, phi, scale, radecRef)
-            if update_from_AO:
+            if coo_update == 'aots':
                 d_xy = kai_util.aotsxy2pix(aotsxy, scale, aotsxyRef,
                                            inst_angle=inst_angle)
+            elif coo_update == 'radec':
+                d_xy = kai_util.radec2pix(radec, phi, scale, radecRef)
             else:
                 d_xy = [0, 0]
             info['dx'] = d_xy[0]
@@ -255,12 +368,11 @@ class KaiSet(AOSet):
             Write reference star x,y to fits header and save info in a new
             file
             """
-            if update_fits:
-                hdr.set('XREF', "%.3f" % xref, 'Cross Corr Reference Src x')
-                hdr.set('YREF', "%.3f" % yref, 'Cross Corr Reference Src y')
-                hdr.set('XSTREHL', "%.3f" % xstr, 'Strehl Reference Src x')
-                hdr.set('YSTREHL', "%.3f" % ystr, 'Strehl Reference Src y')
-                hdu.save(outfile)
+            hdr.set('XREF', "%.3f" % xref, 'Cross Corr Reference Src x')
+            hdr.set('YREF', "%.3f" % yref, 'Cross Corr Reference Src y')
+            hdr.set('XSTREHL', "%.3f" % xstr, 'Strehl Reference Src x')
+            hdr.set('YSTREHL', "%.3f" % ystr, 'Strehl Reference Src y')
+            hdu.save(outfile)
 
             """ Also put the xref, yref into into a *.coo file """
             outcoo = outfile.replace('.fits', '.coo')
@@ -268,7 +380,7 @@ class KaiSet(AOSet):
                 f.write('%7.2f  %7.2f\n' % (xref, yref))
 
             """
-            Make a temporary rotated coo file, in case there are any data sets
+            Make a rotated coo file, in case there are any data sets
             with various PAs; needed for xregister; remove later
             """
             xyRef_rot = kai_util.rotate_coo(xref, yref, phi)

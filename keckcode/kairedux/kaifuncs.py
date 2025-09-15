@@ -402,8 +402,7 @@ def apply_calib():
 def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
              field=None, angOff=0.0, cent_box=12,
              fixDAR=True, use_koa_weather=False, clean_dir=None,
-             instrument=instruments.default_inst, check_ref_loc=True,
-             coo_update='aots'):
+             check_loc=True, coo_update='aots'):
     """
     This is the second part of the original KAI clean function.
     The functionality of the first part, which was applying the calibration
@@ -522,7 +521,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
     util.mkdir(weight)
     util.mkdir(masks)
 
-    # Open a text file to document sources of data files
+    """ Open a text file to document sources of data files """
     data_sources_file = open(clean + 'data_sources.txt', 'a')
 
     """ Get the instrument """
@@ -538,13 +537,16 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
         """
         Make a static pixel mask, which is the supermask plus bad columns
         """
-        _supermask = redDir + 'calib/masks/supermask.fits'
-        _statmask = 'static_mask.fits'
-        util.rmall([_statmask])
-        data.clean_get_supermask(_statmask, _supermask, badColumns)
+        # _supermask = redDir + 'calib/masks/supermask.fits'
+        # _statmask = 'static_mask.fits'
+        # util.rmall([_statmask])
+        # data.clean_get_supermask(_statmask, _supermask, badColumns)
 
-        """ Set up the base list of frame numbers """
+        """ Set up the base list of frame numbers and prefixes """
         files = aofn.inlist_to_framelist(inlist, inst, nite, frameroot=None)
+        bgsubpref = 'bp'
+        dewarppref = 'ce'
+        finalpref = 'c'
 
         # Determine the reference coordinates for the first image.
         # This is the image for which refSrc is relevant.
@@ -559,29 +561,33 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
          isn't 1024x1024 (e.g., NIRC2 sub-arrays). Also, if it's
          rectangular, choose the larger dimension and make it square
         """
-        imgsizeX = int(hdr1['NAXIS1'])
-        imgsizeY = int(hdr1['NAXIS2'])
-        distXgeoim, distYgeoim = instrument.get_distortion_maps(hdr1)
-        if imgsizeX >= imgsizeY:
-            imgsize = imgsizeX
-        else:
-            imgsize = imgsizeY
-        data.setup_drizzle(imgsize)
+        # imgsizeX = int(hdr1['NAXIS1'])
+        # imgsizeY = int(hdr1['NAXIS2'])
+        # distXgeoim, distYgeoim = instrument.get_distortion_maps(hdr1)
+        # if imgsizeX >= imgsizeY:
+        #     imgsize = imgsizeX
+        # else:
+        #     imgsize = imgsizeY
+        # data.setup_drizzle(imgsize)
 
         """
         Add the necessary header cards to the calibrated, background-subtracted
          files
         """
-        bpfiles = KaiSet(inlist, inst, obsdate=nite, frameroot='bp')
-        bpfiles.add_def_hdrinfo()
-        for hdu, f in zip(bpfiles, bpfiles.datainfo['basename']):
-            hdu.save(f)
+        bpset = KaiSet(inlist, inst, obsdate=nite, frameroot=bgsubpref)
+        bpset.add_def_hdrinfo(inpref=bgsubpref)
 
-        """ Clean the cosmic rays """
-        crlist = bpfiles.make_outlist('bp', 'crmask')
-        bpfiles.clean_cosmicrays(obsfilt, crlist)
+        """ Make the masks that will be used in the final drizzle """
+        bpset.make_mask(obsfilt, badColumns=badColumns)
 
-        """ Dewarp the images through drizzle """
+        """ Dewarp the images """
+        bpset.dewarp(fixDAR=fixDAR, use_koa_weather=use_koa_weather)
+
+        """ Make the .coo and .rcoo files needed for final drizzle """
+        dwset = KaiSet(inlist, inst, obsdate=nite, frameroot=dewarppref)
+        dwset.make_coo(refSrc, refSrc, inpref=dewarppref, outpref=finalpref,
+                       check_loc=check_loc, cent_box=cent_box,
+                       coo_update=coo_update)
 
         ##########
         # Loop through the list of images
@@ -594,9 +600,9 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
             _cc = instrument.make_filenames([f], prefix='c')[0]
             _wgt = instrument.make_filenames([f], prefix='wgt')[0]
             # _statmask = instrument.make_filenames([f], prefix='stat_mask')[0]
-            _crmask = instrument.make_filenames([f], prefix='crmask')[0]
+            # _crmask = instrument.make_filenames([f], prefix='crmask')[0]
             _mask = instrument.make_filenames([f], prefix='mask')[0]
-            _pers = instrument.make_filenames([f], prefix='pers')[0]
+            # _pers = instrument.make_filenames([f], prefix='pers')[0]
             _max = _cc.replace('.fits', '.max')
             _coo = _cc.replace('.fits', '.coo')
             _rcoo = _cc.replace('.fits', '.rcoo')
@@ -608,10 +614,10 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
             data_sources_file.write(out_line)
 
             """ Clean up if these files previously existed """
-            util.rmall([_cd, _ce, _cc, _wgt,
-                        # _statmask, _crmask,
-                        _mask, _pers, _max, _coo,
-                        _rcoo, _dlog])
+            util.rmall([_cd,  # _ce, _cc, _wgt,
+                        # _statmask, _crmask, _mask,
+                        # _pers, _max, _coo, _rcoo, _dlog]
+                        ])
 
             # Make a static bad pixel mask ###
             # _statmask = supermask + bad columns
@@ -624,14 +630,14 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
             # Combine static and cosmic ray mask ###
             # This will be used in combine later on.
             # Results are stored in _mask, _mask_static is deleted.
-            data.clean_makemask(_mask, _crmask, _statmask, obsfilt,
-                                instrument=instrument)
+            # data.clean_makemask(_mask, _crmask, _statmask, obsfilt,
+            #                     instrument=instrument)
 
             # Drizzle individual file ###
-            print('Drizzing individual file: %s --> %s' % (_bp, _ce))
-            data.clean_drizzle(distXgeoim, distYgeoim, _bp, _ce, _wgt, _dlog,
-                               fixDAR=fixDAR, instrument=instrument,
-                               use_koa_weather=use_koa_weather)
+            # print('Drizzing individual file: %s --> %s' % (_bp, _ce))
+            # data.clean_drizzle(distXgeoim, distYgeoim, _bp, _ce, _wgt, _dlog,
+            #                    fixDAR=fixDAR, instrument=instrument,
+            #                    use_koa_weather=use_koa_weather)
 
             # Make .max file ###
             # Determine the non-linearity level. Raw data level of
@@ -639,28 +645,28 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
             # off a sky which changed this level. The sky is
             # scaled, so the level will be slightly different
             # for every frame.
-            hdr = fits.getheader(_bp, ignore_missing_end=True)
+            # hdr = fits.getheader(_bp, ignore_missing_end=True)
             # try:
             #     nonlinSky = hdr['skylev']
             # except KeyError:
             #     nonlinSky = 0.
             # coadds = fits.getval(_bp, instrument.hdr_keys['coadds'])
             # satLevel = (coadds * instrument.get_saturation_level()) - nonlinSky
-            print('Non-linear sky level: %f' % hdr['satlevel'])
-            with open(_max, 'w') as ff:
-                ff.write(str(hdr['satlevel']))
+            # print('Non-linear sky level: %f' % hdr['satlevel'])
+            # with open(_max, 'w') as ff:
+            #     ff.write(str(hdr['satlevel']))
 
             # Rename and clean up files ###
             ir.imrename(_bp, _cd)
 
             # Make the *.coo file and update headers ###
             # First check if PA is not zero
-            phi = instrument.get_position_angle(hdr)
+            # phi = instrument.get_position_angle(hdr)
 
-            print('Making the *coo file: %s' % _cc)
-            data.clean_makecoo(_ce, _cc, refSrc, strSrc, aotsxyRef, radecRef,
-                               instrument=instrument, check_loc=check_ref_loc,
-                               cent_box=cent_box, update_from_AO=update_from_AO)
+            # print('Making the *coo file: %s' % _cc)
+            # data.clean_makecoo(_ce, _cc, refSrc, strSrc, aotsxyRef, radecRef,
+            #                    instrument=instrument, check_loc=check_ref_loc,
+            #                    cent_box=cent_box, update_from_AO=update_from_AO)
 
             # Move to the clean directory ###
             util.rmall([clean + _cc, clean + _coo, clean + _rcoo,
@@ -710,7 +716,7 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     """	
 
     #    -- If you have more than one position angle, make sure to
-    #       clean them seperatly.
+    #       clean them separately.
     #    -- Strehl and Ref src should be the pixel coordinates of a bright
     #       (but non saturated) source in the first exposure of sci_files.
     #    -- If you use the OSIRIS image, you must include the full filename
@@ -758,8 +764,6 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     print('')
     print('Combining the calibrated files')
     print('------------------------------')
-    sci_frames = aofn.inlist_to_framelist(inlist, instrument, obsdate,
-                                          frameroot=None)
     data.combine(sci_frames, obsfilt, obsdate, field=target,
                  trim=0, weight=combwht, submaps=submaps, instrument=inst)
 
