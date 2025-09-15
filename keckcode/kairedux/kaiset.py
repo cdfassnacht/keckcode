@@ -158,7 +158,8 @@ class KaiSet(AOSet):
         """
         if self.maskdir is None:
             self.set_caldirs(caldir=caldir)
-        _supermask = os.path.join(self.maskdir, 'supermask.fits')
+        relmaskdir = '../../%s' % self.maskdir
+        _supermask = os.path.join(relmaskdir, 'supermask.fits')
         _statmask = 'static_mask.fits'
         util.rmall([_statmask])
         data.clean_get_supermask(_statmask, _supermask, badColumns)
