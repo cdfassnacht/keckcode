@@ -575,15 +575,19 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
          files
         """
         bpset = KaiSet(inlist, inst, obsdate=nite, frameroot=bgsubpref)
+        print('')
         bpset.add_def_hdrinfo(inpref=bgsubpref)
 
         """ Make the masks that will be used in the final drizzle """
+        print('')
         bpset.make_mask(obsfilt, badColumns=badColumns)
 
         """ Dewarp the images """
+        print('')
         bpset.dewarp(fixDAR=fixDAR, use_koa_weather=use_koa_weather)
 
         """ Make the .coo and .rcoo files needed for final drizzle """
+        print('')
         dwset = KaiSet(inlist, inst, obsdate=nite, frameroot=dewarppref)
         dwset.make_coo(refSrc, refSrc, inpref=dewarppref, outpref=finalpref,
                        check_loc=check_loc, cent_box=cent_box,

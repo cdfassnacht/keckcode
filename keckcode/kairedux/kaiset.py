@@ -87,6 +87,8 @@ class KaiSet(AOSet):
         maxlist = self.make_outlist([inpref, '.fits'], [maxpref, '.max'])
 
         """ Loop through the images """
+        if verbose:
+            print('Updating headers and finding non-linearity levels')
         for hdu, f, m in zip(self, self.datainfo['infile'], maxlist):
 
             """ Get the central wavelength of the filter being used """
@@ -122,7 +124,7 @@ class KaiSet(AOSet):
             with open(m, 'w') as maxout:
                 maxout.write(str(hdr['satlevel']))
             if verbose:
-                print('Saved nonlinearity level to %s.  Value = %.2f' %
+                print('Saved non-linearity level to %s.  Value = %.2f' %
                       (m, satLevel))
 
     #  ------------------------------------------------------------------------
@@ -177,14 +179,12 @@ class KaiSet(AOSet):
             print('-------------------------')
         for i, cr, msk in zip(inlist, crlist, masklist):
             if verbose:
-                print('Making cosmic-ray mask: %s ---> %s' % (i, cr))
+                print('Making cosmic-ray mask:   %s ---> %s' % (i, cr))
             if os.path.isfile(cr):
                 os.remove(cr)
             data.clean_cosmicrays(i, cr, obsfilt.lower())
 
             """ Combine the new cosmic ray mask with the static mask """
-            if verbose:
-                print('Creating mask for drizzle step: %s')
             cosmicMask = pf.getdata(cr)
             mask = staticMask + cosmicMask
 
@@ -202,7 +202,7 @@ class KaiSet(AOSet):
              pixels to have value 1, which is the opposite of the masks that
              have been made so far
             """
-            outMask = np.zeros(mask.shape, dtype=int)
+            outMask = np.zeros(mask.shape)
             outMask[mask == 0] = 1
 
             """
@@ -285,11 +285,12 @@ class KaiSet(AOSet):
             data.clean_drizzle(distXgeoim, distYgeoim, _bp, _ce, _wgt, _dlog,
                                fixDAR=fixDAR, instrument=self.inst,
                                use_koa_weather=use_koa_weather)
+            print('')
 
     #  ------------------------------------------------------------------------
 
     def make_coo(self, refSrc, strSrc, check_loc=True, inpref='ce', outpref='c',
-                 outdir=None, cent_box=12, coo_update='aots'):
+                 outdir=None, cent_box=12, coo_update='aots', verbose=True):
 
         """ Get reference AO stage position and RA, Dec from first image """
         hdr0 = self[0].header
@@ -310,6 +311,10 @@ class KaiSet(AOSet):
         """ Set up output files that have registration information in them """
         cfiles = self.make_outlist(inpref, outpref, outdir=outdir)
 
+        """ Loop through the files, finding the positions of the ref source """
+        if verbose:
+            print('Making the *.coo and *.rcoo files')
+            print('---------------------------------')
         for hdu, info, outfile in zip(self, self.datainfo, cfiles):
             hdr = hdu.header
 
@@ -348,7 +353,8 @@ class KaiSet(AOSet):
             info['xref'] = xref
             info['yref'] = yref
 
-            print('makecoo: xref, yref start = %6.2f %6.2f' % (xref, yref))
+            if verbose:
+                print('make_coo: xref, yref start = %6.2f %6.2f' % (xref, yref))
 
             """ Re-center stars to get exact coordinates """
             infile = info['infile']
@@ -362,8 +368,9 @@ class KaiSet(AOSet):
                 values = text[0].split()
                 xstr = float(values[2])
                 ystr = float(values[4])
-                print('clean_makecoo: xref, yref final = %6.2f %6.2f}'
-                      % (xref, yref))
+                if verbose:
+                    print('make_coo: xref, yref final = %6.2f %6.2f}'
+                          % (xref, yref))
 
             """
             Write reference star x,y to fits header and save info in a new
