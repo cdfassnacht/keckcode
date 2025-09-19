@@ -17,7 +17,7 @@ class AOSet(CCDSet):
 
     """
 
-    def __init__(self, inlist, inst, obsdate=None, indir=None, gzip=False,
+    def __init__(self, inlist, instrument, obsdate=None, indir=None, gzip=False,
                  frameroot='default', wcstype=None, is_sci=True, verbose=True,
                  **kwargs):
 
@@ -29,7 +29,7 @@ class AOSet(CCDSet):
                             ' tuple, or a dict')
 
         """ Set instrument-specific parameters."""
-        if inst == 'osiris' or inst == 'osim':
+        if instrument == 'osiris' or instrument == 'osim':
             texpkey = 'truitime'
             gainkey = 'sysgain'
             self.instrument = 'osiris'

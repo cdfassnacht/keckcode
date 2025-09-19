@@ -6,8 +6,6 @@ It must come before any import statement that will also lead to an
 import of matplotlib, which it needs to be before the specim and kai imports
 """
 import warnings
-
-import numpy
 import numpy as np
 import os
 
@@ -15,7 +13,6 @@ import os
 # matplotlib.use('Agg')
 
 from specim.imfuncs.wcshdu import WcsHDU
-
 from .aoset import AOSet
 
 """ Turn off header deprecation warnings """
@@ -128,7 +125,7 @@ def inlist_to_framelist(inlist, instrument, obsdate, frameroot='default',
     #       code runs in, the range function produces a list output
     # elif isinstance(inlist, range):
     #    framelist = inlist
-    elif isinstance(inlist, (tuple, numpy.ndarray, list)):
+    elif isinstance(inlist, (tuple, np.ndarray, list)):
         tmplist = inlist
     else:
         is_error = True
@@ -201,7 +198,8 @@ def check_callist(callist, dictkeys):
     return newlist
 
 
-def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
+def make_dark(darklist, obsdate, instrument, rawdir='../raw', caldir=None,
+              suffix=None):
     """
 
     Makes a dark frame given either an input list of integer frame numbers
@@ -217,11 +215,11 @@ def make_dark(darklist, obsdate, instrument, rawdir='../raw', suffix=None):
     """ Make the dark file """
     darkset = AOSet(darklist, instrument, obsdate, indir=rawdir, is_sci=False,
                     wcsverb=False)
-    darkset.create_dark(outfile, caldir='kaidefault')
+    darkset.create_dark(outfile, caldir=caldir)
 
 
-def make_flat(flatlist, obsdate, instrument, rawdir='../raw', indark=None,
-              inflat=None, suffix=None):
+def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
+              indark=None, inflat=None, suffix=None):
     """
 
     Makes a flat-field file
@@ -264,12 +262,12 @@ def make_flat(flatlist, obsdate, instrument, rawdir='../raw', indark=None,
     print('Creating the flat-field file: %s' % outfile)
     print('--------------------------------------------')
     flats_on.create_flat(outfile, lamps_off=flats_off, normalize='sigclip',
-                         indark=indark, inflat=inflat)
+                         indark=indark, inflat=inflat, caldir=caldir)
 
 
 def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
-                  instrument, dark4flat=None, root4sky=None, suffix=None,
-                  **kwargs):
+                  instrument, rawdir=None, caldir=None, dark4flat=None,
+                  root4sky=None, suffix=None,  forkai=True, **kwargs):
     """
     
     Makes all of the calibration files
@@ -319,7 +317,8 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         """ Create the dark(s) """
         for info in darklist:
             print('')
-            make_dark(info, obsdate, instrument, suffix=suffix)
+            make_dark(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
+                      suffix=suffix)
         del dkeys
 
     """ Create the flat(s) as long as flatinfo is not None"""
@@ -333,7 +332,8 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         """ Create the flat(s) """
         for info in flatlist:
             print('')
-            make_flat(info, obsdate, instrument, suffix=suffix,
+            make_flat(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
+                      suffix=suffix,
                       indark=dark4flat)
             allflats1.append('%s.fits' % info['name'])
 
@@ -381,10 +381,36 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     Note: the code assumes that the input files are found in calib/darks
      and calib/flats
     """
-    # print('')
-    # print('Making a bad pixel mask (what KAI calls a supermask)')
-    # print('---------------------')
-    # calib.makemask(dark4mask, flat4mask, 'supermask.fits', instrument=inst)
+    print('')
+    print('Making a bad pixel mask (what KAI calls a supermask)')
+    print('---------------------')
+    dark = WcsHDU(dark4mask, wcsverb=False)
+    bpm = dark.make_bpm('dark', goodval=0, flat=flat4mask)
+    """ Add the known instrumental bad features to this mask, if available """
+    moddir = os.path.dirname(__file__)
+    if instrument == 'nirc2':
+        instmask = os.path.join(moddir, 'data', 'nirc2mask.fits')
+    else:
+        instmask = os.path.join(moddir, 'data', 'osiris_mask_preflip.fits')
+    if os.path.isfile(instmask):
+        maskhdu = WcsHDU(instmask, wcsverb=False)
+        if maskhdu.data.shape[0] == bpm.shape[0]:
+            bpm[maskhdu.data>0] = 1
+        del maskhdu
+    bpmhdu = WcsHDU(bpm, wcsverb=False)
+    bpmhdu.save('bpm_%s.fits' % obsdate)
+
+    """
+    The later drizzling stages of the KAI data reduction pipeline expect the
+    bad pixel mask, which is called the "supermask" in the code, is flipped
+    to match the flip that is applied to the data.  Therefore, if this method
+    is part of a KAI-based reduction, it should make two bad pixel masks:
+     1. In the native instrument orientation, to be used in the data calibration
+     2. In the flipped, supermask, orientation, for the later drizzling steps
+    """
+    if forkai:
+        smhdu = bpmhdu.process_data(flip='y')
+        smhdu.save('supermask.fits')
 
 # ---------------------------------------------------------------------------
 

@@ -20,13 +20,16 @@ setuptools.setup(
     ],
     # python_requires='>=3.6',
     install_requires=[
-        'numpy',#>=1.10',
-        'scipy',#>=1.1',
-        'astropy',#>=3.1',
-        'matplotlib',#>=3.0',
+        'numpy>=1.10',
+        'scipy>=1.1',
+        'astropy>=3.1',
+        'matplotlib>=3.0',
         'cdfutils',
         'specim',
         'ccdredux'
     ],
-    package_data={'keckcode.esiredux': ['data/*']}
+    package_data={
+        'keckcode.esiredux': ['data/*'],
+        'keckcode.ao_img': ['data/*']
+    }
 )
