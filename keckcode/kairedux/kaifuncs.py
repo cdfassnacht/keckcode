@@ -534,14 +534,6 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
         return
 
     try:
-        """
-        Make a static pixel mask, which is the supermask plus bad columns
-        """
-        # _supermask = redDir + 'calib/masks/supermask.fits'
-        # _statmask = 'static_mask.fits'
-        # util.rmall([_statmask])
-        # data.clean_get_supermask(_statmask, _supermask, badColumns)
-
         """ Set up the base list of frame numbers and prefixes """
         files = aofn.inlist_to_framelist(inlist, inst, nite, frameroot=None)
         bgsubpref = 'bp'
@@ -554,21 +546,6 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
         hdr1 = fits.getheader(firstFile, ignore_missing_end=True)
         radecRef = [float(hdr1['RA']), float(hdr1['DEC'])]
         aotsxyRef = kai_util.getAotsxy(hdr1)
-
-        """
-        Prep drizzle stuff
-        Get image size from header - this is just in case the image
-         isn't 1024x1024 (e.g., NIRC2 sub-arrays). Also, if it's
-         rectangular, choose the larger dimension and make it square
-        """
-        # imgsizeX = int(hdr1['NAXIS1'])
-        # imgsizeY = int(hdr1['NAXIS2'])
-        # distXgeoim, distYgeoim = instrument.get_distortion_maps(hdr1)
-        # if imgsizeX >= imgsizeY:
-        #     imgsize = imgsizeX
-        # else:
-        #     imgsize = imgsizeY
-        # data.setup_drizzle(imgsize)
 
         """
         Add the necessary header cards to the calibrated, background-subtracted
@@ -623,54 +600,8 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
                         # _pers, _max, _coo, _rcoo, _dlog]
                         ])
 
-            # Make a static bad pixel mask ###
-            # _statmask = supermask + bad columns
-            # data.clean_get_supermask(_statmask, _supermask, badColumns)
-
-            # Fix cosmic rays and make cosmic ray mask. ###
-            # print('Cleaning cosmic rays')
-            # data.clean_cosmicrays(_bp, _crmask, obsfilt.lower())
-
-            # Combine static and cosmic ray mask ###
-            # This will be used in combine later on.
-            # Results are stored in _mask, _mask_static is deleted.
-            # data.clean_makemask(_mask, _crmask, _statmask, obsfilt,
-            #                     instrument=instrument)
-
-            # Drizzle individual file ###
-            # print('Drizzing individual file: %s --> %s' % (_bp, _ce))
-            # data.clean_drizzle(distXgeoim, distYgeoim, _bp, _ce, _wgt, _dlog,
-            #                    fixDAR=fixDAR, instrument=instrument,
-            #                    use_koa_weather=use_koa_weather)
-
-            # Make .max file ###
-            # Determine the non-linearity level. Raw data level of
-            # non-linearity is 12,000 but we subtracted
-            # off a sky which changed this level. The sky is
-            # scaled, so the level will be slightly different
-            # for every frame.
-            # hdr = fits.getheader(_bp, ignore_missing_end=True)
-            # try:
-            #     nonlinSky = hdr['skylev']
-            # except KeyError:
-            #     nonlinSky = 0.
-            # coadds = fits.getval(_bp, instrument.hdr_keys['coadds'])
-            # satLevel = (coadds * instrument.get_saturation_level()) - nonlinSky
-            # print('Non-linear sky level: %f' % hdr['satlevel'])
-            # with open(_max, 'w') as ff:
-            #     ff.write(str(hdr['satlevel']))
-
             # Rename and clean up files ###
             ir.imrename(_bp, _cd)
-
-            # Make the *.coo file and update headers ###
-            # First check if PA is not zero
-            # phi = instrument.get_position_angle(hdr)
-
-            # print('Making the *coo file: %s' % _cc)
-            # data.clean_makecoo(_ce, _cc, refSrc, strSrc, aotsxyRef, radecRef,
-            #                    instrument=instrument, check_loc=check_ref_loc,
-            #                    cent_box=cent_box, update_from_AO=update_from_AO)
 
             # Move to the clean directory ###
             util.rmall([clean + _cc, clean + _coo, clean + _rcoo,
