@@ -28,16 +28,6 @@ class AOSet(CCDSet):
             raise TypeError('\nAOSet: inlist must be either a list, a'
                             ' tuple, or a dict')
 
-        """ Set instrument-specific parameters."""
-        if instrument == 'osiris' or instrument == 'osim':
-            texpkey = 'truitime'
-            gainkey = 'sysgain'
-            self.instrument = 'osiris'
-        else:
-            texpkey = 'elaptime'
-            gainkey = 'gain'
-            self.instrument = 'nirc2'
-
         """ Make the date string from the provided obsdate """
         if obsdate is not None:
             self.obsdate = obsdate
@@ -45,20 +35,6 @@ class AOSet(CCDSet):
         else:
             self.obsdate = None
             datestr = None
-
-        """ Create the input filelist from the passed parameters """
-        if isinstance(inlist, dict):
-            filelist = self.make_filelist([inlist], obsdate,
-                                          frameroot=frameroot, gzip=gzip)
-        elif isinstance(inlist[0], dict):
-            filelist = self.make_filelist(inlist, obsdate, frameroot=frameroot,
-                                          gzip=gzip)
-        else:
-            """
-            For any other data types, let CCDSet (called through the "super"
-            calls below) do the type checking.
-            """
-            filelist = inlist
 
         """ Set up the SHARP-specific input directory if requested """
         if indir is None:
@@ -74,6 +50,32 @@ class AOSet(CCDSet):
         if verbose:
             print('Reading files from %s' % indir)
 
+        """ Create the input filelist from the passed parameters """
+        if isinstance(inlist, dict):
+            filelist = self.make_filelist([inlist], obsdate,
+                                          frameroot=frameroot, gzip=gzip)
+        elif isinstance(inlist[0], dict):
+            filelist = self.make_filelist(inlist, obsdate, frameroot=frameroot,
+                                          gzip=gzip)
+        else:
+            """
+            For any other data types, let CCDSet (called through the "super"
+            calls below) do the type checking.
+            """
+            filelist = inlist
+
+        """
+        Set instrument-specific parameters that are needed for the superclass
+        """
+        if instrument == 'osiris' or instrument == 'osim':
+            texpkey = 'truitime'
+            gainkey = 'sysgain'
+        elif instrument == 'nirc2':
+            texpkey = 'elaptime'
+            gainkey = 'gain'
+        else:
+            raise ValueError('Instrument must be either osiris or nirc2')
+
         """ Set up the AOSet container by calling the superclass """
         if pyversion == 2:
             super(AOSet, self).__init__(filelist, texpkey=texpkey,
@@ -88,6 +90,16 @@ class AOSet(CCDSet):
         self.flatdir = None
         self.maskdir = None
         self.reduxdir = None
+
+        """ Set instrument-specific values """
+        if instrument == 'osiris' or instrument == 'osim':
+            self.instrument = 'osiris'
+            """ For OSIRIS, mask out left-most 300 columns """
+            self.instmask = np.ones(self[0].shape)
+            self.instmask[:, :300] = 0
+        elif instrument == 'nirc2':
+            self.instrument = 'nirc2'
+            self.instmask = None
 
         """
         Copy some keywords into the more standard versions

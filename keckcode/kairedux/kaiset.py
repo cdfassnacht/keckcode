@@ -356,8 +356,10 @@ class KaiSet(AOSet):
             info['xref'] = xref
             info['yref'] = yref
 
+            basename = info['basename']
             if verbose:
-                print('make_coo: xref, yref start = %6.2f %6.2f' % (xref, yref))
+                print('make_coo %s: xref, yref start = %6.2f %6.2f' %
+                      (basename, xref, yref))
 
             """ Re-center stars to get exact coordinates """
             infile = info['infile']
@@ -372,8 +374,8 @@ class KaiSet(AOSet):
                 xstr = float(values[2])
                 ystr = float(values[4])
                 if verbose:
-                    print('make_coo: xref, yref final = %6.2f %6.2f}'
-                          % (xref, yref))
+                    print('make_coo %s: xref, yref final = %6.2f %6.2f'
+                          % (basename, xref, yref))
 
             """
             Write reference star x,y to fits header and save info in a new
