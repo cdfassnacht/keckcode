@@ -628,7 +628,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
 
 
 def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
-            skyscale=False, usestrehl=False, dockerun=False):
+            skyscale=False, usestrehl=False, dockerun=False, clean_dir=None):
     """
     Combine the data files that have already been reduced using the calibration
     files.
@@ -682,15 +682,28 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     print('Current directory: %s' % os.getcwd())
     print('')
     combprep(inlist, obsdate, obsfilt, instrument, refSrc, refSrc,
-             field=target)
+             field=target, clean_dir=clean_dir)
 
-    """ Calculate Strehl-based weights if requested """
+    """
+    Calculate Strehl-based weights if requested.
+    The submaps parameter sets the number of subsets of the data to
+     combine.  The Berkeley group sets submaps=3.  That means that the
+     images get sorted by Strehl value and then subsets of the full sorted
+     list get combined.  
+    """
     sci_frames = aofn.inlist_to_framelist(inlist, instrument, obsdate,
                                           frameroot=None)
+    if clean_dir is not None:
+        clean_dirs = []
+        for i in range(len(sci_frames)):
+            clean_dirs.append(clean_dir)
+    else:
+        clean_dirs = None
+
     if usestrehl:
         data.calcStrehl(sci_frames, obsfilt, field=target, instrument=inst)
         combwht = 'strehl'
-        submaps = 0  # UCB group sets this to 3 for their images (have stars)
+        submaps = 0
     else:
         combwht = None
         submaps = 0
@@ -700,7 +713,8 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     print('Combining the calibrated files')
     print('------------------------------')
     data.combine(sci_frames, obsfilt, obsdate, field=target,
-                 trim=0, weight=combwht, submaps=submaps, instrument=inst)
+                 trim=0, weight=combwht, submaps=submaps, instrument=inst,
+                 clean_dirs=clean_dirs)
 
 
 def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
