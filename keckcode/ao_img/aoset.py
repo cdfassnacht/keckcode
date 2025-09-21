@@ -50,6 +50,21 @@ class AOSet(CCDSet):
         if verbose:
             print('Reading files from %s' % indir)
 
+        """
+        Set instrument-specific parameters that are needed for make_filelist
+        and for the superclass
+        """
+        if instrument == 'osiris' or instrument == 'osim':
+            self.instrument = 'osiris'
+            texpkey = 'truitime'
+            gainkey = 'sysgain'
+        elif instrument == 'nirc2':
+            self.instrument = 'nirc2'
+            texpkey = 'elaptime'
+            gainkey = 'gain'
+        else:
+            raise ValueError('Instrument must be either osiris or nirc2')
+
         """ Create the input filelist from the passed parameters """
         if isinstance(inlist, dict):
             filelist = self.make_filelist([inlist], obsdate,
@@ -63,18 +78,6 @@ class AOSet(CCDSet):
             calls below) do the type checking.
             """
             filelist = inlist
-
-        """
-        Set instrument-specific parameters that are needed for the superclass
-        """
-        if instrument == 'osiris' or instrument == 'osim':
-            texpkey = 'truitime'
-            gainkey = 'sysgain'
-        elif instrument == 'nirc2':
-            texpkey = 'elaptime'
-            gainkey = 'gain'
-        else:
-            raise ValueError('Instrument must be either osiris or nirc2')
 
         """ Set up the AOSet container by calling the superclass """
         if pyversion == 2:
@@ -93,12 +96,10 @@ class AOSet(CCDSet):
 
         """ Set instrument-specific values """
         if instrument == 'osiris' or instrument == 'osim':
-            self.instrument = 'osiris'
             """ For OSIRIS, mask out left-most 300 columns """
             self.instmask = np.ones(self[0].shape)
             self.instmask[:, :300] = 0
         elif instrument == 'nirc2':
-            self.instrument = 'nirc2'
             self.instmask = None
 
         """

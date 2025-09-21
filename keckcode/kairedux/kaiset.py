@@ -27,7 +27,7 @@ class KaiSet(AOSet):
 
     """
 
-    def __init__(self, inlist, inst, obsdate, indir=None, gzip=False,
+    def __init__(self, inlist, instrument, obsdate, indir=None, gzip=False,
                  verbose=True, **kwargs):
 
         """ Make sure that inlist is in the correct format """
@@ -39,11 +39,12 @@ class KaiSet(AOSet):
 
         """ Set up the KaiSet container by calling the superclass """
         if pyversion == 2:
-            super(KaiSet, self).__init__(inlist, inst, obsdate, indir=indir,
+            super(KaiSet, self).__init__(inlist, instrument, obsdate,
+                                         indir=indir,
                                          gzip=gzip, verbose=verbose, **kwargs)
         else:
-            super().__init__(inlist, inst, obsdate, indir=indir, gzip=gzip,
-                             verbose=verbose, **kwargs)
+            super().__init__(inlist, instrument, obsdate, indir=indir,
+                             gzip=gzip, verbose=verbose, **kwargs)
 
         """ Get the instrument in KAI format """
         self.inst = None
