@@ -49,7 +49,7 @@ class KaiSet(AOSet):
         """ Get the instrument in KAI format """
         self.inst = None
         try:
-            self.get_instrument(inst)
+            self.get_instrument(instrument)
         except ValueError:
             print('')
             print('Could not create kaiset object')
