@@ -1,13 +1,12 @@
 import sys
 import os
+
 import numpy as np
 from astropy.io import fits as pf
 
-from pyraf import iraf as ir
-
 from kai import instruments
 from kai.reduce import data
-from kai.reduce import kai_util
+# from kai.reduce import kai_util
 from kai.reduce import util
 from ..ao_img.aoset import AOSet
 
@@ -290,121 +289,3 @@ class KaiSet(AOSet):
                                fixDAR=fixDAR, instrument=self.inst,
                                use_koa_weather=use_koa_weather)
             print('')
-
-    #  ------------------------------------------------------------------------
-
-    def make_coo(self, refSrc, strSrc, check_loc=True, inpref='ce', outpref='c',
-                 outdir=None, cent_box=12, coo_update='aots', verbose=True):
-
-        """ Get reference AO stage position and RA, Dec from first image """
-        hdr0 = self[0].header
-        aotsxyRef = [float(hdr0['aotsx']), float(hdr0['aotsy'])]
-        radecRef = [float(hdr0['RA']), float(hdr0['DEC'])]
-
-        """ Set up table columns to store info """
-        self.datainfo['scale'] = 0.0
-        self.datainfo['inst_angle'] = 0.0
-        self.datainfo['phi'] = 0.0
-        self.datainfo['aotsx'] = 0.0
-        self.datainfo['aotsy'] = 0.0
-        self.datainfo['dx'] = 0.0
-        self.datainfo['dy'] = 0.0
-        self.datainfo['xref'] = 0.0
-        self.datainfo['yref'] = 0.0
-
-        """ Set up output files that have registration information in them """
-        cfiles = self.make_outlist(inpref, outpref, outdir=outdir)
-
-        """ Loop through the files, finding the positions of the ref source """
-        if verbose:
-            print('Making the *.coo and *.rcoo files')
-            print('---------------------------------')
-        for hdu, info, outfile in zip(self, self.datainfo, cfiles):
-            hdr = hdu.header
-
-            radec = [float(hdr['RA']), float(hdr['DEC'])]
-            aotsxy = [float(hdr['aotsx']), float(hdr['aotsy'])]
-            # aotsxy = kai_util.getAotsxy(hdr) # This line gave a weird error
-            info['aotsx'] = aotsxy[0]
-            info['aotsy'] = aotsxy[1]
-
-            """ Determine the image's PA and plate scale """
-            phi = self.inst.get_position_angle(hdr)
-            scale = self.inst.get_plate_scale(hdr)
-            info['phi'] = phi
-            info['scale'] = scale
-
-            """ Determine the instrument angle w.r.t. the AO bench. """
-            inst_angle = self.inst.get_instrument_angle(hdr)
-            info['inst_angle'] = inst_angle
-
-            """ Calculate the pixel offsets from the reference image """
-            if coo_update == 'aots':
-                d_xy = kai_util.aotsxy2pix(aotsxy, scale, aotsxyRef,
-                                           inst_angle=inst_angle)
-            elif coo_update == 'radec':
-                d_xy = kai_util.radec2pix(radec, phi, scale, radecRef)
-            else:
-                d_xy = [0, 0]
-            info['dx'] = d_xy[0]
-            info['dy'] = d_xy[1]
-
-            """ In the new image, find the REF and STRL coords """
-            xref = refSrc[0] + d_xy[0]
-            yref = refSrc[1] + d_xy[1]
-            xstr = strSrc[0] + d_xy[0]
-            ystr = strSrc[1] + d_xy[1]
-            info['xref'] = xref
-            info['yref'] = yref
-
-            basename = info['basename']
-            if verbose:
-                print('make_coo %s: xref, yref start = %6.2f %6.2f' %
-                      (basename, xref, yref))
-
-            """ Re-center stars to get exact coordinates """
-            infile = info['infile']
-            if check_loc:
-                text = ir.imcntr(infile, xref, yref, cbox=cent_box, Stdout=1)
-                values = text[0].split()
-                xref = float(values[2])
-                yref = float(values[4])
-
-                text = ir.imcntr(infile, xstr, ystr, cbox=cent_box, Stdout=1)
-                values = text[0].split()
-                xstr = float(values[2])
-                ystr = float(values[4])
-                if verbose:
-                    print('make_coo %s: xref, yref final = %6.2f %6.2f'
-                          % (basename, xref, yref))
-
-            """
-            Write reference star x,y to fits header and save info in a new
-            file
-            """
-            hdr.set('XREF', "%.3f" % xref, 'Cross Corr Reference Src x')
-            hdr.set('YREF', "%.3f" % yref, 'Cross Corr Reference Src y')
-            hdr.set('XSTREHL', "%.3f" % xstr, 'Strehl Reference Src x')
-            hdr.set('YSTREHL', "%.3f" % ystr, 'Strehl Reference Src y')
-            hdu.save(outfile)
-
-            """ Also put the xref, yref into into a *.coo file """
-            outcoo = outfile.replace('.fits', '.coo')
-            with open(outcoo, 'w') as f:
-                f.write('%7.2f  %7.2f\n' % (xref, yref))
-
-            """
-            Make a rotated coo file, in case there are any data sets
-            with various PAs; needed for xregister; remove later
-            """
-            xyRef_rot = kai_util.rotate_coo(xref, yref, phi)
-            xref_r = xyRef_rot[0]
-            yref_r = xyRef_rot[1]
-
-            # xyStr_rot = kai_util.rotate_coo(xstr, ystr, phi)
-            # xstr_r = xyStr_rot[0]
-            # ystr_r = xyStr_rot[1]
-
-            outrcoo = outfile.replace('.fits', '.rcoo')
-            with open(outrcoo, 'w') as f:
-                f.write('%7.2f  %7.2f\n' % (xref_r, yref_r))

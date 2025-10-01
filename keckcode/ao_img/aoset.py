@@ -1,6 +1,8 @@
 import os
 import sys
+import math
 import numpy as np
+
 from cdfutils import coords
 from ccdredux.ccdset import CCDSet
 
@@ -452,3 +454,309 @@ class AOSet(CCDSet):
         """ Get full path to inflat if it is not None """
         if inflat is not None:
             flatfile = os.path.join(flatdir, 'flat_')
+
+    #  ------------------------------------------------------------------------
+
+    @staticmethod
+    def get_scale(instrument, hdr):
+        """
+        Set the plate scale, depending on which instrument is being used
+        """
+        if instrument == 'osiris':
+            scale = 0.00995
+        elif instrument == 'nirc2':
+            scales = {"narrow": 0.009952,
+                      "medium": 0.019829,
+                      "wide": 0.039686}
+
+            scale = scales[hdr['CAMNAME']]
+        else:
+            raise ValueError('ERROR: get_scale. instrument must be "osiris"'
+                             ' or "nirc2"')
+
+        return scale
+
+    #  ------------------------------------------------------------------------
+
+    @staticmethod
+    def get_pa_from_rotposn(instrument, hdr):
+        """
+
+        Gets the position angle of the detector with respect to the north axis
+        based on the value of the ROTPOSN keyword
+
+        """
+
+        """ Make sure that required keys are in the header """
+        keylist = ['date-obs', 'rotposn', 'instangl']
+        for k in keylist:
+            if k.upper() not in hdr.keys():
+                raise KeyError('ERROR: get_pa_from_rotposn: %s not found in '
+                               ' header.' % k)
+
+        """ 
+        Set the value of the offset between the imager and the spectrograph,
+         if using OSIRIS 
+        """
+        if instrument == 'osiris':
+            year = int(hdr['date-obs'][:4])
+            month = int(hdr['date-obs'][5:7])
+            if year < 2022 or (year == 2022 and month < 5):
+                imager_offset = 42.5
+            else:
+                imager_offset = 43.4
+        else:
+            imager_offset = 0.
+
+        """ Determine the instrument PA and imager instrument angle"""
+        phi = hdr['rotposn'] - hdr['instangl'] + imager_offset
+        return phi, (hdr['instangl'] - imager_offset)
+
+    #  ------------------------------------------------------------------------
+
+    @staticmethod
+    def aotsxy2pix(aotsxy, scale, aotsxyRef, inst_angle=0.0):
+        """
+        Determine pixel shifts from AOTSX and AOTSY positions.
+        :param aotsxy:
+        :param scale:
+        :param aotsxyRef:
+        :param inst_angle:
+        :return:
+        """
+
+        x = aotsxy[0]
+        y = aotsxy[1]
+
+        """ AOTSX,Y are in units of mm. Conversion is 0.727 mm/arcsec """
+        d_x = (x - aotsxyRef[0]) / 0.727
+        d_y = (y - aotsxyRef[1]) / 0.727
+        d_x = d_x * (1.0 / scale)
+        d_y = d_y * (1.0 / scale)
+
+        """ Rotate to the instrument PA """
+        cosa = np.cos(np.radians(-inst_angle))
+        sina = np.sin(np.radians(-inst_angle))
+
+        rot_matrix = np.array([[cosa, sina], [-sina, cosa]])
+        coo_ao = np.array([d_x, d_y])
+        coo_inst = rot_matrix.dot(coo_ao)
+
+        d_x = coo_inst[0]
+        d_y = coo_inst[1]
+
+        return [d_x, d_y]
+
+    #  ------------------------------------------------------------------------
+
+    def calc_offsets_aots(self, refpos):
+        """
+
+        Calculates offsets between the first images and the others, in pixels,
+        using the values in the AOTSX and AOTSY header keywords in the files
+
+        Inputs:
+         refpos - (x, y) position in the first image of a relatively bright and
+          compact object such as a star or a lensing galaxy
+
+
+        """
+
+        """ Set up table columns to store info """
+        self.datainfo['inst_angle'] = 0.0
+        self.datainfo['phi'] = 0.0
+        self.datainfo['aotsx'] = 0.0
+        self.datainfo['aotsy'] = 0.0
+        self.datainfo['dx'] = 0.0
+        self.datainfo['dy'] = 0.0
+        self.datainfo['xref0'] = 0.0
+        self.datainfo['yref0'] = 0.0
+
+        """ Get reference AO stage position from the first image """
+        hdr0 = self[0].header
+        if 'AOTSX' in hdr0.keys() and 'AOTSY' in hdr0.keys():
+            aotsxyRef = [float(hdr0['aotsx']), float(hdr0['aotsy'])]
+        else:
+            raise KeyError('ERROR: calc_offsets_aots.  Missing AOTSX and/or '
+                           'AOTSY keys in header for %s' %
+                           self.datainfo['basename'][0])
+
+        """ Loop through the files, finding the positions of the ref source """
+        for hdu, info in zip(self, self.datainfo):
+
+            """ Check to make sure that all keywords are in the header """
+            hdr = hdu.header
+            keylist = ['date-obs', 'aotsx', 'aotsy', 'rotposn', 'instangl']
+            for k in keylist:
+                if k.upper() not in hdr.keys():
+                    raise KeyError('%s not found in %s header.' %
+                                   (k, info['basename']))
+
+            """ Get the AO stage positions for the current image """
+            aotsxy = [float(hdr['aotsx']), float(hdr['aotsy'])]
+            info['aotsx'] = aotsxy[0]
+            info['aotsy'] = aotsxy[1]
+
+            """ Determine the imager PA and plate scale """
+            phi, inst_angle = self.get_pa_from_rotposn(self.instrument, hdr)
+            scale = self.get_scale(self.instrument, hdr)
+            info['phi'] = phi
+
+            """ Calculate the pixel offsets from the reference image """
+            d_xy = self.aotsxy2pix(aotsxy, scale, aotsxyRef,
+                                   inst_angle=inst_angle)
+            info['dx'] = d_xy[0]
+            info['dy'] = d_xy[1]
+
+            """ In the new image, find the REF coords """
+            xref = refpos[0] + d_xy[0]
+            yref = refpos[1] + d_xy[1]
+            info['xref0'] = xref
+            info['yref0'] = yref
+
+    #  ------------------------------------------------------------------------
+
+    def rotate_coo(self, x, y, phi):
+        """
+        Rotate an object's coordinates in the *.coo files for data sets
+        containing images at different PAs.
+        """
+
+        """ Rotate around center of image, and keep origin at center """
+        xin = self[0].data.shape[1] / 2
+        yin = self[0].data.shape[0] / 2.
+        xout = self[0].data.shape[1] / 2
+        yout = self[0].data.shape[0] / 2.
+
+        cos = math.cos(math.radians(phi))
+        sin = math.sin(math.radians(phi))
+
+        xrot = (x - xin) * cos - (y - yin) * sin + xout
+        yrot = (x - xin) * sin + (y - yin) * cos + yout
+
+        return [xrot, yrot]
+
+    #  ------------------------------------------------------------------------
+
+    def make_coo(self, refSrc, strSrc, check_loc=True, inpref='ce', outpref='c',
+                 outdir=None, det_thresh=4., coo_update='aots', doplot=False,
+                 rmax=40, plotfile='make_coo_check.png', verbose=True):
+
+        """ Get reference AO stage position and RA, Dec from first image """
+        hdr0 = self[0].header
+        radecRef = [float(hdr0['RA']), float(hdr0['DEC'])]
+
+        """
+        Set up table columns to store info 
+        (most are now set up now in the call to calc_offsets_aots)
+        """
+        self.datainfo['xref'] = 0.0
+        self.datainfo['yref'] = 0.0
+
+        """ Calculate the initial offsets """
+        self.calc_offsets_aots(refSrc)
+
+        """ Set up output files that have registration information in them """
+        cfiles = self.make_outlist(inpref, outpref, outdir=outdir)
+
+        """
+        Loop through the files, refining the positions of the ref source and
+        writing the information to the output files
+        """
+        if verbose:
+            print('Making the *.coo and *.rcoo files')
+            print('---------------------------------')
+        for hdu, info, outfile in zip(self, self.datainfo, cfiles):
+            hdr = hdu.header
+
+            radec = [float(hdr['RA']), float(hdr['DEC'])]
+
+            """ Determine the image's PA and plate scale """
+            phi = self.get_pa_from_rotposn(self.instrument, hdr)
+            scale = self.get_scale(self.instrument, hdr)
+
+            """ Calculate the pixel offsets from the reference image """
+            if coo_update == 'aots':
+                pass  # Offsets already calculated from calc_offsets_aots
+                # d_xy = kai_util.aotsxy2pix(aotsxy, scale, aotsxyRef,
+                #                            inst_angle=inst_angle)
+            # elif coo_update == 'radec':
+            #     d_xy = kai_util.radec2pix(radec, phi, scale, radecRef)
+            #     info['dx'] = d_xy[0]
+            #     info['dy'] = d_xy[1]
+            else:
+                d_xy = [0, 0]
+                info['dx'] = d_xy[0]
+                info['dy'] = d_xy[1]
+
+            """ In the new image, find the REF and STRL coords """
+            xref = info['xref0']
+            yref = info['yref0']
+            xstr = strSrc[0] + info['dx']
+            ystr = strSrc[1] + info['dy']
+
+            basename = info['basename']
+            if verbose:
+                print('make_coo %s: xref, yref start = %6.2f %6.2f' %
+                      (basename, info['xref0'], info['yref0']))
+
+            """ Re-center stars to get exact coordinates """
+            if check_loc:
+                hdu.im_moments(xref, yref, rmax=rmax, detect_thresh=det_thresh)
+                xref = hdu.imex_mux
+                yref = hdu.imex_muy
+
+                hdu.im_moments(xstr, ystr, rmax=rmax, detect_thresh=det_thresh)
+                xstr = hdu.imex_mux
+                ystr = hdu.imex_muy
+
+                if verbose:
+                    print('make_coo %s: xref, yref final = %6.2f %6.2f'
+                          % (basename, xref, yref))
+            info['xref'] = xref
+            info['yref'] = yref
+
+            """
+            Calculate reference star location in rotated frame, in case it's
+            needed later, i.e., if there are files with different PAs
+            """
+            xyRef_rot = self.rotate_coo(xref, yref, phi)
+            xref_r = xyRef_rot[0]
+            yref_r = xyRef_rot[1]
+
+            xyStr_rot = self.rotate_coo(xstr, ystr, phi)
+            xstr_r = xyStr_rot[0]
+            ystr_r = xyStr_rot[1]
+
+            """
+            Write reference star x,y to fits header and save info in a new
+            file
+            """
+            hdr.set('XREF', "%.3f" % xref, 'Cross Corr Reference Src x')
+            hdr.set('YREF', "%.3f" % yref, 'Cross Corr Reference Src y')
+            hdr.set('XREF_R', "%.3f" % xref_r,
+                    'Reference Src x in rotated frame')
+            hdr.set('YREF_R', "%.3f" % yref_r,
+                    'Reference Src y in rotated frame')
+            hdr.set('XSTREHL', "%.3f" % xstr, 'Strehl Reference Src x')
+            hdr.set('YSTREHL', "%.3f" % ystr, 'Strehl Reference Src y')
+            hdu.save(outfile)
+
+            """ Put the xref, yref into into a *.coo file """
+            outcoo = outfile.replace('.fits', '.coo')
+            with open(outcoo, 'w') as f:
+                f.write('%7.2f  %7.2f\n' % (xref, yref))
+
+            """
+            Put the rotated coordinates into a *.rcoo file
+            """
+            # outrcoo = outfile.replace('.fits', '.rcoo')
+            # with open(outrcoo, 'w') as f:
+            #     f.write('%7.2f  %7.2f\n' % (xref_r, yref_r))
+
+        if doplot:
+            self.datainfo['x_cent'] = self.datainfo['xref'].copy()
+            self.datainfo['y_cent'] = self.datainfo['yref'].copy()
+            self.datainfo['imsize'] = 2 * rmax + 1
+            self.plot_multipanel(self.datainfo, mode='xy', markpos=True,
+                                 outfile=plotfile)
