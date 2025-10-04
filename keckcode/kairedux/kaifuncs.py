@@ -627,7 +627,8 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
 
 
 def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
-            skyscale=False, usestrehl=False, dockerun=False, clean_dir=None):
+            skyscale=False, usestrehl=False, dockerun=False, clean_dir=None,
+            **kwargs):
     """
     Combine the data files that have already been reduced using the calibration
     files.
@@ -680,7 +681,7 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     print('Current directory: %s' % os.getcwd())
     print('')
     combprep(inlist, obsdate, obsfilt, instrument, refSrc, refSrc,
-             field=target, clean_dir=clean_dir)
+             field=target, clean_dir=clean_dir, **kwargs)
 
     """
     Calculate Strehl-based weights if requested.
