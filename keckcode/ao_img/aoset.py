@@ -672,7 +672,7 @@ class AOSet(CCDSet):
             radec = [float(hdr['RA']), float(hdr['DEC'])]
 
             """ Determine the image's PA and plate scale """
-            phi = self.get_pa_from_rotposn(self.instrument, hdr)
+            phi, inst_angle = self.get_pa_from_rotposn(self.instrument, hdr)
             scale = self.get_scale(self.instrument, hdr)
 
             """ Calculate the pixel offsets from the reference image """

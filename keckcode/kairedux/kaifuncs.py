@@ -400,9 +400,9 @@ def apply_calib():
 
 
 def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
-             field=None, angOff=0.0, cent_box=12,
+             field=None, angOff=0.0,
              fixDAR=True, use_koa_weather=False, clean_dir=None,
-             check_loc=True, coo_update='aots'):
+             check_loc=True, **kwargs):
     """
     This is the second part of the original KAI clean function.
     The functionality of the first part, which was applying the calibration
@@ -567,8 +567,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
         print('')
         dwset = KaiSet(inlist, inst, obsdate=nite, frameroot=dewarppref)
         dwset.make_coo(refSrc, refSrc, inpref=dewarppref, outpref=finalpref,
-                       check_loc=check_loc, cent_box=cent_box,
-                       coo_update=coo_update)
+                       check_loc=check_loc, **kwargs)
 
         ##########
         # Loop through the list of images
