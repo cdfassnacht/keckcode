@@ -750,9 +750,9 @@ class AOSet(CCDSet):
             """
             Put the rotated coordinates into a *.rcoo file
             """
-            # outrcoo = outfile.replace('.fits', '.rcoo')
-            # with open(outrcoo, 'w') as f:
-            #     f.write('%7.2f  %7.2f\n' % (xref_r, yref_r))
+            outrcoo = outfile.replace('.fits', '.rcoo')
+            with open(outrcoo, 'w') as f:
+                f.write('%7.2f  %7.2f\n' % (xref_r, yref_r))
 
         if doplot:
             self.datainfo['x_cent'] = self.datainfo['xref'].copy()

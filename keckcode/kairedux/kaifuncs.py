@@ -672,9 +672,8 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
      the same docker session that is being used to run this "go" function  
     """
     obsyear = obsdate[:4]
-    if dockerun:
-        print('Downloading weather data for year %s' % obsyear)
-        dar.get_atm_conditions(obsyear)
+    print('Downloading weather data for year %s' % obsyear)
+    dar.get_atm_conditions(obsyear)
 
     """ Prepare the calibrated files for coaddition """
     print('')
