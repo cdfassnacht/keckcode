@@ -349,24 +349,31 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         skylist = check_callist(skyinfo, skeys)
 
         """ Create the sky flat file(s) and then the final combined flat """
+        if caldir is None:
+            flatdir = '.'
+        elif caldir == 'kaidefault':
+            flatdir = os.path.join('calib', 'flats')
+        else:
+            flatdir = caldir
         for info in skylist:
             if root4sky is not None:
-                inflatfile = '%s_%s.fits' % (root4sky, info['obsfilt'])
-                inflat = os.path.join('calib', 'flats', inflatfile)
+                inflat = '%s_%s.fits' % (root4sky, info['obsfilt'])
+                # inflat = os.path.join('calib', 'flats', inflatfile)
             else:
                 inflat = None
             print('')
-            make_flat(info, obsdate, instrument, inflat=inflat, suffix=suffix)
+            make_flat(info, obsdate, instrument, inflat=inflat, suffix=suffix,
+                      rawdir=rawdir, caldir=caldir)
             allflats2.append('%s.fits' % info['name'])
 
             """ Create the final flat"""
             if root4sky is not None:
                 flat1 = WcsHDU(inflat, wcsverb=False)
                 flat2file = '%s_%s.fits' % (info['name'], info['obsfilt'])
-                flat2path = os.path.join('calib', 'flats', flat2file)
+                flat2path = os.path.join(flatdir, flat2file)
                 flat2 = WcsHDU(flat2path, wcsverb=False)
                 finalflat = flat1 * flat2
-                outfile = os.path.join('calib', 'flats', 'flat_%s.fits' %
+                outfile = os.path.join(flatdir, 'flat_%s.fits' %
                                        info['obsfilt'])
                 finalflat.writeto(outfile)
 
@@ -411,6 +418,10 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     if forkai:
         smhdu = bpmhdu.process_data(flip='y')
         smhdu.save('supermask.fits')
+
+    print('')
+    print('Finished creating calibration files for %s' % obsdate)
+    print('')
 
 # ---------------------------------------------------------------------------
 

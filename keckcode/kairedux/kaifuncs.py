@@ -783,12 +783,18 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
         hdr.set('orig%03d' % (i + 1), f, 'Original input file %d' % (i + 1))
 
     """
-    Use the WcsHDR functionality to:
+    Use the WcsHDU functionality to:
       1. Set the pixel scale to the appropriate value for the instrument an mode
       2. Convert the pixel units to e-/sec
     """
     pixscale = inst.get_plate_scale(hdr)
-    gain = inst.get_gain(hdr)
+    try:
+        gain = hdr['sysgain']
+    except KeyError:
+        if inst == osiris:
+            gain = 2.15
+        else:
+            gain = inst.get_gain(hdr)
     if avgtime > 1.:
         texp = avgtime
     else:

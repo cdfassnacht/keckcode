@@ -111,6 +111,8 @@ class AOSet(CCDSet):
             hdr = hdu.header
             if texpkey.upper() in hdr.keys():
                 hdr['exptime'] = hdr[texpkey]
+            if gainkey.upper() in hdr.keys():
+                hdr['gain'] = hdr[gainkey]
 
         """
         For OSIRIS data, fix the WCS header info if necessary.
@@ -128,8 +130,12 @@ class AOSet(CCDSet):
         elif wcstype == 'raw' and is_sci:
             for hdu in self:
                 hdr = hdu.header
-                hdr['cdelt1'] = -0.01 / 3600.
-                hdr['cdelt2'] = 0.01 / 3600.
+                try:
+                    pixscale = self.get_scale(instrument, hdr)
+                except (ValueError, KeyError):
+                    pixscale = 0.01
+                hdr['cdelt1'] = -pixscale / 3600.
+                hdr['cdelt2'] = pixscale / 3600.
                 hdr['crval1'] = hdr['ra']
                 hdr['crval2'] = hdr['dec']
                 hdr['crpix1'] = hdr['naxis1'] / 2. + 0.5
@@ -137,27 +143,88 @@ class AOSet(CCDSet):
                 hdr['ctype1'] = 'RA---TAN'
                 hdr['ctype2'] = 'DEC--TAN'
                 hdu.read_wcsinfo(hdr)
-                hdu.pixscale = 0.01
-                if 'PA_IMAG' in hdr.keys():
-                    hdu.pc = coords.rot_to_pcmatrix(-1. * hdr['pa_imag'],
-                                                    verbose=False)
                 hdu.crpix = (np.array(hdu.data.shape)[::-1]) / 2. + 0.5
         elif wcstype == 'koa' and is_sci:
             for hdu in self:
                 hdr = hdu.header
-                hdu.pixscale = 0.01
-                if 'PA_IMAG' in hdr.keys():
-                    hdu.pc = coords.rot_to_pcmatrix(-1. * hdr['pa_imag'],
-                                                    verbose=False)
-                # print(type(hdu.pc))
                 hdu.crpix = (np.array(hdu.data.shape)[::-1]) / 2. + 0.5
-        elif is_sci:
+                try:
+                    phi, inst_angle = self.get_pa_from_rotposn(instrument, hdr)
+                except KeyError:
+                    if 'PA_IMAG' in hdr.keys():
+                        phi = hdr['pa_imag']
+                    else:
+                        print('WARNING: Could not determine PA from image '
+                              'header. Setting PA=0.')
+                        phi = 0.
+                hdu.pc = coords.rot_to_pcmatrix(-phi,  verbose=False)
+
+        if is_sci:
             for hdu in self:
                 hdr = hdu.header
-                hdu.pixscale = 0.01
-                if 'PA_IMAG' in hdr.keys():
-                    hdu.pc = coords.rot_to_pcmatrix(-1. * hdr['pa_imag'],
-                                                    verbose=False)
+                try:
+                    hdu.pixscale = self.get_scale(instrument, hdr)
+                except (ValueError, KeyError):
+                    print('WARNING: Could not determine pixel scale from'
+                          ' image header.  Setting pixscale=0.01')
+                    hdu.pixscale = 0.01
+
+    #  ------------------------------------------------------------------------
+
+    @staticmethod
+    def get_scale(instrument, hdr):
+        """
+        Set the plate scale, depending on which instrument is being used
+        """
+        if instrument == 'osiris':
+            scale = 0.00995
+        elif instrument == 'nirc2':
+            scales = {"narrow": 0.009952,
+                      "medium": 0.019829,
+                      "wide": 0.039686}
+
+            scale = scales[hdr['CAMNAME']]
+        else:
+            raise ValueError('ERROR: get_scale. instrument must be "osiris"'
+                             ' or "nirc2"')
+
+        return scale
+
+    #  ------------------------------------------------------------------------
+
+    @staticmethod
+    def get_pa_from_rotposn(instrument, hdr):
+        """
+
+        Gets the position angle of the detector with respect to the north axis
+        based on the value of the ROTPOSN keyword
+
+        """
+
+        """ Make sure that required keys are in the header """
+        keylist = ['date-obs', 'rotposn', 'instangl']
+        for k in keylist:
+            if k.upper() not in hdr.keys():
+                raise KeyError('ERROR: get_pa_from_rotposn: %s not found in '
+                               ' header.' % k)
+
+        """ 
+        Set the value of the offset between the imager and the spectrograph,
+         if using OSIRIS 
+        """
+        if instrument == 'osiris':
+            year = int(hdr['date-obs'][:4])
+            month = int(hdr['date-obs'][5:7])
+            if year < 2022 or (year == 2022 and month < 5):
+                imager_offset = 42.5
+            else:
+                imager_offset = 43.4
+        else:
+            imager_offset = 0.
+
+        """ Determine the instrument PA and imager instrument angle"""
+        phi = hdr['rotposn'] - hdr['instangl'] + imager_offset
+        return phi, (hdr['instangl'] - imager_offset)
 
     #  ------------------------------------------------------------------------
 
@@ -454,63 +521,6 @@ class AOSet(CCDSet):
         """ Get full path to inflat if it is not None """
         if inflat is not None:
             flatfile = os.path.join(flatdir, 'flat_')
-
-    #  ------------------------------------------------------------------------
-
-    @staticmethod
-    def get_scale(instrument, hdr):
-        """
-        Set the plate scale, depending on which instrument is being used
-        """
-        if instrument == 'osiris':
-            scale = 0.00995
-        elif instrument == 'nirc2':
-            scales = {"narrow": 0.009952,
-                      "medium": 0.019829,
-                      "wide": 0.039686}
-
-            scale = scales[hdr['CAMNAME']]
-        else:
-            raise ValueError('ERROR: get_scale. instrument must be "osiris"'
-                             ' or "nirc2"')
-
-        return scale
-
-    #  ------------------------------------------------------------------------
-
-    @staticmethod
-    def get_pa_from_rotposn(instrument, hdr):
-        """
-
-        Gets the position angle of the detector with respect to the north axis
-        based on the value of the ROTPOSN keyword
-
-        """
-
-        """ Make sure that required keys are in the header """
-        keylist = ['date-obs', 'rotposn', 'instangl']
-        for k in keylist:
-            if k.upper() not in hdr.keys():
-                raise KeyError('ERROR: get_pa_from_rotposn: %s not found in '
-                               ' header.' % k)
-
-        """ 
-        Set the value of the offset between the imager and the spectrograph,
-         if using OSIRIS 
-        """
-        if instrument == 'osiris':
-            year = int(hdr['date-obs'][:4])
-            month = int(hdr['date-obs'][5:7])
-            if year < 2022 or (year == 2022 and month < 5):
-                imager_offset = 42.5
-            else:
-                imager_offset = 43.4
-        else:
-            imager_offset = 0.
-
-        """ Determine the instrument PA and imager instrument angle"""
-        phi = hdr['rotposn'] - hdr['instangl'] + imager_offset
-        return phi, (hdr['instangl'] - imager_offset)
 
     #  ------------------------------------------------------------------------
 
