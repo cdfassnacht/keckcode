@@ -238,6 +238,9 @@ def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
 
     """
 
+    """ Set default value """
+    normalize = 'sigclip'
+
     """ Make a KaiSet holder for the lamps-on frames """
     flats_on = AOSet(flatlist, instrument, obsdate, indir=rawdir, is_sci=False,
                      wcsverb=False)
@@ -258,10 +261,7 @@ def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
 
     """ Make the flat-field file """
     outfile = '%s_%s.fits' % (flatlist['name'], flatlist['obsfilt'])
-    print('')
-    print('Creating the flat-field file: %s' % outfile)
-    print('--------------------------------------------')
-    flats_on.create_flat(outfile, lamps_off=flats_off, normalize='sigclip',
+    flats_on.create_flat(outfile, lamps_off=flats_off, normalize=normalize,
                          indark=indark, inflat=inflat, caldir=caldir)
 
 
@@ -416,7 +416,10 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
      2. In the flipped, supermask, orientation, for the later drizzling steps
     """
     if forkai:
-        smhdu = bpmhdu.process_data(flip='y')
+        if instrument == 'osiris' or instrument == 'osim':
+            smhdu = bpmhdu.process_data(flip='y')
+        else:
+            smhdu = bpmhdu
         smhdu.save('supermask.fits')
 
     print('')
@@ -435,6 +438,10 @@ def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
     Code that applies calibration to the raw input files
 
     """
+
+    """ Set up defaults that may get overridden """
+    dsfile = None
+    flip = None
 
     """ Read in the raw data file """
     raw = AOSet(inlist, inst, obsdate=obsdate, indir=rawdir, wcstype=wcstype)
@@ -461,13 +468,12 @@ def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
                                 badval=badval)
         dsff.make_skyflat(outroot=dsroot, outdir=raw.flatdir, **kwargs)
         dsfile = '%s_%s.fits' % (dsroot, skytype)
-    else:
-        dsfile = None
 
     """ Set up output filenames """
     if inpref == 'default':
         if raw.instrument == 'osiris':
             inpref = 'i%s_a' % obsdate[2:]
+            flip = 'y'
         elif raw.instrument == 'nirc2':
             inpref = 'n'
         else:
@@ -482,8 +488,6 @@ def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
     outfiles = raw.make_outlist(inpref, outpref, outdir=outdir)
 
     """ Process the raw data to produce calibrated data """
-    flip = 'y'
-    # flip = None
     skysub = 'sigclip'
     # skysub = None
     raw.apply_calib(bias=dark, flat=flat, bpm=bpm, darksky=dsfile,

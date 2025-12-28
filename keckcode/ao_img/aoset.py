@@ -4,6 +4,7 @@ import math
 import numpy as np
 
 from cdfutils import coords
+from specim.imfuncs.wcshdu import WcsHDU
 from ccdredux.ccdset import CCDSet
 
 pyversion = sys.version_info.major
@@ -33,7 +34,13 @@ class AOSet(CCDSet):
         """ Make the date string from the provided obsdate """
         if obsdate is not None:
             self.obsdate = obsdate
-            datestr = '%s_%s_%s' % (obsdate[:4], obsdate[4:6], obsdate[6:8])
+            if len(obsdate) == 8:
+                datestr = '%s_%s_%s' % (obsdate[:4], obsdate[4:6], obsdate[6:8])
+            elif len(obsdate) > 10:
+                datestr = '%s_%s_%s' % (obsdate[:4], obsdate[4:6], obsdate[6:])
+            else:
+                raise ValueError('obsdate parameter must be a string of at '
+                                 'least 8 characters (e.g., 20170628)')
         else:
             self.obsdate = None
             datestr = None
@@ -420,13 +427,23 @@ class AOSet(CCDSet):
 
         """
 
+        print('')
+        print('==============================================================')
+        print('')
+        print('Starting processing to create flat-field file: %s' % outname)
+        print('---------------------------------------------------------')
+
         """ Check validity of input """
+        onoff_match = True
+        tmpnorm = normalize
         if lamps_off is not None:
             if not isinstance(lamps_off, AOSet):
                 raise ValueError('\nThe lamps_off parameter must be an AOSet\n')
             if len(lamps_off) != len(self):
-                raise IndexError('\nDifferent number of files in lamps_off and'
-                                 ' lamps_on\n')
+                onoff_match = False
+                tmpnorm = None
+                # raise IndexError('\nDifferent number of files in lamps_off and'
+                #                  ' lamps_on\n')
 
         """ Set up directory names """
         if self.flatdir is None:
@@ -454,33 +471,53 @@ class AOSet(CCDSet):
         """
         if lamps_off is not None:
             """ First make the combined lamps-off and lamps-on frames """
-            lamps_off.make_flat(outfile=offfits, normalize=normalize,
+            print('Combining lamps-off frames')
+            lamps_off.make_flat(outfile=offfits, normalize=tmpnorm,
                                 bias=dark, flat=inflat,
                                 reject=reject, nlow=nlow, nhigh=nhigh, **kwargs)
-            self.make_flat(outfile=onfits, normalize=normalize, bias=dark,
+            print('')
+            print('Combining lamps-on frames')
+            self.make_flat(outfile=onfits, normalize=tmpnorm, bias=dark,
                            flat=inflat, reject=reject, nlow=nlow,
                            nhigh=nhigh, **kwargs)
 
             """ Now loop through paired on/off exposures, taking differences """
             nfile = open(onlist, 'w')
             ffile = open(offlist, 'w')
-            count = 0
-            for n, f in zip(self, lamps_off):
-                """ Add the filenames to the onlist and offlist"""
+            """ First, add the filenames to the onlist and offlist"""
+            for i in range(self.nfiles):
                 if 'basename' in self.datainfo.keys():
-                    nfile.write('%s\n' % self.datainfo['basename'][count])
-                if 'basename' in lamps_off.datainfo.keys():
-                    ffile.write('%s\n' % lamps_off.datainfo['basename'][count])
-                count += 1
-
-                """ Replace the lamps-on data with the difference data """
-                n.data = n.data - f.data
+                    nfile.write('%s\n' % self.datainfo['basename'][i])
             nfile.close()
+            for i in range(lamps_off.nfiles):
+                if 'basename' in lamps_off.datainfo.keys():
+                    ffile.write('%s\n' % lamps_off.datainfo['basename'][i])
             ffile.close()
 
-            """ Make the final flat """
-            self.make_flat(outfile=outfile, normalize=normalize, reject=reject,
-                           nlow=nlow, nhigh=nhigh, **kwargs)
+            """
+            Subtract off frames from on frames, with the method depending on
+            whether there are equal number of frames in the two data sets
+            """
+            print('')
+            print('Creating difference frame(s)')
+            if onoff_match:
+                for n, f in zip(self, lamps_off):
+                    """ Replace the lamps-on data with the difference data """
+                    if n.basename is not None and f.basename is not None:
+                        print(' %s - %s' % (n.basename, f.basename))
+                    n.data = n.data - f.data
+
+                """ Make the final flat """
+                print('Combining difference frames into final flat')
+                self.make_flat(outfile=outfile, normalize=normalize,
+                               reject=reject, nlow=nlow, nhigh=nhigh, **kwargs)
+            else:
+                print('Creating difference between lamps-on and lamps-off')
+                diff = WcsHDU(onfits, wcsverb=False) - \
+                       WcsHDU(offfits, wcsverb=False)
+                normfac = diff.normalize(method=normalize)
+                diff.save(outfile)
+                print('%s - %s --> %s' % (onfits, offfits, outfile))
 
         else:
             """ Put the filenames into the onlist """
