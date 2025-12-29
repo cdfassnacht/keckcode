@@ -289,7 +289,10 @@ class AOSet(CCDSet):
             Loop through frame numbers to create file list
             """
             for j in i['frames']:
-                filebase = 'n%04d' % j
+                if frameroot == 'default':
+                    filebase = 'n%04d' % j
+                else:
+                    filebase = '%s%04d' % (frameroot, j)
                 filelist.append('%s.%s' % (filebase, suff))
 
         return filelist
