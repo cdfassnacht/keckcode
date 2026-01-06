@@ -1107,7 +1107,7 @@ class OsCube(imf.Image):
             f.write('cd3 %f\n' % hdr['cdelt3'])
             f.write('cv3 %f\n' % hdr['crval3'])
             f.write('crpix3 %d\n' % hdr['crpix3'])
-            f.write('crota %7.2f\n' % self.impa)
+            f.write('crota %7.2f\n' % self.pa)
             f.close()
 
         """ Clean up before exiting """
