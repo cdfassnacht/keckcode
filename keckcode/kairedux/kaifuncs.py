@@ -395,10 +395,6 @@ def name_checker(a, b):
             sys.exit()
 
 
-def apply_calib():
-    print('foo')
-
-
 def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
              field=None, angOff=0.0,
              fixDAR=True, use_koa_weather=False, clean_dir=None,
@@ -542,10 +538,10 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
 
         # Determine the reference coordinates for the first image.
         # This is the image for which refSrc is relevant.
-        firstFile = instrument.make_filenames([files[0]], prefix='bp')[0]
-        hdr1 = fits.getheader(firstFile, ignore_missing_end=True)
-        radecRef = [float(hdr1['RA']), float(hdr1['DEC'])]
-        aotsxyRef = kai_util.getAotsxy(hdr1)
+        # firstFile = instrument.make_filenames([files[0]], prefix='bp')[0]
+        # hdr1 = fits.getheader(firstFile, ignore_missing_end=True)
+        # radecRef = [float(hdr1['RA']), float(hdr1['DEC'])]
+        # aotsxyRef = kai_util.getAotsxy(hdr1)
 
         """
         Add the necessary header cards to the calibrated, background-subtracted
@@ -626,6 +622,9 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
     os.chdir('../')
 
 
+def make_combdirs(target, inlist, obsfilt, instrument):
+
+
 def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
             skyscale=False, usestrehl=False, dockerun=False, clean_dir=None,
             **kwargs):
@@ -636,7 +635,11 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     Inputs:
       target     - root name of the target object
       obsdate    - 8-digit observation date in yyyymmdd format (e.g., 20201101)
-      inlist     -
+      inlist     - This must be either a dict or a list of dicts.  Each dick
+                    must contain, at minimum, keys for frames and obsdate,
+                    and for OSIRIS images also assn.  If the clean files are
+                    not in the standard location (../clean), then each dict
+                    must also contain a clean_dir key.
       refSrc     - make sure you use the position in the _flipped_ image.
       instrument -
       suffix     - any suffix that should be added to the frame names that
@@ -648,7 +651,7 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
                    the weather files have not yet been downloaded.
                    Set to True to download the weather files.
                    Default is False
-    """	
+    """
 
     #    -- If you have more than one position angle, make sure to
     #       clean them separately.
@@ -662,9 +665,35 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
         inst = get_instrument(instrument)
     except ValueError:
         print('')
-        print('ERROR: Invalid choice of instrument parameter')
+        print('kaicomb: Invalid choice of instrument parameter')
         print('')
         return
+
+    """ Check the input """
+    if isinstance(inlist, dict):
+        dlist = [inlist]
+    elif isinstance(inlist, list):
+        dlist = inlist
+    else:
+        print('')
+        print('kaicomb: inlist must be either a dict or a list of dicts')
+        raise TypeError
+
+    keys= ['obsdate', 'frames']
+    if inst == osiris:
+        keys.append('assn')
+    missing_key = False
+    cdir = False
+    for d in dlist:
+        for k in keys:
+            if k not in d.keys():
+                print('kaicomb: %s missing from input dict' % k)
+                missing_key = True
+        if 'clean_dir' in d.keys():
+            cdir = True
+        if missing_key:
+            print('')
+            raise KeyError
 
     """ 
     Download weather data that will be used in later steps.
@@ -692,10 +721,16 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     """
     sci_frames = aofn.inlist_to_framelist(inlist, instrument, obsdate,
                                           frameroot=None)
-    if clean_dir is not None:
+
+    if cdir:
         clean_dirs = []
-        for i in range(len(sci_frames)):
-            clean_dirs.append(clean_dir)
+        for d in dlist:
+            if 'clean_dir' in d.keys():
+                clean_dir = d['clean_dir']
+            else:
+                clean_dir = '../clean'
+            for f in d['frames']:
+                clean_dirs. append(clean_dir)
     else:
         clean_dirs = None
 
@@ -737,10 +772,15 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
         combdir = '.'
     elif combdir == 'default':
         combdir = '%s/combo' % os.getcwd()
+    if instrument == 'osiris':
+        outinst = 'osim'
+    else:
+        outinst = instrument
     combroot = os.path.join(combdir, 'mag%s_%s_%s' % (obsdate, target, obsfilt))
     scifile = '%s.fits' % combroot
     sigfile = '%s_sig.fits' % combroot
-    outroot = os.path.join(combdir, '%s_kai_%s_%s' % (target, obsdate, obsfilt))
+    outroot = os.path.join(combdir, '%s_%s_%s_%s' %
+                           (target, outinst, obsdate, obsfilt))
     outsci = '%s.fits' % outroot
     outwht = '%s_wht.fits' % outroot
 

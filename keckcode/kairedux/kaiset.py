@@ -65,7 +65,7 @@ class KaiSet(AOSet):
         """
         if instrument.lower() == 'osiris' or instrument.lower() == 'osim':
             self.inst = osiris
-        elif instrument.lower() == 'nirc2':
+        elif instrument.lower()[:5] == 'nirc2':
             self.inst = nirc2
         else:
             print('')

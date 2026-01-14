@@ -91,10 +91,11 @@ class AOSet(CCDSet):
         """ Set up the AOSet container by calling the superclass """
         if pyversion == 2:
             super(AOSet, self).__init__(filelist, texpkey=texpkey,
-                                        gainkey=gainkey, indir=indir, **kwargs)
+                                        gainkey=gainkey, indir=indir,
+                                        print_summary=False, **kwargs)
         else:
             super().__init__(filelist, texpkey=texpkey, gainkey=gainkey,
-                             indir=indir, **kwargs)
+                             indir=indir, print_summary=False, **kwargs)
 
         """ Set some default values """
         self.caldir = None
@@ -129,8 +130,8 @@ class AOSet(CCDSet):
         NOTE: This doesn't correct for the flip, since that is taken care of
          in the osim_funcs.py pipeline.
         """
-        # print(wcstype)
-        if wcstype is None or self.instrument != 'osiris':
+        print('wcstype = %s, is_sci = %s' % (wcstype, is_sci))
+        if wcstype is None:
             pass
             # for hdu in self:
             #     hdu.pixscale = 0.01
@@ -152,7 +153,7 @@ class AOSet(CCDSet):
                 hdu.read_wcsinfo(hdr)
                 hdu.crpix = (np.array(hdu.data.shape)[::-1]) / 2. + 0.5
         elif wcstype == 'koa' and is_sci:
-            for hdu in self:
+            for i, hdu in enumerate(self):
                 hdr = hdu.header
                 hdu.crpix = (np.array(hdu.data.shape)[::-1]) / 2. + 0.5
                 try:
@@ -164,7 +165,10 @@ class AOSet(CCDSet):
                         print('WARNING: Could not determine PA from image '
                               'header. Setting PA=0.')
                         phi = 0.
-                hdu.pc = coords.rot_to_pcmatrix(-phi,  verbose=False)
+                # hdu.pc = coords.rot_to_pcmatrix(-phi,  verbose=False)
+                hdu.pa = -phi
+                if 'PA' in self.datainfo.colnames:
+                    self.datainfo['PA'][i] = -phi
 
         if is_sci:
             for hdu in self:
@@ -175,6 +179,14 @@ class AOSet(CCDSet):
                     print('WARNING: Could not determine pixel scale from'
                           ' image header.  Setting pixscale=0.01')
                     hdu.pixscale = 0.01
+
+        if verbose:
+            keylist =[]
+            for k in ['object', 'texp','gain', 'pixscale', 'PA']:
+                if k in self.datainfo.colnames:
+                    keylist.append(k)
+            print(keylist)
+            self.print_summary(keylist)
 
     #  ------------------------------------------------------------------------
 

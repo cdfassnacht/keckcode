@@ -141,11 +141,11 @@ def inlist_to_framelist(inlist, instrument, obsdate, frameroot='default',
                         frameroot = 'i%s_a' % obsdate[2:]
                     framelist = dict_to_framelist(tmplist, instrument,
                                                   frameroot, suffix=suffix)
-                elif instrument == 'nirc2':
+                elif instrument[:5] == 'nirc2':
                     framelist = dict_to_framelist(tmplist, instrument)
                 else:
                     is_error = True
-            elif instrument == 'nirc2' and isinstance(el1, int):
+            elif instrument[:5] == 'nirc2' and isinstance(el1, int):
                 framelist = tmplist
             else:
                 is_error = True
@@ -402,7 +402,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     if os.path.isfile(instmask):
         maskhdu = WcsHDU(instmask, wcsverb=False)
         if maskhdu.data.shape[0] == bpm.shape[0]:
-            bpm[maskhdu.data>0] = 1
+            bpm[maskhdu.data > 0] = 1
         del maskhdu
     bpmhdu = WcsHDU(bpm, wcsverb=False)
     bpmhdu.save('bpm_%s.fits' % obsdate)
@@ -460,7 +460,8 @@ def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
      the dark-sky flat for later steps
     """
     if darkskylist is not None:
-        dsky = AOSet(darkskylist, inst, obsdate=obsdate, indir=rawdir)
+        dsky = AOSet(darkskylist, inst, obsdate=obsdate, indir=rawdir,
+                     wcstype=wcstype)
         dsky.set_caldirs(caldir=caldir, obsfilt=obsfilt)
         caldirs = {'darkdir': raw.darkdir, 'flatdir': raw.flatdir,
                    'maskdir': raw.maskdir}
@@ -474,7 +475,7 @@ def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
         if raw.instrument == 'osiris':
             inpref = 'i%s_a' % obsdate[2:]
             flip = 'y'
-        elif raw.instrument == 'nirc2':
+        elif raw.instrument[:5] == 'nirc2':
             inpref = 'n'
         else:
             raise ValueError('Instrument must be osiris or nirc2')
