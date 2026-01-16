@@ -623,6 +623,15 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
 
 
 def make_combdirs(target, inlist, obsfilt, instrument):
+    """
+    
+    :param target:
+    :param inlist:
+    :param obsfilt:
+    :param instrument:
+    :return:
+    """
+    pass
 
 
 def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
