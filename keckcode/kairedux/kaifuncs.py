@@ -18,7 +18,6 @@ from datetime import datetime
 # matplotlib.use('Agg')
 
 from astropy.io import ascii
-from astropy.io import fits
 from pyraf import iraf as ir
 from specim.imfuncs.wcshdu import WcsHDU
 
@@ -611,7 +610,6 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
             os.rename(_max, clean + _max)
             os.rename(_coo, clean + _coo)
             os.rename(_rcoo, clean + _rcoo)
-            print('')
 
         data_sources_file.close()
     finally:
