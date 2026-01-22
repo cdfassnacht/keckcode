@@ -116,7 +116,16 @@ class KaiSet(AOSet):
                 coadds = hdr[coaddkey]
             except KeyError:
                 coadds = 1
-            satLevel = (coadds * self.inst.get_saturation_level()) - nonlinSky
+            sat_level_units = self.inst.get_saturation_level_units()
+            if sat_level_units == 'DN':
+                satLevel = coadds * self.inst.get_saturation_level(hdr) \
+                           - nonlinSky
+            elif sat_level_units == 'DN/coadd':
+                satLevel = self.inst.get_saturation_level(hdr) - nonlinSky
+            else:
+                raise ValueError('Unexpected value for saturation level units')
+
+            # satLevel = (coadds * self.inst.get_saturation_level()) - nonlinSky
             hdr['satlevel'] = satLevel
 
             """ Save the updated information """
@@ -185,7 +194,7 @@ class KaiSet(AOSet):
                 print('Making cosmic-ray mask:   %s ---> %s' % (i, cr))
             if os.path.isfile(cr):
                 os.remove(cr)
-            data.clean_cosmicrays(i, cr, obsfilt.lower())
+            data.clean_cosmicrays(i, cr, obsfilt.lower(), _supermask)
 
             """ Combine the new cosmic ray mask with the static mask """
             cosmicMask = pf.getdata(cr)

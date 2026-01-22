@@ -18,7 +18,7 @@ from datetime import datetime
 # matplotlib.use('Agg')
 
 from astropy.io import ascii
-from pyraf import iraf as ir
+# from pyraf import iraf as ir
 from specim.imfuncs.wcshdu import WcsHDU
 
 from kai.reduce import calib
@@ -394,7 +394,7 @@ def name_checker(a, b):
             sys.exit()
 
 
-def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
+def combprep(inlist, obsdate, obsfilt, inst, refSrc, strSrc, badColumns=None,
              field=None, angOff=0.0,
              fixDAR=True, use_koa_weather=False, clean_dir=None,
              check_loc=True, **kwargs):
@@ -490,9 +490,9 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
     redDir = util.trimdir(os.path.abspath(waveDir + '../') + '/')
     rootDir = util.trimdir(os.path.abspath(redDir + '../') + '/')
 
-    sciDir = waveDir + '/sci_' + nite + '/'
+    sciDir = waveDir + '/sci_' + obsdate + '/'
     util.mkdir(sciDir)
-    ir.cd(sciDir)
+    os.chdir(sciDir)
 
     """ Set up the clean directory """
     cleanRoot = rootDir + 'clean/'
@@ -530,7 +530,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
 
     try:
         """ Set up the base list of frame numbers and prefixes """
-        files = aofn.inlist_to_framelist(inlist, inst, nite, frameroot=None)
+        files = aofn.inlist_to_framelist(inlist, inst, obsdate, frameroot=None)
         bgsubpref = 'bp'
         dewarppref = 'ce'
         finalpref = 'c'
@@ -546,7 +546,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
         Add the necessary header cards to the calibrated, background-subtracted
          files
         """
-        bpset = KaiSet(inlist, inst, obsdate=nite, frameroot=bgsubpref)
+        bpset = KaiSet(inlist, inst, obsdate=obsdate, frameroot=bgsubpref)
         print('')
         bpset.add_def_hdrinfo(inpref=bgsubpref)
 
@@ -560,7 +560,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
 
         """ Make the .coo and .rcoo files needed for final drizzle """
         print('')
-        dwset = KaiSet(inlist, inst, obsdate=nite, frameroot=dewarppref)
+        dwset = KaiSet(inlist, inst, obsdate=obsdate, frameroot=dewarppref)
         dwset.make_coo(refSrc, refSrc, inpref=dewarppref, outpref=finalpref,
                        check_loc=check_loc, **kwargs)
 
@@ -595,7 +595,7 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
                         ])
 
             # Rename and clean up files ###
-            ir.imrename(_bp, _cd)
+            os.rename(_bp, _cd)
 
             # Move to the clean directory ###
             util.rmall([clean + _cc, clean + _coo, clean + _rcoo,
@@ -614,10 +614,16 @@ def combprep(inlist, nite, obsfilt, inst, refSrc, strSrc, badColumns=None,
         data_sources_file.close()
     finally:
         # Move back up to the original directory
-        ir.cd('../')
+        os.chdir('../')
 
     # Change back to original directory
     os.chdir('../')
+
+    """ Calculate the Strehl and FWHM for the cleaned files """
+    # sci_frames = aofn.inlist_to_framelist(inlist, inst, obsdate,
+    #                                       frameroot=None)
+    data.calcStrehl(files, obsfilt, field=field, instrument=instrument,
+                    clean_dir=clean_dir)
 
 
 def make_combdirs(target, inlist, obsfilt, instrument):
@@ -742,7 +748,7 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
         clean_dirs = None
 
     if usestrehl:
-        data.calcStrehl(sci_frames, obsfilt, field=target, instrument=inst)
+        # data.calcStrehl(sci_frames, obsfilt, field=target, instrument=inst)
         combwht = 'strehl'
         submaps = 0
     else:
