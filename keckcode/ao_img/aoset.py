@@ -3,7 +3,6 @@ import sys
 import math
 import numpy as np
 
-from cdfutils import coords
 from specim.imfuncs.wcshdu import WcsHDU
 from ccdredux.ccdset import CCDSet
 
@@ -102,6 +101,7 @@ class AOSet(CCDSet):
         self.darkdir = None
         self.flatdir = None
         self.maskdir = None
+        self.skydir = None
         self.reduxdir = None
 
         """ Set instrument-specific values """
@@ -181,8 +181,8 @@ class AOSet(CCDSet):
                     hdu.pixscale = 0.01
 
         if verbose:
-            keylist =[]
-            for k in ['object', 'texp','gain', 'pixscale', 'PA']:
+            keylist = []
+            for k in ['object', 'texp', 'gain', 'pixscale', 'PA']:
                 if k in self.datainfo.colnames:
                     keylist.append(k)
             print(keylist)
@@ -341,7 +341,7 @@ class AOSet(CCDSet):
 
     #  ------------------------------------------------------------------------
 
-    def set_kai_dirs(self, obsfilt=None):
+    def set_kai_dirs(self, obsfilt=None, obsdate=None):
         """
 
         Sets names of directories in the KAI data reduction pipeline standard
@@ -357,6 +357,7 @@ class AOSet(CCDSet):
         self.flatdir = os.path.join(self.caldir, 'flats')
         self.maskdir = os.path.join(self.caldir, 'masks')
         if obsfilt is not None:
+            self.skydir = os.path.join(obsfilt, 'sky_%s' % self.obsdate)
             self.reduxdir = os.path.join(obsfilt, 'sci_%s' % self.obsdate)
 
         for d in [self.caldir, self.darkdir, self.flatdir, self.maskdir]:
@@ -367,6 +368,8 @@ class AOSet(CCDSet):
                 os.makedirs(obsfilt)
             if not os.path.isdir(self.reduxdir):
                 os.makedirs(self.reduxdir)
+            if not os.path.isdir(self.skydir):
+                os.makedirs(self.skydir)
 
     #  ------------------------------------------------------------------------
 
@@ -389,6 +392,7 @@ class AOSet(CCDSet):
             self.darkdir = '.'
             self.flatdir = '.'
             self.maskdir = '.'
+            self.skydir = '.'
         elif caldir == 'kaidefault':
             self.set_kai_dirs(obsfilt=obsfilt)
         elif isinstance(caldir, str):
@@ -457,7 +461,7 @@ class AOSet(CCDSet):
             if len(lamps_off) != len(self):
                 onoff_match = False
                 tmpnorm = None
-                # raise IndexError('\nDifferent number of files in lamps_off and'
+                # raise IndexError('Different number of files in lamps_off and'
                 #                  ' lamps_on\n')
 
         """ Set up directory names """
@@ -529,7 +533,7 @@ class AOSet(CCDSet):
             else:
                 print('Creating difference between lamps-on and lamps-off')
                 diff = WcsHDU(onfits, wcsverb=False) - \
-                       WcsHDU(offfits, wcsverb=False)
+                    WcsHDU(offfits, wcsverb=False)
                 normfac = diff.normalize(method=normalize)
                 diff.save(outfile)
                 print('%s - %s --> %s' % (onfits, offfits, outfile))
@@ -548,7 +552,8 @@ class AOSet(CCDSet):
 
     #  ------------------------------------------------------------------------
 
-    def create_sky(self, outname, obsfilt, skyscale=True,
+    def create_sky(self, outname, obsfilt, skyscale=True, caldir=None,
+                   indark=None,
                    inflat=None, reject='sigclip', nlow=1, nhigh=1):
         """
 
@@ -560,19 +565,16 @@ class AOSet(CCDSet):
         """
 
         """ Set up directory names """
-        pwd = os.getcwd()
-        caldir = os.path.join(pwd, 'calib')
-        flatdir = os.path.join(caldir, 'flats')
-        skydir = os.path.join(caldir, obsfilt, 'sky')
-        # skydir = os.path.join(caldir, 'sky_%s' % self.obsdate)
-        if not os.path.isdir(caldir):
-            os.makedirs(caldir)
-        if not os.path.isdir(skydir):
-            os.makedirs(skydir)
+        if self.flatdir is None:
+            self.set_caldirs(caldir=caldir, obsfilt=obsfilt)
 
-        """ Get full path to inflat if it is not None """
+        """ Set up input filenames """
+        indark = None
+        inflat = None
+        if indark is not None:
+            dark = os.path.join(self.darkdir, indark)
         if inflat is not None:
-            flatfile = os.path.join(flatdir, 'flat_')
+            flatfile = os.path.join(self.flatdir, 'flat_')
 
     #  ------------------------------------------------------------------------
 

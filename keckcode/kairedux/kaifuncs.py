@@ -277,7 +277,8 @@ def check_callist(callist, dictkeys):
     return newlist
 
 
-def make_sky(skylist, obsdate, instrument, suffix=None):
+def make_sky(skylist, obsdate, instrument, from_sci=False, dark4sky=None,
+             rawdir=None, suffix=None):
     """
 
     Makes a dark frame given either an input list of integer frame numbers
@@ -296,14 +297,36 @@ def make_sky(skylist, obsdate, instrument, suffix=None):
                                     suffix=suffix)
     print(skyframes)
 
+    """ Get the input directory """
+    if len(obsdate) == 8:
+        datestr = '%s_%s_%s' % (obsdate[:4], obsdate[4:6], obsdate[6:8])
+    elif len(obsdate) > 10:
+        datestr = '%s_%s_%s' % (obsdate[:4], obsdate[4:6], obsdate[6:])
+    else:
+        raise ValueError('obsdate parameter must be a string of at '
+                         'least 8 characters (e.g., 20170628)')
+    if rawdir is not None:
+        if rawdir == 'auto':
+            indir = os.path.join(os.getenv('sharpdat'), 'Raw', datestr)
+        else:
+            indir = rawdir
+    else:
+        indir = None
+
     """ Make the sky file """
     outfile = '%s.fits' % skylist['name']
     print('Creating the sky file: %s' % outfile)
-    sky.makesky(skyframes, obsdate, skylist['obsfilt'], instrument=inst)
+    if from_sci:
+        sky.makesky_fromsci(skyframes, obsdate, skylist['obsfilt'],
+                            raw_dir=indir, instrument=inst)
+    else:
+        sky.makesky(skyframes, obsdate, skylist['obsfilt'], raw_dir=indir,
+                    dark_frame=dark4sky, instrument=inst)
 
 
 def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
-                  instrument, dark4flat=None, root4sky=None, suffix=None):
+                  instrument, rawdir=None, dark4flat=None, root4sky=None,
+                  dark4sky=None, suffix=None):
     """
     
     Makes all of the calibration files
@@ -351,14 +374,15 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         basekeys.append('assn')
 
     """ Make darks and flats via a call to ao_funcs """
-    aofn.make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask,
-                       flat4mask, instrument, dark4flat=dark4flat,
-                       root4sky=root4sky, suffix=suffix)
+    tmpsky = None
+    aofn.make_calfiles(obsdate, darkinfo, flatinfo, tmpsky, dark4mask,
+                       flat4mask, instrument, rawdir=rawdir,
+                       dark4flat=dark4flat, root4sky=root4sky, suffix=suffix)
 
     """
     Make a sky frame
+    NOTE: the skyflat is created in the call to ao_funcs above
     """
-    allflats2 = []
     if skyinfo is not None:
         """ Check the skyinfo format """
         skeys = list(basekeys)
@@ -366,11 +390,10 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         skeys.append('type')
         skylist = check_callist(skyinfo, skeys)
 
-        """ NOTE: the skyflat is created in the call to ao_funcs above """
-
         """ Create the sky """
         for info in skylist:
-            make_sky(info, obsdate, instrument, suffix=suffix)
+            make_sky(info, obsdate, instrument, rawdir=rawdir,
+                     dark4sky=dark4sky, suffix=suffix)
 
     """
     Make the bad pixel mask, which KAI calls the 'supermask' from a dark and
@@ -477,6 +500,18 @@ def combprep(inlist, obsdate, obsfilt, inst, refSrc, strSrc, badColumns=None,
         Instrument of data. Default is `instruments.default_inst`
     """
 
+    """ 
+    Download weather data that will be used in later steps.
+    NOTE: This step is only needed if running the code within docker, and not 
+     even then if the "makelog_and_prep_images" function has been run within 
+     the same docker session that is being used to run this "go" function  
+    """
+    obsyear = obsdate[:4]
+    print('Downloading weather data for year %s' % obsyear)
+    dar.get_atm_conditions(obsyear)
+
+    print('')
+    print('Current directory: %s' % os.getcwd())
     print('')
     print('Preparing calibrated data files for coaddition')
     print('==============================================')
@@ -692,7 +727,8 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
         print('kaicomb: inlist must be either a dict or a list of dicts')
         raise TypeError
 
-    keys= ['obsdate', 'frames']
+    """ Check the keys in the input list """
+    keys = ['obsdate', 'frames']
     if inst == osiris:
         keys.append('assn')
     missing_key = False
@@ -702,53 +738,39 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
             if k not in d.keys():
                 print('kaicomb: %s missing from input dict' % k)
                 missing_key = True
-        if 'clean_dir' in d.keys():
-            cdir = True
+        if clean_dir == 'dict':
+            if 'clean_dir' not in d.keys():
+                print('kaicomb: clean_dir missing from input dict')
+                missing_key = True
         if missing_key:
             print('')
             raise KeyError
 
-    """ 
-    Download weather data that will be used in later steps.
-    NOTE: This step is only needed if running the code within docker, and not 
-     even then if the "makelog_and_prep_images" function has been run within 
-     the same docker session that is being used to run this "go" function  
-    """
-    obsyear = obsdate[:4]
-    print('Downloading weather data for year %s' % obsyear)
-    dar.get_atm_conditions(obsyear)
-
-    """ Prepare the calibrated files for coaddition """
+    """ Set up the clean directories """
+    if clean_dir is not None:
+        clean_dirs = []
+        for d in dlist:
+            if clean_dir == 'dict':
+                clean_dirs.append(d['clean_dir'])
+            else:
+                clean_dirs.append('../clean')
+    else:
+        clean_dirs = None
     print('')
-    print('Current directory: %s' % os.getcwd())
-    print('')
-    combprep(inlist, obsdate, obsfilt, instrument, refSrc, refSrc,
-             field=target, clean_dir=clean_dir, **kwargs)
+    print(clean_dirs)
 
     """
-    Calculate Strehl-based weights if requested.
+    Set up the weighting for the final coadd.  Right now the options are
+     either 'strehl' or None.  If the Strehl option is chosen, then images
+     with a higher strehl are given a higher weight.  The Strehls are
+     calculated by the call to data.calcStrehl in the combprep function above
     The submaps parameter sets the number of subsets of the data to
      combine.  The Berkeley group sets submaps=3.  That means that the
      images get sorted by Strehl value and then subsets of the full sorted
      list get combined.  
     """
-    sci_frames = aofn.inlist_to_framelist(inlist, instrument, obsdate,
-                                          frameroot=None)
-
-    if cdir:
-        clean_dirs = []
-        for d in dlist:
-            if 'clean_dir' in d.keys():
-                clean_dir = d['clean_dir']
-            else:
-                clean_dir = '../clean'
-            for f in d['frames']:
-                clean_dirs. append(clean_dir)
-    else:
-        clean_dirs = None
 
     if usestrehl:
-        # data.calcStrehl(sci_frames, obsfilt, field=target, instrument=inst)
         combwht = 'strehl'
         submaps = 0
     else:
@@ -759,6 +781,8 @@ def kaicomb(target, obsdate, inlist, obsfilt, refSrc, instrument, suffix=None,
     print('')
     print('Combining the calibrated files')
     print('------------------------------')
+    sci_frames = aofn.inlist_to_framelist(inlist, instrument, obsdate,
+                                          frameroot=None)
     data.combine(sci_frames, obsfilt, obsdate, field=target,
                  trim=0, weight=combwht, submaps=submaps, instrument=inst,
                  clean_dirs=clean_dirs)

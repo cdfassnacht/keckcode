@@ -338,7 +338,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
             allflats1.append('%s.fits' % info['name'])
 
     """
-    Make a sky frame
+    Make a sky-flat frame
     """
     allflats2 = []
     if skyinfo is not None:
@@ -377,7 +377,10 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
                                        info['obsfilt'])
                 finalflat.writeto(outfile)
 
-        """ Create the sky """
+        """
+        Create the sky
+        NOTE: For now this is done in the kaifuncs code 
+        """
         # for info in skylist:
         #     make_sky(info, obsdate, instrument, suffix=suffix)
 
