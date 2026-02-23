@@ -278,7 +278,7 @@ def check_callist(callist, dictkeys):
 
 
 def make_sky(skylist, obsdate, instrument, from_sci=False, dark4sky=None,
-             rawdir=None, suffix=None):
+             rawdir=None, suffix=None, debug=False):
     """
 
     Makes a dark frame given either an input list of integer frame numbers
@@ -295,12 +295,13 @@ def make_sky(skylist, obsdate, instrument, from_sci=False, dark4sky=None,
     """ Create the framelist in the proper format """
     skyframes = inlist_to_framelist(skylist, instrument, obsdate,
                                     suffix=suffix)
-    print(skyframes)
+    if debug:
+        print(skyframes)
 
     """ Get the input directory """
     if len(obsdate) == 8:
         datestr = '%s_%s_%s' % (obsdate[:4], obsdate[4:6], obsdate[6:8])
-    elif len(obsdate) > 10:
+    elif len(obsdate) > 8:
         datestr = '%s_%s_%s' % (obsdate[:4], obsdate[4:6], obsdate[6:])
     else:
         raise ValueError('obsdate parameter must be a string of at '
@@ -326,7 +327,7 @@ def make_sky(skylist, obsdate, instrument, from_sci=False, dark4sky=None,
 
 def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
                   instrument, rawdir=None, dark4flat=None, root4sky=None,
-                  dark4sky=None, suffix=None):
+                  dark4sky=None, flat4sky=None, suffix=None):
     """
     
     Makes all of the calibration files
@@ -374,10 +375,10 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         basekeys.append('assn')
 
     """ Make darks and flats via a call to ao_funcs """
-    tmpsky = None
-    aofn.make_calfiles(obsdate, darkinfo, flatinfo, tmpsky, dark4mask,
+    aofn.make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask,
                        flat4mask, instrument, rawdir=rawdir,
-                       dark4flat=dark4flat, root4sky=root4sky, suffix=suffix)
+                       dark4flat=dark4flat, dark4sky=dark4sky,
+                       flat4sky=flat4sky, root4sky=root4sky, suffix=suffix)
 
     """
     Make a sky frame
@@ -391,21 +392,11 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         skylist = check_callist(skyinfo, skeys)
 
         """ Create the sky """
+        """ COMMENTED OUT - sky now made in call to ao_funcs aboe
         for info in skylist:
             make_sky(info, obsdate, instrument, rawdir=rawdir,
                      dark4sky=dark4sky, suffix=suffix)
-
-    """
-    Make the bad pixel mask, which KAI calls the 'supermask' from a dark and
-     a flat.
-    Use a long-exposure dark (>20 sec) for this.
-    Note: the code assumes that the input files are found in calib/darks
-     and calib/flats
-    """
-    print('')
-    print('Making supermask.fits')
-    print('---------------------')
-    calib.makemask(dark4mask, flat4mask, 'supermask.fits', instrument=inst)
+        """
 
 
 def name_checker(a, b):

@@ -400,6 +400,7 @@ class AOSet(CCDSet):
             self.darkdir = caldir
             self.flatdir = caldir
             self.maskdir = caldir
+            self.skydir = caldir
         else:
             print('')
             raise TypeError('caldir must be either a string or None')
@@ -553,28 +554,33 @@ class AOSet(CCDSet):
     #  ------------------------------------------------------------------------
 
     def create_sky(self, outname, obsfilt, skyscale=True, caldir=None,
-                   indark=None,
-                   inflat=None, reject='sigclip', nlow=1, nhigh=1):
+                   indark=None, inflat=None, smosize=9, smtype='median',
+                   nhigh=1, verbose=True, **kwargs):
         """
 
         Makes a sky file, broadly following the KAI algorithm, but with the
          possibility of applying the flat-field file to the sky frames
          before combining them.
 
-         NOT FINISHED YET.  DON'T USE!
         """
 
         """ Set up directory names """
         if self.flatdir is None:
             self.set_caldirs(caldir=caldir, obsfilt=obsfilt)
 
-        """ Set up input filenames """
-        indark = None
-        inflat = None
+        """ Set up input and output filenames """
+        dark = None
+        flat = None
         if indark is not None:
             dark = os.path.join(self.darkdir, indark)
         if inflat is not None:
-            flatfile = os.path.join(self.flatdir, 'flat_')
+            flat = os.path.join(self.flatdir, inflat)
+        outfile = os.path.join(self.skydir, outname)
+
+        """ Combine the files using the make_sky method (in CCDSet class) """
+        self.make_sky(outroot=outfile, smosize=smosize, smtype=smtype,
+                      nhigh=nhigh, verbose=verbose, bias=dark, flat=flat,
+                      **kwargs)
 
     #  ------------------------------------------------------------------------
 

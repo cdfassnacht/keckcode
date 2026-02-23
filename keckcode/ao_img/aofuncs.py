@@ -198,7 +198,7 @@ def check_callist(callist, dictkeys):
     return newlist
 
 
-def make_dark(darklist, obsdate, instrument, rawdir='../raw', caldir=None,
+def make_dark(darkinfo, obsdate, instrument, rawdir='../raw', caldir=None,
               suffix=None):
     """
 
@@ -209,13 +209,17 @@ def make_dark(darklist, obsdate, instrument, rawdir='../raw', caldir=None,
     """
 
     """ Get the output file name """
-    outfile = '%s.fits' % darklist['name']
+    if darkinfo['name'][-4:] != 'fits':
+        outfile = '%s.fits' % darkinfo['name']
+    else:
+        outfile = darkinfo['name']
     print('Creating the dark file: %s' % outfile)
 
     """ Make the dark file """
-    darkset = AOSet(darklist, instrument, obsdate, indir=rawdir, is_sci=False,
+    darkset = AOSet(darkinfo, instrument, obsdate, indir=rawdir, is_sci=False,
                     wcsverb=False)
     darkset.create_dark(outfile, caldir=caldir)
+    print('')
 
 
 def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
@@ -242,6 +246,7 @@ def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
     normalize = 'sigclip'
 
     """ Make a KaiSet holder for the lamps-on frames """
+    print('Reading flat-field frames (lamps on)')
     flats_on = AOSet(flatlist, instrument, obsdate, indir=rawdir, is_sci=False,
                      wcsverb=False)
 
@@ -254,6 +259,7 @@ def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
                        'frames': flatlist['offframes']}
         else:
             tmpdict = {'frames': flatlist['offframes']}
+        print('Reading flat-field frames (lamps off)')
         flats_off = AOSet(tmpdict, instrument, obsdate, indir=rawdir,
                           is_sci=False, wcsverb=False)
 
@@ -265,8 +271,51 @@ def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
                          indark=indark, inflat=inflat, caldir=caldir)
 
 
+def make_sky(skyinfo, obsdate, instrument, outroot='default', rawdir=None,
+             caldir=None, indark=None, inflat=None, bpm=None, **kwargs):
+    """
+
+    Uses blank sky images (COMING - or science frames) to make an additive
+    sky frame.
+
+    Inputs:
+      skyinfo:
+      obsdate:
+      instrument:
+      rawdir:
+      caldir:
+      indark:
+      inflat:
+      bpm:
+      kwargs:
+
+    """
+
+    """ Read in the input files """
+    skies = AOSet(skyinfo, instrument, obsdate=obsdate, indir=rawdir,
+                  is_sci=False, wcsverb=False)
+
+    """ Set up the root name for the output files """
+    if outroot is not None:
+        if outroot == 'default':
+            skyroot = '%s_%s' % (skyinfo['name'], skyinfo['obsfilt'])
+        elif isinstance(outroot, str):
+            skyroot = outroot
+        else:
+            raise TypeError('make_sky: outroot parameter must be a string')
+    else:
+        raise TypeError('make_sky: outroot parameter must be a string')
+
+    """
+    Make the sky file using the create_sky method in the AOSet class
+    """
+    skies.create_sky(skyroot, skyinfo['obsfilt'], caldir=caldir, indark=indark,
+                     inflat=inflat, outdir=skies.skydir, bpm=bpm, **kwargs)
+
+
 def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
-                  instrument, rawdir=None, caldir=None, dark4flat=None,
+                  instrument, skyflatinfo=None, rawdir=None, caldir=None,
+                  dark4flat=None, dark4sky=None, flat4sky=None,
                   root4sky=None, suffix=None,  forkai=True, **kwargs):
     """
     
@@ -308,7 +357,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     if instrument == 'osiris' or instrument == 'osim':
         basekeys.append('assn')
 
-    """ Create the dark(s) as long as darkinfo is not None"""
+    """ Create the dark(s) if darkinfo is not None"""
     if darkinfo is not None:
         """ Check the darkinfo format """
         dkeys = list(basekeys)
@@ -321,7 +370,11 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
                       suffix=suffix)
         del dkeys
 
-    """ Create the flat(s) as long as flatinfo is not None"""
+        print('===========================================================')
+        print('   Finished creating dark frames')
+        print('===========================================================')
+
+    """ Create the flat(s) if flatinfo is not None"""
     allflats1 = []
     if flatinfo is not None:
         """ Check the flatinfo format """
@@ -333,15 +386,82 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         for info in flatlist:
             print('')
             make_flat(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
-                      suffix=suffix,
-                      indark=dark4flat)
+                      suffix=suffix, indark=dark4flat)
             allflats1.append('%s.fits' % info['name'])
+
+        print('===========================================================')
+        print('   Finished creating flat-field frames')
+        print('===========================================================')
+
+    """
+    Make the bad pixel mask, which KAI calls the 'supermask' from a dark and
+     a flat.
+    Use a long-exposure dark (>20 sec) for this.
+    Note: the code assumes that the input files are found in calib/darks
+     and calib/flats
+    """
+    print('')
+    print('Making a bad pixel mask (what KAI calls a supermask)')
+    print('---------------------')
+    dark = WcsHDU(dark4mask, wcsverb=False)
+    bpm = dark.make_bpm('dark', goodval=0, flat=flat4mask)
+
+    """ Add the known instrumental bad features to this mask, if available """
+    moddir = os.path.dirname(__file__)
+    if instrument == 'nirc2':
+        instmask = os.path.join(moddir, 'data', 'nirc2mask.fits')
+    else:
+        instmask = os.path.join(moddir, 'data', 'osiris_mask_preflip.fits')
+    if os.path.isfile(instmask):
+        maskhdu = WcsHDU(instmask, wcsverb=False)
+        if maskhdu.data.shape[0] == bpm.shape[0]:
+            bpm[maskhdu.data > 0] = 1
+        del maskhdu
+    bpmhdu = WcsHDU(bpm, wcsverb=False)
+    bpmout = 'bpm_%s.fits' % obsdate
+    bpmhdu.save(bpmout)
+    print('Saved bad pixel mask file: %s' % bpmout)
+
+    """
+    The later drizzling stages of the KAI data reduction pipeline expect the
+    bad pixel mask, which is called the "supermask" in the code, is flipped
+    to match the flip that is applied to the data.  Therefore, if this method
+    is part of a KAI-based reduction, it should make two bad pixel masks:
+     1. In the native instrument orientation, to be used in the data calibration
+     2. In the flipped, supermask, orientation, for the later drizzling steps
+    """
+    if forkai:
+        if instrument == 'osiris' or instrument == 'osim':
+            smhdu = bpmhdu.process_data(flip='y')
+        else:
+            smhdu = bpmhdu
+        smhdu.save('supermask.fits')
+        print('Saved supermask.fits')
+
+    print('')
+    print('===========================================================')
+    print('   Finished creating bad pixel mask')
+    print('===========================================================')
+
+    """
+    Create an additive sky frame
+    """
+    if skyinfo is not None:
+        """ Check the skyinfo format """
+        skeys = list(basekeys)
+        skeys.append('obsfilt')
+        skeys.append('type')
+        skylist = check_callist(skyinfo, skeys)
+
+        for info in skylist:
+            make_sky(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
+                     indark=dark4sky, inflat=flat4sky, bpm=bpmhdu, badval=1)
 
     """
     Make a sky-flat frame
     """
     allflats2 = []
-    if skyinfo is not None:
+    if skyflatinfo is not None:
         """ Check the skyinfo format """
         skeys = list(basekeys)
         skeys.append('obsfilt')
@@ -377,54 +497,6 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
                                        info['obsfilt'])
                 finalflat.writeto(outfile)
 
-        """
-        Create the sky
-        NOTE: For now this is done in the kaifuncs code 
-        """
-        # for info in skylist:
-        #     make_sky(info, obsdate, instrument, suffix=suffix)
-
-    """
-    Make the bad pixel mask, which KAI calls the 'supermask' from a dark and
-     a flat.
-    Use a long-exposure dark (>20 sec) for this.
-    Note: the code assumes that the input files are found in calib/darks
-     and calib/flats
-    """
-    print('')
-    print('Making a bad pixel mask (what KAI calls a supermask)')
-    print('---------------------')
-    dark = WcsHDU(dark4mask, wcsverb=False)
-    bpm = dark.make_bpm('dark', goodval=0, flat=flat4mask)
-    """ Add the known instrumental bad features to this mask, if available """
-    moddir = os.path.dirname(__file__)
-    if instrument == 'nirc2':
-        instmask = os.path.join(moddir, 'data', 'nirc2mask.fits')
-    else:
-        instmask = os.path.join(moddir, 'data', 'osiris_mask_preflip.fits')
-    if os.path.isfile(instmask):
-        maskhdu = WcsHDU(instmask, wcsverb=False)
-        if maskhdu.data.shape[0] == bpm.shape[0]:
-            bpm[maskhdu.data > 0] = 1
-        del maskhdu
-    bpmhdu = WcsHDU(bpm, wcsverb=False)
-    bpmhdu.save('bpm_%s.fits' % obsdate)
-
-    """
-    The later drizzling stages of the KAI data reduction pipeline expect the
-    bad pixel mask, which is called the "supermask" in the code, is flipped
-    to match the flip that is applied to the data.  Therefore, if this method
-    is part of a KAI-based reduction, it should make two bad pixel masks:
-     1. In the native instrument orientation, to be used in the data calibration
-     2. In the flipped, supermask, orientation, for the later drizzling steps
-    """
-    if forkai:
-        if instrument == 'osiris' or instrument == 'osim':
-            smhdu = bpmhdu.process_data(flip='y')
-        else:
-            smhdu = bpmhdu
-        smhdu.save('supermask.fits')
-
     print('')
     print('Finished creating calibration files for %s' % obsdate)
     print('')
@@ -432,10 +504,10 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
 # ---------------------------------------------------------------------------
 
 
-def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
-           badval=1, darkskylist=None, dsroot='darksky', skytype='clipmean',
-           rawdir='auto', wcstype='koa', inpref='default', obsfilt=None,
-           outdir=None, outpref='bgsub', **kwargs):
+def apply_cal(inlist, obsdate, inst, caldir, dark, flat, bpm=None, sky=None,
+              badval=1, darkskylist=None, dsroot='darksky', skytype='clipmean',
+              rawdir='auto', wcstype='koa', inpref='default', obsfilt=None,
+              outdir=None, outpref='bgsub', **kwargs):
     """
 
     Code that applies calibration to the raw input files
@@ -456,7 +528,7 @@ def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
     """
     raw.set_caldirs(caldir=caldir, obsfilt=obsfilt)
     caldirs = {'darkdir': raw.darkdir, 'flatdir': raw.flatdir,
-               'maskdir': raw.maskdir}
+               'maskdir': raw.maskdir, 'skydir': raw.skydir}
 
     """
     If requested, process the frames for the local dark-sky flat and then make
@@ -467,9 +539,9 @@ def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
                      wcstype=wcstype)
         dsky.set_caldirs(caldir=caldir, obsfilt=obsfilt)
         caldirs = {'darkdir': raw.darkdir, 'flatdir': raw.flatdir,
-                   'maskdir': raw.maskdir}
-        dsff = dsky.apply_calib(bias=dark, flat=flat, bpm=bpm, caldir=caldirs,
-                                badval=badval)
+                   'maskdir': raw.maskdir, 'skydir': raw.skydir}
+        dsff = dsky.apply_calib(bias=dark, flat=flat, bpm=bpm, skysub=sky,
+                                caldir=caldirs, badval=badval)
         dsff.make_skyflat(outroot=dsroot, outdir=raw.flatdir, **kwargs)
         dsfile = '%s_%s.fits' % (dsroot, skytype)
 
@@ -495,5 +567,5 @@ def reduce(inlist, obsdate, inst, caldir, dark, flat, bpm=None,
     skysub = 'sigclip'
     # skysub = None
     raw.apply_calib(bias=dark, flat=flat, bpm=bpm, darksky=dsfile,
-                    zerosky=skysub, flip=flip, outfiles=outfiles,
+                    sky=sky, flip=flip, outfiles=outfiles,
                     caldir=caldirs, badval=badval)
