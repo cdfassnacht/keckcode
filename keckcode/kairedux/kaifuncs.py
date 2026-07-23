@@ -392,7 +392,7 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
         skylist = check_callist(skyinfo, skeys)
 
         """ Create the sky """
-        """ COMMENTED OUT - sky now made in call to ao_funcs aboe
+        """ COMMENTED OUT - sky now made in call to ao_funcs above
         for info in skylist:
             make_sky(info, obsdate, instrument, rawdir=rawdir,
                      dark4sky=dark4sky, suffix=suffix)
@@ -922,3 +922,80 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
     whdr['datasec'] = '[1:%d,1:%d]' % (hdr['naxis1'], hdr['naxis2'])
 
     newwht.writeto(outfile=outwht)
+
+def go_kai_drp(obsdata, caldata, skylist, suffix=None):
+    """
+
+    Function to run the full KAI data reduction pipeline on a set of exposures of a
+    science target.
+
+    Inputs:
+       obsdata - A dict that contains information about the target and observations.
+                 Required keys include:
+                   lensroot - Root name for the graviational lens system.  Typically the RA
+                              portion of the system's name
+                   obsdate  - Date of observations
+                   inst     - Instrument name, either 'osiris' or 'nirc2'
+                   obsfilt  - Filter used for observations, e.g., 'Kp'
+                   refpos   - The (x,y) pixel position of the reference star in the first
+                              exposure
+                   skyscale - boolean, either True or False
+
+    """
+
+    """ Set up the instrument """
+    """ Get the instrument """
+    try:
+        inst = get_instrument(obsdata['instrument'])
+    except ValueError:
+        return
+
+    """ Get the science files into the correct format """
+    sci_files = inlist_to_framelist(obsdata['scilist'], obsdata['instrument'],
+                                    obsdata['obsdate'], suffix=suffix)
+    print('')
+    print('Science files')
+    print('-------------')
+    for f in sci_files:
+        print(' %s' % f)
+
+    """ Get the sky files into the correct format """
+    sky_files = inlist_to_framelist(skylist, obsdata['instrument'],
+                                    obsdata['obsdate'], suffix=suffix)
+    print('')
+    print('Sky files')
+    print('-------------')
+    for f in sky_files:
+        print(' %s' % f)
+
+    """ Make the sky file for this object/night combination """
+    print('')
+    print('Creating sky file')
+    print('-----------------')
+    sky.makesky(sky_files, obsdata['lensroot'], obsdata['obsfilt'],
+                instrument=inst)
+
+    """ Apply the calibration to the data """
+    print('')
+    print('Calibrating science frames')
+    print('--------------------------')
+    data.clean(sci_files, obsdata['lensroot'], obsdata['obsfilt'],
+               obsdata['refpos'], obsdata['refpos'], field=obsdata['lensroot'],
+               instrument=inst, dark_frame=caldata['dark'],
+               skyscale=obsdata['skyscale'])
+
+    """ Calculate the Strehl for possible weighting in image combination """
+    print('')
+    print('Making Strehl measurements')
+    print('--------------------------')
+    data.calcStrehl(sci_files, obsdata['obsfilt'], field=obsdata['lensroot'],
+                    instrument=inst)
+
+    """ Coadd the images """
+    print('')
+    print('Coadding science images')
+    print('--------------------------')
+    data.combine(sci_files, obsdata['obsfilt'], obsdata['obsdate'],
+                 field=obsdata['lensroot'], instrument=inst,
+                 trim=0, weight='strehl', submaps=3)
+
