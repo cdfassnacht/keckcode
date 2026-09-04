@@ -21,7 +21,7 @@ class AOSet(CCDSet):
 
     def __init__(self, inlist, instrument, obsdate=None, indir=None, gzip=False,
                  frameroot='default', wcstype=None, is_sci=True, verbose=True,
-                 **kwargs):
+                 suff='.fits', **kwargs):
 
         """ Make sure that inlist is in the correct format """
         if isinstance(inlist, (list, tuple, dict)):
@@ -51,7 +51,7 @@ class AOSet(CCDSet):
             if datestr is not None:
                 indir = os.path.join(os.getenv('sharpdat'), 'Raw', datestr)
             else:
-                raise ValueError('If choosing "auto" for indir then obdate '
+                raise ValueError('If choosing "auto" for indir then obsdate '
                                  'must be provided')
         else:
             pass
@@ -75,11 +75,11 @@ class AOSet(CCDSet):
 
         """ Create the input filelist from the passed parameters """
         if isinstance(inlist, dict):
-            filelist = self.make_filelist([inlist], obsdate,
+            filelist = self.make_filelist([inlist], obsdate, suff=suff,
                                           frameroot=frameroot, gzip=gzip)
         elif isinstance(inlist[0], dict):
             filelist = self.make_filelist(inlist, obsdate, frameroot=frameroot,
-                                          gzip=gzip)
+                                          suff=suff, gzip=gzip)
         else:
             """
             For any other data types, let CCDSet (called through the "super"
@@ -88,6 +88,7 @@ class AOSet(CCDSet):
             filelist = inlist
 
         """ Set up the AOSet container by calling the superclass """
+        print(filelist)
         if pyversion == 2:
             super(AOSet, self).__init__(filelist, texpkey=texpkey,
                                         gainkey=gainkey, indir=indir,
@@ -103,6 +104,7 @@ class AOSet(CCDSet):
         self.maskdir = None
         self.skydir = None
         self.reduxdir = None
+        self.filelist = filelist
 
         """ Set instrument-specific values """
         if instrument == 'osiris' or instrument == 'osim':
@@ -248,7 +250,8 @@ class AOSet(CCDSet):
     #  ------------------------------------------------------------------------
 
     @staticmethod
-    def make_filelist_osim(assnlist, obsdate, frameroot='default', suff='fits'):
+    def make_filelist_osim(assnlist, obsdate, frameroot='default',
+                           suff='_flip.fits'):
         """
 
         Makes a list of file names based on an input directory and an OSIRIS
@@ -280,14 +283,14 @@ class AOSet(CCDSet):
                         filebase = '%s%03d%03d' % (frameroot, assn, j)
                 else:
                     filebase = '%03d%03d' % (assn, j)
-                filelist.append('%s.%s' % (filebase, suff))
+                filelist.append('%s%s' % (filebase, suff))
         # print(filelist)
         return filelist
 
     #  ------------------------------------------------------------------------
 
     @staticmethod
-    def make_filelist_nirc2(inlist, frameroot='default', suff='fits'):
+    def make_filelist_nirc2(inlist, frameroot='default', suff='.fits'):
 
         """ Create a filelist from the inputs """
         filelist = []
@@ -305,13 +308,14 @@ class AOSet(CCDSet):
                     filebase = 'n%04d' % j
                 else:
                     filebase = '%s%04d' % (frameroot, j)
-                filelist.append('%s.%s' % (filebase, suff))
+                filelist.append('%s%s' % (filebase, suff))
 
         return filelist
 
     #  ------------------------------------------------------------------------
 
-    def make_filelist(self, inlist, obsdate, frameroot='default', gzip=False):
+    def make_filelist(self, inlist, obsdate, frameroot='default', suff='.fits',
+                      gzip=False):
         """
 
         Makes a list of file names based on an input directory and an OSIRIS
@@ -325,13 +329,13 @@ class AOSet(CCDSet):
 
         """ Set the file extension """
         if gzip:
-            suff = 'fits.gz'
+            suffix = '%s.gz' % suff
         else:
-            suff = 'fits'
+            suffix = suff
 
         """ Get the filelist, which depends on the instrument being used """
         if self.instrument == 'osiris':
-            filelist = self.make_filelist_osim(inlist, obsdate, suff=suff,
+            filelist = self.make_filelist_osim(inlist, obsdate, suff=suffix,
                                                frameroot=frameroot)
         else:
             filelist = self.make_filelist_nirc2(inlist, frameroot=frameroot,

@@ -6,6 +6,8 @@ from astropy.io import fits as pf
 
 from kai import instruments
 from kai.reduce import data
+from kai.reduce import calib
+from kai.reduce import sky
 # from kai.reduce import kai_util
 from kai.reduce import util
 from ..ao_img.aoset import AOSet
@@ -27,7 +29,7 @@ class KaiSet(AOSet):
     """
 
     def __init__(self, inlist, instrument, obsdate, indir=None, gzip=False,
-                 verbose=True, **kwargs):
+                 verbose=True, suff='.fits', **kwargs):
 
         """ Make sure that inlist is in the correct format """
         if isinstance(inlist, (list, tuple, dict)):
@@ -39,11 +41,11 @@ class KaiSet(AOSet):
         """ Set up the KaiSet container by calling the superclass """
         if pyversion == 2:
             super(KaiSet, self).__init__(inlist, instrument, obsdate,
-                                         indir=indir,
+                                         indir=indir, suff=suff,
                                          gzip=gzip, verbose=verbose, **kwargs)
         else:
             super().__init__(inlist, instrument, obsdate, indir=indir,
-                             gzip=gzip, verbose=verbose, **kwargs)
+                             gzip=gzip, suff=suff, verbose=verbose, **kwargs)
 
         """ Get the instrument in KAI format """
         self.inst = None
@@ -73,6 +75,126 @@ class KaiSet(AOSet):
                              '"osiris" or "nirc2"\n')
 
     #  ------------------------------------------------------------------------
+
+    def make_dark_drp(self, outfile):
+        """
+
+        Make a dark file by calling the makedark function in the KAI DRP
+
+        Inputs:
+         outfile - output filename
+
+        """
+
+        """ Check output filename format """
+        if outfile[-4:] != 'fits':
+            ofile = '%s.fits' % outfile
+        else:
+            ofile = outfile
+
+        """ Fix the file list for input to calib makedark """
+        darkfiles = []
+        for f in self.filelist:
+            if f[-4:] == 'fits':
+                darkfiles.append(f[:-5])
+            else:
+                darkfiles.append(f)
+
+        """ Make the dark file """
+        calib.makedark(darkfiles, ofile, instrument=self.inst)
+        print('')
+        print('Created dark image: %s' % ofile)
+
+    def make_flat_drp(self, flatinfo, off_set):
+        """
+
+        Make a flat file by calling the makedark function in the KAI DRP
+
+        Inputs:
+         outfile - output filename
+
+        """
+
+        """ Check output filename format """
+        # outfile = flatinfo['name']
+        outfile = 'flat_%s.fits' % flatinfo['obsfilt']
+        if outfile[-4:] != 'fits':
+            ofile = '%s.fits' % outfile
+        else:
+            ofile = outfile
+
+        """ Create the file list for the lamps-on flats """
+        on_files = []
+        for f in self.filelist:
+            if f[-4:] == 'fits':
+                on_files.append(f[:-5])
+            else:
+                on_files.append(f)
+
+        """ Make the file list for the lamps-off flats, if available """
+        if off_set is not None:
+            off_files = []
+            for f in off_set.filelist:
+                if f[-4:] == 'fits':
+                    off_files.append(f[:-5])
+                else:
+                    off_files.append(f)
+
+        """ Identify the dark frame for the flats """
+        if 'dark4flat' in flatinfo.keys():
+            dark4flat = flatinfo['dark4flat']
+            if dark4flat[-4:] != 'fits':
+                dark4flat = '%s.fits' % dark4flat
+        else:
+            dark4flat = None
+
+        """ Make the flat file """
+        calib.makeflat(on_files, off_files, ofile, instrument=self.inst,
+                       dark_frame=dark4flat)
+        print('')
+        print('Created flat image: %s' % ofile)
+
+    def make_sky_drp(self, skyinfo, obsdate):
+        """
+
+        Make a sky file by calling either the makesky function or the
+        makesky_fromsci function (not yet implemented) in the KAI DRP
+
+        Inputs:
+         skyinfo - skyinfo dictionary
+         obsdate - date of observation
+
+        """
+
+        """ Check output filename format """
+        outfile = 'sky_%s.fits' % skyinfo['obsfilt']
+        if outfile[-4:] != 'fits':
+            ofile = '%s.fits' % outfile
+        else:
+            ofile = outfile
+
+        """ Create the file list for the sky flats """
+        skyfiles = []
+        for f in self.filelist:
+            if f[-4:] == 'fits':
+                skyfiles.append(f[:-5])
+            else:
+                skyfiles.append(f)
+
+
+        """ Identify the dark frame for the sky frames """
+        #if 'dark4flat' in flatinfo.keys():
+        #    dark4flat = flatinfo['dark4flat']
+        #    if dark4flat[-4:] != 'fits':
+        #        dark4flat = '%s.fits' % dark4flat
+        #else:
+        #    dark4flat = None
+
+        """ Make the sky file """
+        sky.makesky(skyfiles, obsdate, skyinfo['obsfilt'],
+                    instrument=self.inst)
+        print('')
+        print('Created sky image: %s' % ofile)
 
     def add_def_hdrinfo(self, inpref='bp', maxpref='c', verbose=True):
         """
