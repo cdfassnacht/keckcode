@@ -927,8 +927,8 @@ def finalize(target, obsdate, inlist, obsfilt, refradec, instrument,
 
     newwht.writeto(outfile=outwht)
 
-def go_cal_drp(obsdate, instrument, darklist=None, flatlist=None, skylist=None,
-               rawdir='../raw', suff='default'):
+def go_cal_drp(obsdate, instrument, darklist=None, flatlist=None, maskinfo=None,
+               skylist=None, rawdir='../raw', suff='default'):
     """
 
     Creates calibration files using the KAI DRP functions rather than the
@@ -1012,6 +1012,19 @@ def go_cal_drp(obsdate, instrument, darklist=None, flatlist=None, skylist=None,
         print('   Finished creating flat frame(s)')
         print('===========================================================')
 
+    """ Make the general bad pixel mask (supermask) if requested """
+    if maskinfo is not None:
+        print('')
+        print('Creating general bad pixel mask (supermask)')
+        print('-------------------------------------------')
+        calib.makemask(maskinfo['dark'], maskinfo['flat'], 'supermask.fits',
+                       instrument=inst)
+        print('')
+        print('===========================================================')
+        print('   Finished creating bad pixel mask (supermask)')
+        print('===========================================================')
+
+
     """ Make the sky if requested """
     if skylist is not None:
         """ Check the skylist format """
@@ -1027,6 +1040,7 @@ def go_cal_drp(obsdate, instrument, darklist=None, flatlist=None, skylist=None,
         for info in skyinfo:
             skyset = KaiSet(info, instrument, obsdate, indir=rawdir,
                             is_sci=False, wcsverb=False, suff=suff)
+            print('')
             skyset.make_sky_drp(info, obsdate)
         del skeys
         print('===========================================================')
@@ -1037,8 +1051,8 @@ def go_cal_drp(obsdate, instrument, darklist=None, flatlist=None, skylist=None,
 def go_kai_drp(obsdata, caldata, suffix=None):
     """
 
-    Function to run the full KAI data reduction pipeline on a set of exposures of a
-    science target.
+    Function to run the full KAI data reduction pipeline on a set of exposures
+     of a science target.
 
     Inputs:
        obsdata - A dict that contains information about the target and observations.
@@ -1073,22 +1087,22 @@ def go_kai_drp(obsdata, caldata, suffix=None):
     print('')
     print('Calibrating science frames')
     print('--------------------------')
-    apply_cal_drp(sci_files, obsdata['obsdate'], obsdata['obsfilt'],
-                  obsdata['refpos'], obsdata['refpos'], field=obsdata['lensroot'],
-                  instrument=inst, dark_frame=caldata['dark'],
-                  skyscale=obsdata['skyscale'])
-    align_drp(sci_files, obsdata['lensroot'], obsdata['obsfilt'],
-              obsdata['refpos'], obsdata['refpos'], field=obsdata['lensroot'],
-              instrument=inst, dark_frame=caldata['dark'],
-              skyscale=obsdata['skyscale'])
+    # apply_cal_drp(sci_files, obsdata['obsdate'], obsdata['obsfilt'],
+    #               obsdata['refpos'], obsdata['refpos'], field=obsdata['lensroot'],
+    #               instrument=inst, dark_frame=caldata['dark'],
+    #               skyscale=obsdata['skyscale'])
+    # align_drp(sci_files, obsdata['lensroot'], obsdata['obsfilt'],
+    #           obsdata['refpos'], obsdata['refpos'], field=obsdata['lensroot'],
+    #           instrument=inst,
+    #           skyscale=obsdata['skyscale'])
     # clean_drp(sci_files, obsdata['lensroot'], obsdata['obsfilt'],
     #           obsdata['refpos'], obsdata['refpos'], field=obsdata['lensroot'],
     #           instrument=inst, dark_frame=caldata['dark'],
     #           skyscale=obsdata['skyscale'])
-    # data.clean(sci_files, obsdata['lensroot'], obsdata['obsfilt'],
-    #            obsdata['refpos'], obsdata['refpos'], field=obsdata['lensroot'],
-    #            instrument=inst, dark_frame=caldata['dark'],
-    #           skyscale=obsdata['skyscale'])
+    data.clean(sci_files, obsdata['obsdate'], obsdata['obsfilt'],
+               obsdata['refpos'], obsdata['refpos'], field=obsdata['lensroot'],
+               instrument=inst, dark_frame=caldata['dark'],
+               skyscale=obsdata['skyscale'])
 
     """ Calculate the Strehl for possible weighting in image combination """
     print('')
