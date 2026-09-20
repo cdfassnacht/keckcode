@@ -94,11 +94,8 @@ class KaiSet(AOSet):
 
         """ Fix the file list for input to calib makedark """
         darkfiles = []
-        for f in self.filelist:
-            if f[-4:] == 'fits':
-                darkfiles.append(f[:-5])
-            else:
-                darkfiles.append(f)
+        for f in self.kailist:
+            darkfiles.append(f)
 
         """ Make the dark file """
         calib.makedark(darkfiles, ofile, instrument=self.inst)
@@ -125,20 +122,14 @@ class KaiSet(AOSet):
 
         """ Create the file list for the lamps-on flats """
         on_files = []
-        for f in self.filelist:
-            if f[-4:] == 'fits':
-                on_files.append(f[:-5])
-            else:
-                on_files.append(f)
+        for f in self.kailist:
+            on_files.append(f)
 
         """ Make the file list for the lamps-off flats, if available """
+        off_files = []
         if off_set is not None:
-            off_files = []
-            for f in off_set.filelist:
-                if f[-4:] == 'fits':
-                    off_files.append(f[:-5])
-                else:
-                    off_files.append(f)
+            for f in off_set.kailist:
+                off_files.append(f)
 
         """ Identify the dark frame for the flats """
         if 'dark4flat' in flatinfo.keys():
@@ -149,12 +140,13 @@ class KaiSet(AOSet):
             dark4flat = None
 
         """ Make the flat file """
+        print('')
         calib.makeflat(on_files, off_files, ofile, instrument=self.inst,
                        dark_frame=dark4flat)
         print('')
         print('Created flat image: %s' % ofile)
 
-    def make_sky_drp(self, skyinfo, obsdate):
+    def make_sky_drp(self, skyinfo, obsdate, dark_frame):
         """
 
         Make a sky file by calling either the makesky function or the
@@ -175,11 +167,8 @@ class KaiSet(AOSet):
 
         """ Create the file list for the sky flats """
         skyfiles = []
-        for f in self.filelist:
-            if f[-4:] == 'fits':
-                skyfiles.append(f[:-5])
-            else:
-                skyfiles.append(f)
+        for f in self.kailist:
+            skyfiles.append(f)
 
 
         """ Identify the dark frame for the sky frames """
@@ -192,7 +181,7 @@ class KaiSet(AOSet):
 
         """ Make the sky file """
         sky.makesky(skyfiles, obsdate, skyinfo['obsfilt'],
-                    instrument=self.inst)
+                    dark_frame=dark_frame, instrument=self.inst)
         print('')
         print('Created sky image: %s' % ofile)
 

@@ -223,7 +223,7 @@ def make_dark(darkinfo, obsdate, instrument, rawdir='../raw', caldir=None,
 
 
 def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
-              indark=None, inflat=None, suffix=None):
+              indark=None, inflat=None, bpm=None, suffix=None):
     """
 
     Makes a flat-field file
@@ -268,7 +268,7 @@ def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
     """ Make the flat-field file """
     outfile = '%s_%s.fits' % (flatlist['name'], flatlist['obsfilt'])
     flats_on.create_flat(outfile, lamps_off=flats_off, normalize=normalize,
-                         indark=indark, inflat=inflat, caldir=caldir)
+                         indark=indark, inflat=inflat, bpm=bpm, caldir=caldir)
 
 
 def make_sky(skyinfo, obsdate, instrument, outroot='default', rawdir=None,
@@ -352,47 +352,6 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
 
     """
 
-    """ Set up the base keys that should be in all of the input dicts """
-    basekeys = ['name', 'frames']
-    if instrument == 'osiris' or instrument == 'osim':
-        basekeys.append('assn')
-
-    """ Create the dark(s) if darkinfo is not None"""
-    if darkinfo is not None:
-        """ Check the darkinfo format """
-        dkeys = list(basekeys)
-        darklist = check_callist(darkinfo, dkeys)
-
-        """ Create the dark(s) """
-        for info in darklist:
-            print('')
-            make_dark(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
-                      suffix=suffix)
-        del dkeys
-
-        print('===========================================================')
-        print('   Finished creating dark frames')
-        print('===========================================================')
-
-    """ Create the flat(s) if flatinfo is not None"""
-    allflats1 = []
-    if flatinfo is not None:
-        """ Check the flatinfo format """
-        fkeys = list(basekeys)
-        fkeys.append('obsfilt')
-        flatlist = check_callist(flatinfo, fkeys)
-
-        """ Create the flat(s) """
-        for info in flatlist:
-            print('')
-            make_flat(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
-                      suffix=suffix, indark=dark4flat)
-            allflats1.append('%s.fits' % info['name'])
-
-        print('===========================================================')
-        print('   Finished creating flat-field frames')
-        print('===========================================================')
-
     """
     Make the bad pixel mask, which KAI calls the 'supermask' from a dark and
      a flat.
@@ -442,6 +401,47 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     print('===========================================================')
     print('   Finished creating bad pixel mask')
     print('===========================================================')
+
+    """ Set up the base keys that should be in all of the input dicts """
+    basekeys = ['name', 'frames']
+    if instrument == 'osiris' or instrument == 'osim':
+        basekeys.append('assn')
+
+    """ Create the dark(s) if darkinfo is not None"""
+    if darkinfo is not None:
+        """ Check the darkinfo format """
+        dkeys = list(basekeys)
+        darklist = check_callist(darkinfo, dkeys)
+
+        """ Create the dark(s) """
+        for info in darklist:
+            print('')
+            make_dark(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
+                      suffix=suffix)
+        del dkeys
+
+        print('===========================================================')
+        print('   Finished creating dark frames')
+        print('===========================================================')
+
+    """ Create the flat(s) if flatinfo is not None"""
+    allflats1 = []
+    if flatinfo is not None:
+        """ Check the flatinfo format """
+        fkeys = list(basekeys)
+        fkeys.append('obsfilt')
+        flatlist = check_callist(flatinfo, fkeys)
+
+        """ Create the flat(s) """
+        for info in flatlist:
+            print('')
+            make_flat(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
+                      suffix=suffix, indark=dark4flat, bpm=bpmout)
+            allflats1.append('%s.fits' % info['name'])
+
+        print('===========================================================')
+        print('   Finished creating flat-field frames')
+        print('===========================================================')
 
     """
     Create an additive sky frame
@@ -504,22 +504,79 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
 # ---------------------------------------------------------------------------
 
 
-def apply_cal(inlist, obsdate, inst, caldir, dark, flat, bpm=None, sky=None,
-              badval=1, darkskylist=None, dsroot='darksky', skytype='clipmean',
-              rawdir='auto', wcstype='koa', inpref='default', obsfilt=None,
-              outdir=None, outpref='bgsub', **kwargs):
+def apply_cal(obsdata, caldata, darkskylist=None, dsroot='darksky',
+              skytype='clipmean', rawdir='auto', wcstype='koa',
+              inpref='default', outdir=None, **kwargs):
     """
 
     Code that applies calibration to the raw input files
 
+    Inputs:
+        obsdata - a dict that contains information about the observations
+            Required keys:
+                'scilist'
+                'obsdate'
+                'instrument'
+                'obsfilt'
+            Optional keys:
+                'skyscale'
+        caldata - a dict that contains information about the calibration
+            Required keys:
+                'caldir'
+                'dark'
+                'flat'
+            Optional keys:
+                'bpm'
+                'sky'
+                'nhigh'
+                'outpref'
+
     """
+
+    """ Check for the required keys in obsdata and caldata """
+    oreqkeys = ['scilist', 'obsdate', 'instrument', 'obsfilt']
+    creqkeys = ['caldir', 'dark', 'flat']
+    for key in oreqkeys:
+        if key not in obsdata.keys():
+            raise KeyError('Missing required key in obsdata: %s' % key)
+    for key in creqkeys:
+        if key not in caldata.keys():
+            raise KeyError('Missing required key in caldata: %s' % key)
+
+    """ Extract required key values """
+    inlist = obsdata['scilist']
+    obsdate = obsdata['obsdate']
+    inst = obsdata['instrument']
+    obsfilt = obsdata['obsfilt']
+    caldir = caldata['caldir']
+    dark = caldata['dark']
+    flat = caldata['flat']
+
+    """ Set optional keys to their default values if not provided in call """
+    if 'bpm' not in caldata.keys():
+        bpm = None
+    else:
+        bpm = caldata['bpm']
+    if 'sky' not in caldata.keys():
+        sky = None
+    else:
+        sky = caldata['sky']
+    if 'badval' not in caldata.keys():
+        badval = 1
+    else:
+        badval = caldata['badval']
+    if 'outpref' not in caldata.keys():
+        outpref = 'bgsub'
+    else:
+        outpref = caldata['outpref']
 
     """ Set up defaults that may get overridden """
     dsfile = None
     flip = None
 
     """ Read in the raw data file """
-    raw = AOSet(inlist, inst, obsdate=obsdate, indir=rawdir, wcstype=wcstype)
+    raw = AOSet(inlist, inst, obsdate=obsdate, indir=rawdir,
+                wcstype=wcstype)
 
     """
     Set up the full path names to the calibration files.

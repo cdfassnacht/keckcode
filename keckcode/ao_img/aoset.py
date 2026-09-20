@@ -88,7 +88,7 @@ class AOSet(CCDSet):
             filelist = inlist
 
         """ Set up the AOSet container by calling the superclass """
-        print(filelist)
+        # print(filelist)
         if pyversion == 2:
             super(AOSet, self).__init__(filelist, texpkey=texpkey,
                                         gainkey=gainkey, indir=indir,
@@ -104,7 +104,19 @@ class AOSet(CCDSet):
         self.maskdir = None
         self.skydir = None
         self.reduxdir = None
+
+        """ Set file lists for possible future actions"""
         self.filelist = filelist
+        self.kailist = []
+        for f in self.filelist:
+            if f[-4:] == 'fits':
+                tmp = '%s' % f[:-5]
+            else:
+                tmp = '%s' % f
+            if instrument == 'nirc2':
+                if tmp[0] == 'n':
+                    tmp = tmp[1:]
+            self.kailist.append(tmp)
 
         """ Set instrument-specific values """
         if instrument == 'osiris' or instrument == 'osim':
@@ -439,8 +451,8 @@ class AOSet(CCDSet):
     #  ------------------------------------------------------------------------
 
     def create_flat(self, outname, lamps_off=None, caldir=None, normalize=None,
-                    indark=None, inflat=None, reject='minmax', nlow=1, nhigh=1,
-                    **kwargs):
+                    indark=None, inflat=None, bpm=None, reject='minmax',
+                    nlow=1, nhigh=1, **kwargs):
         """
 
         Creates a flat-field frame following the KAI recipe.  This approach
@@ -497,12 +509,12 @@ class AOSet(CCDSet):
             """ First make the combined lamps-off and lamps-on frames """
             print('Combining lamps-off frames')
             lamps_off.make_flat(outfile=offfits, normalize=tmpnorm,
-                                bias=dark, flat=inflat,
+                                bias=dark, flat=inflat, bpm=bpm,
                                 reject=reject, nlow=nlow, nhigh=nhigh, **kwargs)
             print('')
             print('Combining lamps-on frames')
             self.make_flat(outfile=onfits, normalize=tmpnorm, bias=dark,
-                           flat=inflat, reject=reject, nlow=nlow,
+                           flat=inflat, bpm=bpm, reject=reject, nlow=nlow,
                            nhigh=nhigh, **kwargs)
 
             """ Now loop through paired on/off exposures, taking differences """
@@ -533,7 +545,7 @@ class AOSet(CCDSet):
 
                 """ Make the final flat """
                 print('Combining difference frames into final flat')
-                self.make_flat(outfile=outfile, normalize=normalize,
+                self.make_flat(outfile=outfile, normalize=normalize, bpm=bpm,
                                reject=reject, nlow=nlow, nhigh=nhigh, **kwargs)
             else:
                 print('Creating difference between lamps-on and lamps-off')
@@ -552,7 +564,7 @@ class AOSet(CCDSet):
 
             """ Make the final flat """
             self.make_flat(outfile=outfile, normalize=normalize,
-                           bias=dark, flat=inflat, reject=reject,
+                           bias=dark, flat=inflat, bpm=bpm, reject=reject,
                            nlow=nlow, nhigh=nhigh, **kwargs)
 
     #  ------------------------------------------------------------------------

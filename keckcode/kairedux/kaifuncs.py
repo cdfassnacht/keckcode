@@ -978,6 +978,8 @@ def go_cal_drp(obsdate, instrument, darklist=None, flatlist=None, maskinfo=None,
             darkset.make_dark_drp(info['name'])
         del dkeys
 
+        print('')
+        print('Creating dark frame(s)')
         print('===========================================================')
         print('   Finished creating dark frames')
         print('===========================================================')
@@ -1008,6 +1010,7 @@ def go_cal_drp(obsdate, instrument, darklist=None, flatlist=None, maskinfo=None,
             flatset.make_flat_drp(info, flats_off)
         del fkeys
 
+        print('')
         print('===========================================================')
         print('   Finished creating flat frame(s)')
         print('===========================================================')
@@ -1041,8 +1044,13 @@ def go_cal_drp(obsdate, instrument, darklist=None, flatlist=None, maskinfo=None,
             skyset = KaiSet(info, instrument, obsdate, indir=rawdir,
                             is_sci=False, wcsverb=False, suff=suff)
             print('')
-            skyset.make_sky_drp(info, obsdate)
+            if 'dark4sky' in info.keys():
+                dark_frame = info['dark4sky']
+            else:
+                dark_frame = None
+            skyset.make_sky_drp(info, obsdate, dark_frame)
         del skeys
+        print('')
         print('===========================================================')
         print('   Finished creating sky frame(s)')
         print('===========================================================')
@@ -1668,7 +1676,7 @@ def go_kai_drp(obsdata, caldata, mode='flex', suffix=None, submaps=0):
                    obsdata['refpos'], obsdata['refpos'],
                    field=obsdata['lensroot'],
                    instrument=inst, dark_frame=caldata['dark'],
-                   skyscale=obsdata['skyscale'])
+                   skyscale=caldata['skyscale'])
     else:
         print('Calibrating science frames')
         print('--------------------------')
@@ -1677,6 +1685,10 @@ def go_kai_drp(obsdata, caldata, mode='flex', suffix=None, submaps=0):
         print('Aligning science frames')
         print('-----------------------')
         align_drp(sci_files, obsdata, instrument=inst)
+    #
+    # NOTE: Don't use clean_drp any more.  Its functionality has been split into
+    #  the apply_cal_drp and align_drp functions
+    #
     # clean_drp(sci_files, obsdata['lensroot'], obsdata['obsfilt'],
     #           obsdata['refpos'], obsdata['refpos'], field=obsdata['lensroot'],
     #           instrument=inst, dark_frame=caldata['dark'],
