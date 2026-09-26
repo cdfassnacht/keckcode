@@ -1146,7 +1146,7 @@ def apply_cal_drp(files, obsdata, caldata,
     field = obsdata['lensroot']
     refSrc = obsdata['refpos']
     strSrc = obsdata['refpos']
-    skyscale = obsdata['skyscale']
+    skyscale = caldata['skyscale']
     dark_frame = caldata['dark']
 
     # Determine directory locations
@@ -1379,7 +1379,7 @@ def apply_cal_drp(files, obsdata, caldata,
     os.chdir(redDir)
 
 
-def align_drp(files, obsdata, skyfile=None, angOff=0.0, cent_box=12,
+def align_drp(files, obsdata, caldata, skyfile=None, angOff=0.0, cent_box=12,
               fixDAR=True, use_koa_weather=False,
               raw_dir=None, clean_dir=None,
               instrument=instruments.default_inst, check_ref_loc=True,
@@ -1464,7 +1464,7 @@ def align_drp(files, obsdata, skyfile=None, angOff=0.0, cent_box=12,
     field = obsdata['lensroot']
     refSrc = obsdata['refpos']
     strSrc = obsdata['refpos']
-    skyscale = obsdata['skyscale']
+    skyscale = caldata['skyscale']
 
     # Determine directory locations
     redDir = os.getcwd() + '/'
@@ -1684,7 +1684,7 @@ def go_kai_drp(obsdata, caldata, mode='flex', suffix=None, submaps=0):
         print('')
         print('Aligning science frames')
         print('-----------------------')
-        align_drp(sci_files, obsdata, instrument=inst)
+        align_drp(sci_files, obsdata, caldata, instrument=inst)
     #
     # NOTE: Don't use clean_drp any more.  Its functionality has been split into
     #  the apply_cal_drp and align_drp functions

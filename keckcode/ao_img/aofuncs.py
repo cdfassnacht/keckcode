@@ -223,7 +223,7 @@ def make_dark(darkinfo, obsdate, instrument, rawdir='../raw', caldir=None,
 
 
 def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
-              indark=None, inflat=None, bpm=None, suffix=None):
+              indark=None, inflat=None, bpm=None, suffix=None, **kwargs):
     """
 
     Makes a flat-field file
@@ -245,7 +245,7 @@ def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
     """ Set default value """
     normalize = 'sigclip'
 
-    """ Make a KaiSet holder for the lamps-on frames """
+    """ Make an AOSet holder for the lamps-on frames """
     print('Reading flat-field frames (lamps on)')
     flats_on = AOSet(flatlist, instrument, obsdate, indir=rawdir, is_sci=False,
                      wcsverb=False)
@@ -268,7 +268,8 @@ def make_flat(flatlist, obsdate, instrument, rawdir=None, caldir=None,
     """ Make the flat-field file """
     outfile = '%s_%s.fits' % (flatlist['name'], flatlist['obsfilt'])
     flats_on.create_flat(outfile, lamps_off=flats_off, normalize=normalize,
-                         indark=indark, inflat=inflat, bpm=bpm, caldir=caldir)
+                         indark=indark, inflat=inflat, bpm=bpm, caldir=caldir,
+                         **kwargs)
 
 
 def make_sky(skyinfo, obsdate, instrument, outroot='default', rawdir=None,
@@ -312,11 +313,11 @@ def make_sky(skyinfo, obsdate, instrument, outroot='default', rawdir=None,
     skies.create_sky(skyroot, skyinfo['obsfilt'], caldir=caldir, indark=indark,
                      inflat=inflat, outdir=skies.skydir, bpm=bpm, **kwargs)
 
-
-def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
-                  instrument, skyflatinfo=None, rawdir=None, caldir=None,
-                  dark4flat=None, dark4sky=None, flat4sky=None,
-                  root4sky=None, suffix=None,  forkai=True, **kwargs):
+# def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
+#                   instrument, skyflatinfo=None, rawdir=None, caldir=None,
+#                   dark4flat=None, dark4sky=None, flat4sky=None,
+#                   root4sky=None, bpmsig=5., suffix=None, forkai=True, **kwargs):
+def make_calfiles(caldata, bpmsig=5., suffix=None, forkai=True, **kwargs):
     """
     
     Makes all of the calibration files
@@ -352,6 +353,99 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
 
     """
 
+    """ Set default values """
+    rawdir = None
+    caldir = None
+    dark4flat = None
+    dark4sky = None
+    flat4sky = None
+    root4sky = None
+    bpmsig = 5.
+    suffix = None
+    forkai = True
+
+    """ Get info from caldata """
+    obsdate = caldata['obsdate']
+    instrument = caldata['instrument']
+    flatinfo = caldata['flatinfo']
+    skyinfo = caldata['skyinfo']
+    if 'rawdir' in caldata.keys():
+        rawdir = caldata['rawdir']
+    if 'caldir' in caldata:
+        caldir = caldata['caldir']
+    if 'bpmsig' in caldata:
+        bpmsig = caldata['bpmsig']
+    if 'dark4mask' in caldata:
+        dark4mask = caldata['dark4mask']
+    if 'flat4mask' in caldata:
+        flat4mask = caldata['flat4mask']
+    if 'dark4sky' in caldata:
+        dark4sky = caldata['dark4sky']
+    if 'dark4flat' in caldata:
+        dark4flat = caldata['dark4flat']
+    if 'flatroot4sky' in caldata:
+        root4sky = caldata['flatroot4sky']
+
+    """ Set up flags to handle how the final flat-field frame is created """
+    domeflat = False
+    skyflat = False
+
+    """ Set up the base keys that should be in all of the input dicts """
+    basekeys = ['name', 'frames']
+    if caldata['instrument'] == 'osiris' or caldata['instrument'] == 'osim':
+        basekeys.append('assn')
+
+    """ Create the dark(s) if darkinfo is not None"""
+    if caldata['darkinfo'] is not None:
+        """ Check the darkinfo format """
+        dkeys = list(basekeys)
+        darklist = check_callist(caldata['darkinfo'], dkeys)
+
+        """ Create the dark(s) """
+        for info in darklist:
+            print('')
+            make_dark(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
+                      suffix=suffix)
+        del dkeys
+
+        print('===========================================================')
+        print('   Finished creating dark frames')
+        print('===========================================================')
+
+    """ Make an initial bad pixel mask from the longest dark frame """
+    print('')
+    print('Making the initial bad pixel mask just from  dark')
+    print('-------------------------------------------------')
+    dark = WcsHDU(dark4mask, wcsverb=False)
+    bpminit = dark.make_bpm('dark', goodval=0, nsig=bpmsig)
+    bpm0hdu = WcsHDU(bpminit, wcsverb=False)
+    bpm0out = 'bpm_init.fits'
+    bpm0hdu.save(bpm0out)
+    print('Saved initial bad pixel mask (just from darks) to file: %s'
+          % bpm0out)
+
+    """
+    Create the (initial) flat(s) if flatinfo is not None
+    This frame is often created from domeflat exposures, but on nights 
+    """
+    allflats1 = []
+    if flatinfo is not None:
+        """ Check the flatinfo format """
+        fkeys = list(basekeys)
+        fkeys.append('obsfilt')
+        flatlist = check_callist(flatinfo, fkeys)
+
+        """ Create the flat(s) """
+        for info in flatlist:
+            print('')
+            make_flat(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
+                      suffix=suffix, indark=dark4flat, bpm=bpm0out, badval=1)
+            allflats1.append('%s.fits' % info['name'])
+
+        print('===========================================================')
+        print('   Finished creating (initial) flat-field frames')
+        print('===========================================================')
+
     """
     Make the bad pixel mask, which KAI calls the 'supermask' from a dark and
      a flat.
@@ -361,9 +455,8 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     """
     print('')
     print('Making a bad pixel mask (what KAI calls a supermask)')
-    print('---------------------')
-    dark = WcsHDU(dark4mask, wcsverb=False)
-    bpm = dark.make_bpm('dark', goodval=0, flat=flat4mask)
+    print('----------------------------------------------------')
+    bpm = dark.make_bpm('dark', goodval=0, flat=flat4mask, nsig=bpmsig)
 
     """ Add the known instrumental bad features to this mask, if available """
     moddir = os.path.dirname(__file__)
@@ -402,46 +495,15 @@ def make_calfiles(obsdate, darkinfo, flatinfo, skyinfo, dark4mask, flat4mask,
     print('   Finished creating bad pixel mask')
     print('===========================================================')
 
-    """ Set up the base keys that should be in all of the input dicts """
-    basekeys = ['name', 'frames']
-    if instrument == 'osiris' or instrument == 'osim':
-        basekeys.append('assn')
 
-    """ Create the dark(s) if darkinfo is not None"""
-    if darkinfo is not None:
-        """ Check the darkinfo format """
-        dkeys = list(basekeys)
-        darklist = check_callist(darkinfo, dkeys)
+    """
+    If sky frames are provided then use them to do two steps:
+        1. Create a sky flat and use it in combination with the domeflat
+           (if any) to create the final flat-field frame.
+        2. Create an additive sky frame to be subtracted from the science
+           frames.
+    """
 
-        """ Create the dark(s) """
-        for info in darklist:
-            print('')
-            make_dark(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
-                      suffix=suffix)
-        del dkeys
-
-        print('===========================================================')
-        print('   Finished creating dark frames')
-        print('===========================================================')
-
-    """ Create the flat(s) if flatinfo is not None"""
-    allflats1 = []
-    if flatinfo is not None:
-        """ Check the flatinfo format """
-        fkeys = list(basekeys)
-        fkeys.append('obsfilt')
-        flatlist = check_callist(flatinfo, fkeys)
-
-        """ Create the flat(s) """
-        for info in flatlist:
-            print('')
-            make_flat(info, obsdate, instrument, rawdir=rawdir, caldir=caldir,
-                      suffix=suffix, indark=dark4flat, bpm=bpmout)
-            allflats1.append('%s.fits' % info['name'])
-
-        print('===========================================================')
-        print('   Finished creating flat-field frames')
-        print('===========================================================')
 
     """
     Create an additive sky frame

@@ -509,12 +509,15 @@ class AOSet(CCDSet):
             """ First make the combined lamps-off and lamps-on frames """
             print('Combining lamps-off frames')
             lamps_off.make_flat(outfile=offfits, normalize=tmpnorm,
-                                bias=dark, flat=inflat, bpm=bpm,
+                                bias=dark, flat=inflat,
+                                #bpm=bpm,
                                 reject=reject, nlow=nlow, nhigh=nhigh, **kwargs)
             print('')
             print('Combining lamps-on frames')
             self.make_flat(outfile=onfits, normalize=tmpnorm, bias=dark,
-                           flat=inflat, bpm=bpm, reject=reject, nlow=nlow,
+                           flat=inflat,
+                           #bpm=bpm,
+                           reject=reject, nlow=nlow,
                            nhigh=nhigh, **kwargs)
 
             """ Now loop through paired on/off exposures, taking differences """
