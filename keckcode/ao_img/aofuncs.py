@@ -414,8 +414,8 @@ def make_calfiles(caldata, bpmsig=5., suffix=None, forkai=True, **kwargs):
 
     """ Make an initial bad pixel mask from the longest dark frame """
     print('')
-    print('Making the initial bad pixel mask just from  dark')
-    print('-------------------------------------------------')
+    print('Making the initial bad pixel mask just from dark')
+    print('------------------------------------------------')
     dark = WcsHDU(dark4mask, wcsverb=False)
     bpminit = dark.make_bpm('dark', goodval=0, nsig=bpmsig)
     bpm0hdu = WcsHDU(bpminit, wcsverb=False)
@@ -426,7 +426,9 @@ def make_calfiles(caldata, bpmsig=5., suffix=None, forkai=True, **kwargs):
 
     """
     Create the (initial) flat(s) if flatinfo is not None
-    This frame is often created from domeflat exposures, but on nights 
+    This frame is often created from domeflat exposures, but on nights without
+     domeflat exposures this can be made from sky frames (preferred) or even
+     science frames.
     """
     allflats1 = []
     if flatinfo is not None:

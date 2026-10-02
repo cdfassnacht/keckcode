@@ -424,7 +424,7 @@ class AOSet(CCDSet):
     #  ------------------------------------------------------------------------
 
     def create_dark(self, outname, caldir=None, reject='sigclip',
-                    nlow=1, nhigh=1):
+                    nlow=1, nhigh=1, **kwargs):
         """
 
         Creates a dark-frame using the ccdredux make_dark functionality
@@ -446,7 +446,8 @@ class AOSet(CCDSet):
         outlist = os.path.join(darkdir, 'dark.lis')
 
         """ """
-        self.make_bias(outfile=outfile, reject=reject, nlow=nlow, nhigh=nhigh)
+        self.make_bias(outfile=outfile, reject=reject, nlow=nlow, nhigh=nhigh,
+                       **kwargs)
 
     #  ------------------------------------------------------------------------
 
